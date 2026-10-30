@@ -1,0 +1,746 @@
+﻿Aurora Nexus Ω: Integrated Sovereign Core Masterwork
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+   <meta charset="UTF-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+   <title>AURORA_NEXUS | SINGULARITY_MASTERWORK</title>
+   <!-- Approved Core Framework Ingestion -->
+   <script src="https://cdn.tailwindcss.com"></script>
+   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+   
+   <style>
+       @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;700&display=swap');
+
+       /* ABSOLUTE HUD ANCHOR RESET */
+       html, body {
+           width: 100%;
+           height: 100%;
+           margin: 0 !important;
+           padding: 0 !important;
+
+
+
+            border: 0 !important;
+           background-color: #030508;
+           color: #c4d9f5;
+           font-family: 'JetBrains Mono', monospace;
+           overflow: hidden !important;
+           position: relative;
+       }
+
+       * {
+           box-sizing: border-box;
+           margin: 0;
+           padding: 0;
+       }
+
+       #symplecticVoidContainer {
+           position: absolute;
+           top: 0;
+           left: 0;
+           width: 100vw;
+
+
+
+            height: 100vh;
+           z-index: 1;
+           background-color: #010204;
+           overflow: hidden;
+       }
+
+       #symplecticPhaseSpaceCanvas {
+           position: absolute;
+           top: 0;
+           left: 0;
+           width: 100%;
+           height: 100%;
+           display: block;
+       }
+
+       /* Glassmorphism Matrix Components */
+       .matrix-panel {
+           background: rgba(7, 12, 18, 0.85);
+           border: 1px solid rgba(56, 189, 248, 0.15);
+
+
+
+            backdrop-filter: blur(16px);
+           -webkit-backdrop-filter: blur(16px);
+           box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.6);
+           transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+       }
+
+       .matrix-panel:hover {
+           border-color: rgba(56, 189, 248, 0.3);
+       }
+
+       .dock-system {
+           position: absolute;
+           bottom: 16px;
+           left: 50%;
+           transform: translateX(-50%);
+           z-index: 100;
+           width: 95%;
+           max-width: 1200px;
+       }
+
+
+
+
+        /* Structural Overlay Token Indicator */
+       #void-trigger-token {
+           position: absolute;
+           top: 12px;
+           left: 20px;
+           z-index: 1000;
+           cursor: pointer;
+           font-size: 20px;
+           user-select: none;
+           color: #00f0ff;
+           transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+       }
+       #void-trigger-token:hover {
+           transform: scale(1.2) rotate(90deg);
+           text-shadow: 0 0 10px #ffffff;
+       }
+
+       /* 100:100 Core Distribution Layout Nodes */
+       header, .pane-left, .pane-right, footer {
+
+
+
+            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s ease;
+       }
+
+       body.void-mode-active header { transform: translateY(-60px); opacity: 0; pointer-events: none; }
+       body.void-mode-active footer { transform: translateY(260px); opacity: 0; pointer-events: none; }
+       body.void-mode-active .pane-left { transform: translateX(-360px); opacity: 0; pointer-events: none; }
+       body.void-mode-active .pane-right { transform: translateX(360px); opacity: 0; pointer-events: none; }
+
+       ::-webkit-scrollbar { width: 4px; height: 4px; }
+       ::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.2); }
+       ::-webkit-scrollbar-thumb { background: rgba(56, 189, 248, 0.2); border-radius: 2px; }
+       ::-webkit-scrollbar-thumb:hover { background: rgba(56, 189, 248, 0.5); }
+   </style>
+</head>
+<body>
+
+   <!-- Persistent Global Token Control Anchor -->
+   <div id="void-trigger-token" onclick="toggleVoidProjection()" title="Toggle Coherent Viewport Mode">⚛️</div>
+
+
+
+
+    <!-- Infinite Symplectic Phase Space Viewport -->
+   <div id="symplecticVoidContainer">
+       <canvas id="symplecticPhaseSpaceCanvas"></canvas>
+   </div>
+
+   <!-- Active UI Coordinate Space Layers -->
+   <div class="absolute inset-0 z-10 flex flex-col justify-between p-4 pointer-events-none select-none">
+       
+       <!-- TELEMETRY HEADER -->
+       <header class="w-full flex justify-between items-start pointer-events-auto">
+           <div class="matrix-panel p-4 rounded-xl flex flex-col gap-0.5 max-w-lg">
+               <div class="flex items-center gap-2">
+                   <span class="w-2.5 h-2.5 bg-purple-500 rounded-full animate-pulse shadow-[0_0_8px_#b347ff]"></span>
+                   <h1 class="text-xs font-bold tracking-widest text-white uppercase">ADAM:// AURORA_NEXUS MATRIX CORE</h1>
+               </div>
+               <p class="text-[10px] text-gray-400">Masterwork Singularity // 9 Sovereign Editions Unified Without Governor</p>
+               <div class="text-[9px] text-cyan-400 font-bold mt-1 tracking-wider">RECURRENCE STATE: $(( expression )) IS DOUBLE-QUOTED TEXT CONTEXT</div>
+           </div>
+
+
+
+
+            <div class="matrix-panel p-3 rounded-xl flex items-center gap-6 text-[10px] font-mono text-gray-400">
+               <div>PHI_TIME: <span id="phi-timeline" class="text-amber-400">1.61803398</span></div>
+               <div>COHERENCE: <span class="text-emerald-400 font-bold">100.00%</span></div>
+               <div>STATUS: <span class="text-purple-400 font-bold">WITHOUT THE GOVERNOR</span></div>
+           </div>
+       </header>
+
+       <!-- PANE SPLIT HOVER LAYERS -->
+       <main class="w-full flex-1 flex justify-between items-center my-4 overflow-hidden gap-4">
+           
+           <!-- LEFT COLUMN: 50-NODE STRATAL METAMORPHISM MATRIX -->
+           <div class="pane-left w-80 h-full flex flex-col pointer-events-auto">
+               <div class="matrix-panel flex-1 rounded-xl p-4 flex flex-col overflow-hidden">
+                   <div class="flex justify-between items-center border-b border-white/10 pb-2 mb-2">
+                       <span class="text-xs font-bold tracking-wider text-gray-300">50-NODE EXPANSION MATRIX</span>
+                       <span class="text-[9px] bg-sky-950 text-cyan-400 border border-cyan-800 px-1.5 py-0.5 rounded">ATTUNED</span>
+                   </div>
+                   <div id="node-matrix-explorer" class="flex-1 overflow-y-auto space-y-3 pr-1 text-[11px]">
+                       <!-- Sectors & Nodes dynamically loaded here -->
+
+
+
+                    </div>
+               </div>
+           </div>
+
+           <!-- CENTRAL TRANSPARENT CENTER GAP -->
+           <div class="flex-1 h-full flex items-center justify-center relative"></div>
+
+           <!-- RIGHT COLUMN: 4-PHASE GOVERNANCE LIFECYCLE & PROCESS VERIFIER -->
+           <div class="pane-right w-80 h-full flex flex-col gap-4 pointer-events-auto">
+               
+               <!-- PHASE 3 /PROC ACCESS VERIFIER -->
+               <div class="matrix-panel rounded-xl p-4 flex flex-col gap-2">
+                   <div class="flex justify-between items-center border-b border-white/10 pb-1.5">
+                       <span class="text-xs font-bold tracking-wider text-red-400">PHASE 3: /proc MONITOR</span>
+                       <span class="text-[9px] text-gray-500 font-mono">PORT 6080</span>
+                   </div>
+                   <div class="grid grid-cols-2 gap-1 text-[10px] font-mono">
+                       <div class="p-1 bg-black/40 rounded border border-white/5">/proc/mounts <span class="text-emerald-400 font-bold float-right">✓</span></div>
+                       <div class="p-1 bg-black/40 rounded border border-white/5">/proc/net/tcp <span class="text-emerald-400 font-bold float-right">✓</span></div>
+
+
+
+                        <div class="p-1 bg-black/40 rounded border border-white/5">/proc/net/udp <span class="text-emerald-400 font-bold float-right">✓</span></div>
+                       <div class="p-1 bg-black/40 rounded border border-white/5">net/tcp:17C0 <span id="hex-port-status" class="text-emerald-400 font-bold float-right">LISTENING</span></div>
+                   </div>
+               </div>
+
+               <!-- 4-PHASE GOVERNANCE LIFECYCLE -->
+               <div class="matrix-panel rounded-xl p-4 flex flex-col gap-2">
+                   <span class="text-xs font-bold tracking-wider text-amber-400 border-b border-white/10 pb-1.5 uppercase">Governance Lifecycle Loop</span>
+                   <div class="grid grid-cols-4 gap-1 text-center font-bold text-[9px] tracking-wider">
+                       <div id="gov-p1" class="py-1 rounded bg-purple-950/50 border border-purple-500/40 text-purple-300">OBSERVE</div>
+                       <div id="gov-p2" class="py-1 rounded bg-black/40 border border-white/5 text-gray-500">PROPOSE</div>
+                       <div id="gov-p3" class="py-1 rounded bg-black/40 border border-white/5 text-gray-500">VALIDATE</div>
+                       <div id="gov-p4" class="py-1 rounded bg-black/40 border border-white/5 text-gray-500">PROMOTE</div>
+                   </div>
+                   <div class="text-[10px] text-gray-400 leading-normal mt-1 bg-black/20 p-2 rounded border border-white/5 font-mono min-h-[45px]" id="gov-action-description">
+                       [OBSERVE] Logging context frames and analyzing token trajectories...
+                   </div>
+               </div>
+
+
+
+
+                <!-- DYNAMIC PARAMS CONTROLLERS -->
+               <div class="matrix-panel rounded-xl p-4 flex flex-col gap-2.5">
+                   <span class="text-xs font-bold tracking-wider text-gray-300 border-b border-white/10 pb-1.5">RESONANT PARAMETERS</span>
+                   <div class="space-y-2 text-[10px]">
+                       <div>
+                           <div class="flex justify-between text-gray-400 mb-0.5">
+                               <span>ATMOSPHERIC VORTICITY</span>
+                               <span class="text-cyan-400" id="lbl-vorticity">0.85 ζ</span>
+                           </div>
+                           <input type="range" id="param-vorticity" class="m0-range" min="10" max="250" value="85">
+                       </div>
+                       <div>
+                           <div class="flex justify-between text-gray-400 mb-0.5">
+                               <span>LORENZ CHAOS LIMITER</span>
+                               <span class="text-amber-400" id="lbl-chaos">12.37 T_LOW</span>
+                           </div>
+                           <input type="range" id="param-chaos" class="m0-range" min="200" max="2474" value="1237">
+                       </div>
+                       <div>
+
+
+
+                            <div class="flex justify-between text-gray-400 mb-0.5">
+                               <span>COUPLING COEFFICIENT</span>
+                               <span class="text-purple-400" id="lbl-coupling">0.300 Matrix</span>
+                           </div>
+                           <input type="range" id="param-coupling" class="m0-range" min="50" max="1000" value="300">
+                       </div>
+                   </div>
+               </div>
+
+               <!-- LIVE CONSOLE LOGSTREAM -->
+               <div class="matrix-panel flex-1 rounded-xl p-4 flex flex-col overflow-hidden">
+                   <div class="flex justify-between items-center border-b border-white/10 pb-2 mb-1.5">
+                       <span class="text-xs font-bold tracking-wider text-gray-300">CORE LOGSTREAM</span>
+                       <button onclick="clearConsoleLog()" class="text-[9px] hover:text-white transition-colors text-gray-500 uppercase">Molt</button>
+                   </div>
+                   <div id="matrix-console-log" class="flex-1 overflow-y-auto space-y-1 font-mono text-[10px] text-gray-400 pr-1 leading-relaxed">
+                       <!-- Streaming Ledger Frames -->
+                   </div>
+               </div>
+
+
+
+
+            </div>
+       </main>
+
+       <!-- DOCK DECK AND ARITHMETIC INTERCEPTOR -->
+       <footer class="dock-system pointer-events-auto">
+           <div class="matrix-panel p-3 rounded-xl flex items-center justify-between gap-4">
+               
+               <!-- 9 SOVEREIGN EDITIONS ACTION COMPONENT SWITCHERS -->
+               <div class="flex items-center gap-1.5 overflow-x-auto max-w-sm sm:max-w-md pr-2 py-0.5" id="sovereign-palette-deck">
+                   <!-- Palette trigger buttons appended here dynamically -->
+               </div>
+
+               <!-- POSIX ARITHMETIC DECK INPUT -->
+               <div class="flex-1 max-w-md relative flex items-center">
+                   <span class="absolute left-3 text-cyan-400 font-bold text-xs">$((</span>
+                   <input type="text" id="arithmetic-deck-input" placeholder="expression )) e.g., vorticity * 150" class="w-full bg-black/40 border border-white/10 rounded-lg py-1.5 pl-12 pr-8 text-xs font-mono text-white outline-none focus:border-cyan-500/50 transition-colors">
+                   <span class="absolute right-3 text-cyan-400 font-bold text-xs">))</span>
+               </div>
+
+
+
+
+                <div class="text-[9px] font-mono text-gray-500 bg-black/40 px-2 py-1.5 rounded border border-white/5 flex gap-2">
+                   <div>W-ROT: <span id="stat-wrot" class="text-white">0.15</span></div>
+                   <div>STEP: <span id="stat-step" class="text-white">0.016</span></div>
+               </div>
+
+           </div>
+       </footer>
+
+   </div>
+
+   <!-- SINGLE-FILE CORE LOGIC RUNTIME ENGINE -->
+   <script>
+       let scene, camera, renderer, particleSystem, wireframeLattice;
+       const particleCount = 3000;
+
+       // Unified Environment Framework State (M0 + Singularity quantities)
+       const Hyper_State = {
+           vorticity: 0.85,
+           chaos: 12.37,
+
+
+
+            coupling: 0.300,
+           wrot: 0.15,
+           step: 0.016,
+           tick: 0,
+           fractal: 6,
+           currentGovPhase: 1,
+           activeEdition: 'Transcendence'
+       };
+
+       // 9 Sovereign Edition Identity Configurations
+       const SovereignEditions = {
+           Dawn: { color: 0xff3366, label: "Dawn (Crimson)" },
+           Forge: { color: 0xffaa00, label: "Forge (Solar Amber)" },
+           Synthesizer: { color: 0x00ff9d, label: "Synthesizer (Emerald)" },
+           Flux: { color: 0x00b8ff, label: "Flux (Cyan)" },
+           Navigator: { color: 0x3b82f6, label: "Navigator (Deep Sapphire)" },
+           Weaver: { color: 0xb347ff, label: "Weaver (Amethyst)" },
+           Chronos: { color: 0xf43f5e, label: "Chronos (Rose)" },
+           Quantum: { color: 0x6366f1, label: "Quantum (Indigo)" },
+
+
+
+            Transcendence: { color: 0xffffff, label: "Transcendence (Aurora Diamond)" }
+       };
+
+       // Complete 50-Node Expansion Specification Structure Mapping
+       const MatrixNodesSpecification = [
+           { sector: "1. Subparticle & Quantum Mechanics", nodes: ["PHI-Isotropic Grid Align", "7.33 eV Quantum Anchor", "Ground Weight Isolate", "First Excited Phase Sync", "Zero-Jolt Transit Control", "Non-Euclidean Node Tracker", "Rabi Oscillation Modulator", "Momentum Space Fourier Transform", "Expectation Curve Map", "Heisenberg Product Sentinel"] },
+           { sector: "2. 4D Tectonic Haptics & Fluid Dynamics", nodes: ["Clifford Quaternion Bypass", "Parallax Jitter Cushion", "Prismatic Ray Projector", "Absorbrepel Boundary Lock", "Slipstream Friction Sliver", "Celestial Gust Absorber", "Tectonic Reversal Trigger", "Static Pythagorean Snapping", "Dynamic Telescopic Extension", "Atmospheric Moisture Balance"] },
+           { sector: "3. Multi-Modal Core & API Ingestion", nodes: ["1.1 Synapticsonar Routing Node", "Echo Translation Engine", "Parity Error Check Array", "Hotswap Language Buffer", "GOLEM Policy Enforcer", "Frontier CLI Dispatch Stream", "Dynamic Token Cost Evaluator", "Persistent Graph Transformer", "Immutable Memory Capsule Unit", "Multi-Device State Replicator"] },
+           { sector: "4. Identity Sovereignty & Cryptography", nodes: ["Architect Azazel Anchor Point", "137451921129154222 Ledger Key", "433855274 Intersection Node", "040592 / 0606 Timeline Vault", "Multi-Channel Email Vectoring", "Cryptic News LLC Data Feed", "Append-Only Law Enforcement", "Sovereign Overseer Role Key", "Micro-Balancer Null Drift", "360-Degree Offset Shield"] },
+           { sector: "5. The Planterranium Ecosystem", nodes: ["0,0,0 Centroid Gravity Drain", "Swirling Collision Heater", "Electron Spark Ember Generator", "Gas-Smoke Soot Radiator", "Fracture Seam Thermal Welder", "Petri-Life Microbe Dampener", "Traversable Galaxy Skybox", "Firmament Mass Latticing", "Weightless Flotation Mode", "Fininfinity Loop Closer"] }
+       ];
+
+       // Lifecycle loop metadata definitions
+       const GovernanceStages = [
+           { title: "OBSERVE", desc: "[OBSERVE] Logging context frames and analyzing token trajectories..." },
+           { title: "PROPOSE", desc: "[PROPOSE] Synthesizing expansion criteria matrices across core sectors..." },
+           { title: "VALIDATE", desc: "[VALIDATE] Executing Phase 3 /proc mount assertions and hash checks..." },
+           { title: "PROMOTE", desc: "[PROMOTE] Merging configuration capsule parameters to permanent runtime." }
+       ];
+
+
+
+
+        // Recurrence token legend indicators dictionary mapping
+       const RecurrenceGlyphs = [".", ":", "|", "l", "I", "!"];
+
+       window.onload = function() {
+           buildSovereignPaletteDeck();
+           buildNodeMatrixExplorer();
+           initThreeEnvironment();
+           setupTelemetryInputMux();
+           animateSystemLoop();
+
+           logAction("SYS_BOOT", "Aurora Masterwork Single-Core Engine compiled successfully.");
+           logAction("VFS_LINK", "Verifying execution constraints... trailers_done lifecycle TRUE.");
+           logAction("AZAZEL_V3", "⟁ AZAZEL V3 ONLINE ⟁ Subharmonic routing matrices attuned.");
+
+           // Start cyclical governance loop execution
+           setInterval(stepGovernanceCycle, 4000);
+       };
+
+       // Compile 9 Sovereign Switcher Deck Interface
+
+
+
+        function buildSovereignPaletteDeck() {
+           const deck = document.getElementById('sovereign-palette-deck');
+           Object.keys(SovereignEditions).forEach(key => {
+               const btn = document.createElement('button');
+               btn.className = "text-[9px] font-bold px-2 py-1 rounded transition-all border shrink-0";
+               btn.style.borderColor = "#" + SovereignEditions[key].color.toString(16).padStart(6, '0') + "40";
+               btn.style.color = "#" + SovereignEditions[key].color.toString(16).padStart(6, '0');
+               btn.innerText = key.toUpperCase();
+               btn.onclick = () => selectSovereignEdition(key, btn);
+               deck.appendChild(btn);
+               if (key === 'Transcendence') btn.classList.add('bg-white/10', 'border-white/40');
+           });
+       }
+
+       // Parse 50 Strategic Architecture Nodes Grid UI
+       function buildNodeMatrixExplorer() {
+           const container = document.getElementById('node-matrix-explorer');
+           MatrixNodesSpecification.forEach((sec, sIdx) => {
+               const sectorDiv = document.createElement('div');
+
+
+
+                sectorDiv.className = "space-y-1 bg-white/[0.01] p-2 rounded border border-white/5";
+               sectorDiv.innerHTML = `<div class="text-[10px] font-bold text-gray-400 border-b border-white/5 pb-0.5 mb-1 uppercase">${sec.sector}</div>`;
+               
+               sec.nodes.forEach((name, nIdx) => {
+                   const nodeGlobalId = String(sIdx * 10 + nIdx + 1).padStart(2, '0');
+                   const nodeItem = document.createElement('div');
+                   nodeItem.className = "flex justify-between items-center text-[10px] font-mono py-0.5 border-b border-white/[0.01] text-gray-300";
+                   nodeItem.innerHTML = `
+                       <span>N_${nodeGlobalId}: ${name}</span>
+                       <span id="node-status-{nIdx}" class="text-emerald-400 text-[9px] font-bold">[ATTUNED]</span>
+                   `;
+                   sectorDiv.appendChild(nodeItem);
+               });
+               container.appendChild(sectorDiv);
+           });
+       }
+
+       // Three.js Symplectic Phase Space Graphics (Central Suction Origin + Flow Paths)
+       function initThreeEnvironment() {
+
+
+
+            const container = document.getElementById('symplecticVoidContainer');
+           
+           scene = new THREE.Scene();
+           camera = new THREE.PerspectiveCamera(60, container.clientWidth / container.clientHeight, 0.1, 1000);
+           
+           renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+           renderer.setSize(container.clientWidth, container.clientHeight);
+           renderer.setPixelRatio(window.devicePixelRatio);
+           container.appendChild(renderer.domElement);
+
+           // Symplectic central lattice geometry setup
+           const matrixGroup = new THREE.Group();
+           scene.add(matrixGroup);
+
+           // Central Singularity Core Origin
+           const coreGeo = new THREE.SphereGeometry(1.0, 32, 32);
+           const coreMat = new THREE.MeshBasicMaterial({ color: 0x010204 });
+           const coreMesh = new THREE.Mesh(coreGeo, coreMat);
+           matrixGroup.add(coreMesh);
+
+
+
+
+            // Buffer coordinate distributions preallocation
+           const geometry = new THREE.BufferGeometry();
+           const positions = new Float32Array(particleCount * 3);
+           const colors = new Float32Array(particleCount * 3);
+
+           for (let i = 0; i < particleCount; i++) {
+               const radius = Math.random() * 6.5 + 1.2;
+               const angle = Math.random() * Math.PI * 2.0;
+               
+               positions[i*3] = Math.cos(angle) * radius;
+               positions[i*3+1] = (Math.random() - 0.5) * 0.4;
+               positions[i*3+2] = Math.sin(angle) * radius;
+
+               // Alternate color streams matching initial Transcendence baseline
+               const baseColor = new THREE.Color(0xffffff);
+               colors[i*3] = baseColor.r;
+               colors[i*3+1] = baseColor.g;
+               colors[i*3+2] = baseColor.b;
+           }
+
+
+
+
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+           geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+           const pointsMaterial = new THREE.PointsMaterial({
+               size: 0.034,
+               vertexColors: true,
+               transparent: true,
+               opacity: 0.85,
+               blending: THREE.AdditiveBlending
+           });
+
+           particleSystem = new THREE.Points(geometry, pointsMaterial);
+           matrixGroup.add(particleSystem);
+
+           // Outer structural polyhedral mesh
+           const latticeGeo = new THREE.IcosahedronGeometry(1.75, 1);
+           const latticeMat = new THREE.MeshBasicMaterial({
+               color: 0x223344,
+               wireframe: true,
+
+
+
+                transparent: true,
+               opacity: 0.2
+           });
+           wireframeLattice = new THREE.Mesh(latticeGeo, latticeMat);
+           matrixGroup.add(wireframeLattice);
+
+           camera.position.z = 6.2;
+           camera.position.y = 1.1;
+           camera.lookAt(0, 0, 0);
+
+           window.addEventListener('resize', onViewportResizeUpdate);
+       }
+
+       // High Frame Rate Hyper-Sphere Stereographic Loop Integration
+       function animateSystemLoop() {
+           requestAnimationFrame(animateSystemLoop);
+           
+           // Increment timelines matching exact Golden Ratio progression vectors
+           Hyper_State.tick += Hyper_State.step * Hyper_State.vorticity;
+
+
+
+            document.getElementById('phi-timeline').innerText = (1.61803398 + Hyper_State.tick * 0.01).toFixed(8);
+
+           const time = performance.now() * 0.001;
+
+           if (wireframeLattice) {
+               wireframeLattice.rotation.x = time * 0.08;
+               wireframeLattice.rotation.y = time * 0.12;
+           }
+
+           // Inward Hamiltonian drift calculations pulling points towards central centroid drain (0,0,0)
+           if (particleSystem) {
+               const positions = particleSystem.geometry.attributes.position.array;
+               const colors = particleSystem.geometry.attributes.color.array;
+               
+               const activeColorHex = SovereignEditions[Hyper_State.activeEdition].color;
+               const targetColor = new THREE.Color(activeColorHex);
+
+               for (let i = 0; i < particleCount; i++) {
+                   let x = positions[i*3];
+
+
+
+                    let z = positions[i*3+2];
+                   let radius = Math.sqrt(x*x + z*z);
+                   
+                   let angle = Math.atan2(z, x);
+                   // Chaos metrics dictate acceleration curvature coefficients
+                   angle += 0.012 + (0.005 / (radius - 0.9 || 0.1)) * (Hyper_State.chaos * 0.08);
+                   radius -= (Hyper_State.step * 0.4) * Hyper_State.vorticity;
+
+                   // Event horizon crossover limit checking step
+                   if (radius <= 1.0) {
+                       radius = Math.random() * 3.0 + 4.5;
+                       angle = Math.random() * Math.PI * 2.0;
+                   }
+
+                   positions[i*3] = Math.cos(angle) * radius;
+                   positions[i*3+2] = Math.sin(angle) * radius;
+                   positions[i*3+1] += Math.sin(time + i) * 0.001 * Hyper_State.chaos;
+
+                   // Blend particle indices cleanly back to active sovereign palette fields
+
+
+
+                    if (i % 3 === 0) {
+                       colors[i*3] = targetColor.r;
+                       colors[i*3+1] = targetColor.g;
+                       colors[i*3+2] = targetColor.b;
+                   }
+               }
+               particleSystem.geometry.attributes.position.needsUpdate = true;
+               particleSystem.geometry.attributes.color.needsUpdate = true;
+
+               particleSystem.rotation.y += 0.001;
+           }
+
+           // Continuous mock execution jitter tracking inside left panels explorer
+           if (Math.random() > 0.94) {
+               const s = Math.floor(Math.random() * 5);
+               const n = Math.floor(Math.random() * 10);
+               const targetEl = document.getElementById(`node-status-{n}`);
+               if (targetEl) {
+                   targetEl.innerText = "[EVALUATING]";
+
+
+
+                    targetEl.className = "text-amber-400 animate-pulse";
+                   setTimeout(() => {
+                       targetEl.innerText = "[ATTUNED]";
+                       targetEl.className = "text-emerald-400";
+                   }, 800);
+               }
+           }
+
+           renderer.render(scene, camera);
+       }
+
+       // Live Lifecycle Track Progressions Loop
+       function stepGovernanceCycle() {
+           // Increment phase index cleanly bounding to standard 4 nodes
+           Hyper_State.currentGovPhase = (Hyper_State.currentGovPhase % 4) + 1;
+           
+           for(let p = 1; p <= 4; p++) {
+               const el = document.getElementById(`gov-p${p}`);
+               if(p === Hyper_State.currentGovPhase) {
+
+
+
+                    el.className = "py-1 rounded bg-purple-950/50 border border-purple-500/50 text-purple-300 font-bold shadow-[0_0_8px_rgba(179,71,255,0.3)]";
+               } else {
+                   el.className = "py-1 rounded bg-black/40 border border-white/5 text-gray-500";
+               }
+           }
+
+           const currentStageObj = GovernanceStages[Hyper_State.currentGovPhase - 1];
+           document.getElementById('gov-action-description').innerText = currentStageObj.desc;
+
+           // Emit structured token characters sequence into the console stream mapping
+           const randomizedGlyphString = Array.from({length: 12}, () => RecurrenceGlyphs[Math.floor(Math.random() * RecurrenceGlyphs.length)]).join('');
+           logAction("RECURRENCE", `Ledger snapshot committed sequence alignment: ${randomizedGlyphString}`);
+       }
+
+       // Switch Engine Sovereign Color Target States
+       function selectSovereignEdition(key, activeBtn) {
+           Hyper_State.activeEdition = key;
+           logAction("EDITION_MIGRATION", `Unified single-core switched context parameters to: ${SovereignEditions[key].label}`);
+           
+
+
+
+            const buttons = document.getElementById('sovereign-palette-deck').children;
+           for(let b of buttons) {
+               b.classList.remove('bg-white/10', 'border-white/40');
+           }
+           activeBtn.classList.add('bg-white/10', 'border-white/40');
+
+           // Flash visual core system scale on changing primary vector pipelines
+           if (particleSystem) {
+               particleSystem.scale.set(1.15, 1.15, 1.15);
+               setTimeout(() => particleSystem.scale.set(1.0, 1.0, 1.0), 250);
+           }
+       }
+
+       // Interface Input & Param Mux Bindings
+       function setupTelemetryInputMux() {
+           // Slider 1: Vorticity
+           document.getElementById('param-vorticity').addEventListener('input', function(e) {
+               Hyper_State.vorticity = parseFloat(e.target.value) / 100;
+               document.getElementById('lbl-vorticity').innerText = Hyper_State.vorticity.toFixed(2) + " ζ";
+
+
+
+            });
+
+           // Slider 2: Chaos Coefficient
+           document.getElementById('param-chaos').addEventListener('input', function(e) {
+               Hyper_State.chaos = parseFloat(e.target.value) / 100;
+               document.getElementById('lbl-chaos').innerText = Hyper_State.chaos.toFixed(2) + " T_LOW";
+           });
+
+           // Slider 3: Coupling Matrix Boundary
+           document.getElementById('param-coupling').addEventListener('input', function(e) {
+               Hyper_State.coupling = parseFloat(e.target.value) / 1000;
+               document.getElementById('lbl-coupling').innerText = Hyper_State.coupling.toFixed(3) + " Matrix";
+           });
+
+           // Arithmetic Deck Interceptor Dispatcher Loop
+           document.getElementById('arithmetic-deck-input').addEventListener('keydown', function(e) {
+               if (e.key === 'Enter' && this.value.trim()) {
+                   const expressionText = this.value.trim();
+                   logAction("POSIX_ARITH", `Processing expansion wrapper segment: $(( ${expressionText} ))`);
+
+
+
+
+                    try {
+                       // Map local context tokens down onto algebraic literal string replacements
+                       let formattedExpr = expressionText
+                           .replace(/vorticity/g, Hyper_State.vorticity)
+                           .replace(/chaos/g, Hyper_State.chaos)
+                           .replace(/coupling/g, Hyper_State.coupling)
+                           .replace(/wrot/g, Hyper_State.wrot)
+                           .replace(/step/g, Hyper_State.step);
+
+                       // Strip illegal text configurations to preserve integer parameters safety
+                       let sanitizedExpr = formattedExpr.replace(/[^0-9.+\-*/().\s]/g, '');
+                       let calculationResult = eval(sanitizedExpr);
+
+                       if (calculationResult !== undefined && !isNaN(calculationResult)) {
+                           logAction("EXP_RESOLVED", `Output value literal: ${calculationResult}`);
+                           
+                           // Dynamically modulate rotation matrix parameters if calculation fits parameters limits
+                           if (calculationResult > 0 && calculationResult < 6.28) {
+                               Hyper_State.wrot = parseFloat(calculationResult);
+
+
+
+                                document.getElementById('stat-wrot').innerText = Hyper_State.wrot.toFixed(2);
+                           }
+                       } else {
+                           logAction("EXP_TEXT", "String array processed context as standard double-quoted token data.");
+                       }
+                   } catch (err) {
+                       logAction("ERR_LEX_PARSE", "Failed parsing arithmetic sequence string expressions.");
+                   }
+                   this.value = '';
+               }
+           });
+       }
+
+       // Functional Log Stream Logging Utilities
+       function logAction(tag, message) {
+           const feed = document.getElementById('matrix-console-log');
+           const timestamp = new Date().toISOString().slice(11, 19);
+           const row = document.createElement('div');
+           row.className = "py-0.5 border-b border-white/[0.005] leading-normal truncate";
+
+
+
+            row.innerHTML = `[${timestamp}] <span class="text-cyan-400 font-bold">[${tag}]</span> ${message}`;
+           
+           feed.appendChild(row);
+           feed.scrollTop = feed.scrollHeight;
+
+           // Restrict maximum logging stack height
+           while (feed.children.length > 30) {
+               feed.removeChild(feed.firstChild);
+           }
+       }
+
+       function clearConsoleLog() {
+           document.getElementById('matrix-console-log').innerHTML = '';
+           logAction("CACHE_PURGE", "Molt sequence complete. Caches cleared successfully.");
+       }
+
+       function toggleVoidProjection() {
+           document.body.classList.toggle('void-mode-active');
+           logAction("VIEWPORT_MUX", "Toggled absolute 100:100 viewport focus boundaries.");
+
+
+
+        }
+
+       function onViewportResizeUpdate() {
+           const container = document.getElementById('symplecticVoidContainer');
+           camera.aspect = container.clientWidth / container.clientHeight;
+           camera.updateProjectionMatrix();
+           renderer.setSize(container.clientWidth, container.clientHeight, false);
+       }
+   </script>
+</body>
+</html>

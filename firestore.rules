@@ -1,0 +1,92 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helpers
+    function isSignedIn() { return request.auth != null; }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function isAdmin() { return isSignedIn() && request.auth.token.email == 'machackabook@gmail.com'; }
+
+    function isValidUserState(data) {
+      return data.userId is string && 
+             data.userId == request.auth.uid &&
+             data.updatedAt is timestamp;
+    }
+
+    function isValidPersonalityProfile(data) {
+      return data.profileName is string && 
+             data.traits is list && 
+             data.updatedAt is timestamp;
+    }
+
+    function isValidUserScore(data) {
+      return data.userId is string &&
+             data.userId == request.auth.uid &&
+             data.totalScore is number &&
+             data.totalScore >= 0 &&
+             data.updatedAt is timestamp;
+    }
+
+    function isValidHistory(data) {
+      return data.userId is string &&
+             data.userId == request.auth.uid &&
+             data.timestamp is timestamp &&
+             data.action is string &&
+             data.updatedAt is timestamp;
+    }
+
+    function isValidPublicKey(data) {
+      return data.userId is string &&
+             data.userId == request.auth.uid &&
+             data.key is string &&
+             data.updatedAt is timestamp;
+    }
+
+    // Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    match /userStates/{userId} {
+      allow read, write: if isSignedIn() && request.auth.uid == userId;
+      
+      match /atcStreams/{streamId} {
+        allow read, write: if isSignedIn() && request.auth.uid == userId;
+      }
+      match /vaultConfigs/{configId} {
+        allow read, write: if isSignedIn() && request.auth.uid == userId;
+      }
+      match /waybackConfigs/{configId} {
+        allow read, write: if isSignedIn() && request.auth.uid == userId;
+      }
+      match /score {
+        allow read: if isSignedIn() && request.auth.uid == userId;
+        allow write: if isSignedIn() && request.auth.uid == userId && isValidUserScore(request.resource.data);
+      }
+      match /history/{historyId} {
+        allow read, write: if isSignedIn() && request.auth.uid == userId && isValidHistory(request.resource.data);
+      }
+      match /hashReceipts/{receiptId} {
+        allow read, write: if isSignedIn() && request.auth.uid == userId && isValidHistory(request.resource.data);
+      }
+      match /metadata/{metaId} {
+        allow read, write: if isSignedIn() && request.auth.uid == userId;
+      }
+    }
+
+    match /systemMetadata/{metaId} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+
+    match /publicKeys/{userId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && request.auth.uid == userId && isValidPublicKey(request.resource.data);
+    }
+
+    match /personalityProfiles/{profileId} {
+      allow read: if true;
+      allow write: if isAdmin() && isValidPersonalityProfile(request.resource.data);
+    }
+  }
+}

@@ -1,0 +1,577 @@
+﻿Rosetta Nexus Ω: Sovereign Arithmetic Expansion & Singularity Matrix
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+   <meta charset="UTF-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <title>ROSETTA_NEXUS | ARITHMETIC_EXPANSION_ENGINE</title>
+   <!-- Framework Requirements Sourced via Whitelist -->
+   <script src="https://cdn.tailwindcss.com"></script>
+   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+   
+   <style>
+       @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;700&display=swap');
+       
+       :root {
+           --color-azazel: #ff003c;
+           --color-sepiroth: #00ffff;
+           --glass-bg: rgba(6, 6, 6, 0.85);
+           --border-glow: rgba(255, 255, 255, 0.08);
+       }
+
+
+
+
+        body, html {
+           margin: 0;
+           padding: 0;
+           width: 100%;
+           height: 100%;
+           overflow: hidden;
+           font-family: 'JetBrains Mono', monospace;
+           background-color: #020202;
+           color: #ffffff;
+       }
+
+       #space-canvas {
+           position: absolute;
+           top: 0;
+           left: 0;
+           width: 100%;
+           height: 100%;
+           z-index: 0;
+       }
+
+
+
+
+        /* Glassmorphism Interfaces */
+       .matrix-panel {
+           background: var(--glass-bg);
+           border: 1px solid var(--border-glow);
+           backdrop-filter: blur(12px);
+           -webkit-backdrop-filter: blur(12px);
+           box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+           transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+       }
+
+       .matrix-panel:hover {
+           border-color: rgba(255, 255, 255, 0.15);
+       }
+
+       /* Dock Positioning Architecture */
+       .dock-system {
+           position: absolute;
+           bottom: 24px;
+           left: 50%;
+
+
+
+            transform: translateX(-50%);
+           z-index: 50;
+           width: 90%;
+           max-width: 850px;
+       }
+
+       /* Custom Scrollbar Mechanics */
+       ::-webkit-scrollbar {
+           width: 4px;
+           height: 4px;
+       }
+       ::-webkit-scrollbar-track {
+           background: rgba(0, 0, 0, 0.2);
+       }
+       ::-webkit-scrollbar-thumb {
+           background: rgba(255, 255, 255, 0.1);
+           border-radius: 2px;
+       }
+       ::-webkit-scrollbar-thumb:hover {
+
+
+
+            background: rgba(255, 255, 255, 0.3);
+       }
+
+       .text-glow-azazel {
+           text-shadow: 0 0 8px var(--color-azazel);
+       }
+       .text-glow-sepiroth {
+           text-shadow: 0 0 8px var(--color-sepiroth);
+       }
+   </style>
+</head>
+<body>
+
+   <!-- Three.js Environment Viewport -->
+   <div id="space-canvas"></div>
+
+   <!-- Interface Content Layer -->
+   <div class="relative w-full h-full z-10 flex flex-col justify-between p-4 pointer-events-none select-none">
+       
+
+
+
+        <!-- SYSTEM FIXED HEADER -->
+       <header class="w-full flex justify-between items-start pointer-events-auto">
+           <div class="matrix-panel p-4 rounded-xl flex flex-col gap-1 max-w-md">
+               <div class="flex items-center gap-2">
+                   <span class="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+                   <h1 class="text-xs font-bold tracking-widest text-gray-200">ROSETTA_NEXUS // ARITHMETIC_MATRIX</h1>
+               </div>
+               <p class="text-[10px] text-gray-400">Lexical Shell Substitution & Multi-Agent Core</p>
+               <div class="text-[9px] text-red-500 font-bold mt-1 tracking-wider">EXPANSION RULE: $(( expression )) IS TREATED AS IF DOUBLE-QUOTED</div>
+           </div>
+
+           <div class="matrix-panel p-3 rounded-xl flex items-center gap-6 text-[10px] text-gray-400">
+               <div>LATENCY: <span id="latency-val" class="text-cyan-400">4ms</span></div>
+               <div>ENTROPY: <span id="entropy-val" class="text-purple-400">0.0000</span></div>
+               <div>LEX_STATE: <span class="text-yellow-500">VALIDATED</span></div>
+           </div>
+       </header>
+
+       <!-- MAIN OPERATIONAL VIEWPORT -->
+
+
+
+        <main class="w-full flex-1 flex justify-between items-center my-4 overflow-hidden gap-4">
+           
+           <!-- LEFT COLUMN: HISTORICAL TRACES & CODES -->
+           <div class="w-80 h-full flex flex-col gap-4 pointer-events-auto">
+               <div class="matrix-panel flex-1 rounded-xl p-4 flex flex-col overflow-hidden">
+                   <div class="flex justify-between items-center border-b border-white/10 pb-2 mb-2">
+                       <span class="text-xs font-bold tracking-wider text-gray-300">HISTORICAL VARIANTS</span>
+                       <span class="text-[9px] bg-white/10 px-1.5 py-0.5 rounded text-gray-400">SUBSCRIPTS</span>
+                   </div>
+                   <div id="history-track" class="flex-1 overflow-y-auto space-y-2 pr-1 text-[11px]">
+                       <!-- Dynamic Ledger Elements Injected via initMatrixStructure() -->
+                   </div>
+               </div>
+           </div>
+
+           <!-- CENTER CONVERGENCE ASSIGNMENT AXIS (TRANSPARENT SEPIROTH GAP) -->
+           <div class="flex-1 h-full flex items-center justify-center relative">
+               <!-- Three.js renders central black hole system inside canvas directly behind this container -->
+           </div>
+
+
+
+
+            <!-- RIGHT COLUMN: ELEMENTAL SPECTRUM & TRANSMUTATION -->
+           <div class="w-80 h-full flex flex-col gap-4 pointer-events-auto">
+               <!-- Transmutation Matrix Controls -->
+               <div class="matrix-panel rounded-xl p-4 flex flex-col gap-3">
+                   <span class="text-xs font-bold tracking-wider text-gray-300 border-b border-white/10 pb-2">TRANSMUTATION SIMULATOR</span>
+                   
+                   <div class="space-y-2 text-[11px]">
+                       <div>
+                           <div class="flex justify-between text-gray-400 mb-1">
+                               <span>AZAZEL QUANTITY BASE</span>
+                               <span class="text-red-400" id="val-thermal">130.81 Hz</span>
+                           </div>
+                           <input type="range" id="slider-thermal" class="w-full accent-red-500 h-1 bg-white/10 rounded-lg appearance-none" min="50" max="500" value="130">
+                       </div>
+
+                       <div>
+                           <div class="flex justify-between text-gray-400 mb-1">
+                               <span>SEPIROTH SUBSTITUTION SCALE</span>
+                               <span class="text-cyan-400" id="val-quantum">523.25 Hz</span>
+
+
+
+                            </div>
+                           <input type="range" id="slider-quantum" class="w-full accent-cyan-400 h-1 bg-white/10 rounded-lg appearance-none" min="200" max="1000" value="523">
+                       </div>
+
+                       <div>
+                           <div class="flex justify-between text-gray-400 mb-1">
+                               <span>GRAVITATIONAL INTENSITY</span>
+                               <span class="text-purple-400" id="val-kinetic">1.60G</span>
+                           </div>
+                           <input type="range" id="slider-kinetic" class="w-full accent-purple-500 h-1 bg-white/10 rounded-lg appearance-none" min="10" max="50" value="16">
+                       </div>
+                   </div>
+               </div>
+
+               <!-- Live Stream Data Feed Log -->
+               <div class="matrix-panel flex-1 rounded-xl p-4 flex flex-col overflow-hidden">
+                   <div class="flex justify-between items-center border-b border-white/10 pb-2 mb-2">
+                       <span class="text-xs font-bold tracking-wider text-gray-300">CORE LOGSTREAM</span>
+                       <button onclick="clearTelemetryLog()" class="text-[9px] hover:text-white transition-colors text-gray-500 uppercase">Molt</button>
+
+
+
+                    </div>
+                   <div id="telemetry-feed" class="flex-1 overflow-y-auto space-y-1 font-mono text-[10px] text-gray-400 pr-1">
+                       <!-- Stream Entries Injected At Runtime -->
+                   </div>
+               </div>
+           </div>
+       </main>
+
+       <!-- INTERACTIVE DOCK AND INPUT DECK -->
+       <footer class="dock-system pointer-events-auto">
+           <div class="matrix-panel p-3 rounded-xl flex items-center justify-between gap-4">
+               <div class="flex gap-2">
+                   <button onclick="triggerCorePulse()" class="px-3 py-1.5 rounded-lg bg-red-950/40 border border-red-500/30 hover:bg-red-900/40 transition-colors text-red-400 text-xs font-bold tracking-wider">
+                       PULSE
+                   </button>
+                   <button onclick="copyCoreSnapshot()" class="px-3 py-1.5 rounded-lg bg-neutral-900 border border-white/10 hover:bg-neutral-800 transition-colors text-gray-300 text-xs tracking-wider">
+                       SNAPSHOT
+                   </button>
+               </div>
+
+
+
+
+                <div class="flex-1 max-w-lg relative flex items-center">
+                   <span class="absolute left-3 text-cyan-400 font-bold text-xs">$((</span>
+                   <input type="text" id="terminal-input" placeholder="expression )) e.g., base_freq * 2" class="w-full bg-black/40 border border-white/10 rounded-lg py-1.5 pl-12 pr-8 text-xs font-mono text-white outline-none focus:border-cyan-500/50 transition-colors">
+                   <span class="absolute right-3 text-cyan-400 font-bold text-xs">))</span>
+               </div>
+
+               <div class="text-[10px] text-gray-500 font-bold tracking-widest hidden sm:block">
+                   POSIX_EXP_v4
+               </div>
+           </div>
+       </footer>
+
+   </div>
+
+   <!-- CORE LOGIC FRAMEWORK RUNTIME -->
+   <script>
+       let scene, camera, renderer;
+       let blackHole, accretionDisk, wireframeLattice, particleSystem;
+       const particleCount = 2500;
+
+
+
+        
+       // Runtime variables bound to substitution indices and sliders
+       let base_freq = 130.81;
+       let sepiroth_scale = 523.25;
+       let gravitationalPull = 0.016;
+
+       // Initialize Application Context
+       window.onload = function() {
+           initMatrixStructure();
+           initThreeEnvironment();
+           setupInteractiveListeners();
+           animateSystemLoop();
+           
+           logAction("SYS_BOOT", "Arithmetic expansion parser online.");
+           logAction("LEX_RULE", "Expression context is treated as if it were enclosed in double quotes.");
+       };
+
+       // Inject historians, variants, additions, and subscript variables
+       function initMatrixStructure() {
+
+
+
+            const trackContainer = document.getElementById('history-track');
+           const structuralVariants = [
+               { id: "V_01", title: "$(( base_freq ))", desc: "Fundamental arithmetic signature variant value.", value: "130.81" },
+               { id: "V_02", title: "$(( sepiroth_scale ))", desc: "Subscripted substitution ceiling target value.", value: "523.25" },
+               { id: "V_03", title: "$(( base_freq * 4 ))", desc: "Dynamic harmonic integer range calculation.", value: "523.24" },
+               { id: "V_04", title: "$(( expression ))", desc: "Treated as if double-quoted. Preserves parameters.", value: "Implicit" }
+           ];
+
+           structuralVariants.forEach((item) => {
+               const card = document.createElement('div');
+               card.className = "p-3 rounded-lg bg-white/[0.02] border border-white/5 flex flex-col gap-1 mb-2 hover:bg-white/[0.04] transition-colors cursor-pointer";
+               card.onclick = function() {
+                   document.getElementById('terminal-input').value = item.title.replace("$((", "").replace("))", "").trim();
+                   document.getElementById('terminal-input').focus();
+               };
+               card.innerHTML = `
+                   <div class="flex justify-between items-center">
+                       <span class="font-bold text-cyan-400 text-xs font-mono">${item.title}</span>
+                       <span class="text-[9px] text-gray-500 font-mono">[${item.id}]</span>
+
+
+
+                    </div>
+                   <p class="text-[10px] text-gray-400 leading-normal mt-0.5">${item.desc}</p>
+                   <div class="text-[9px] text-gray-500 mt-1">Resolved literal: <span class="text-white">${item.value}</span></div>
+               `;
+               trackContainer.appendChild(card);
+           });
+       }
+
+       // Three.js Core Gravity Engine (Central Black Hole Origin, Dual Particle Streams)
+       function initThreeEnvironment() {
+           const container = document.getElementById('space-canvas');
+           
+           scene = new THREE.Scene();
+           camera = new THREE.PerspectiveCamera(60, container.clientWidth / container.clientHeight, 0.1, 1000);
+           
+           renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+           renderer.setSize(container.clientWidth, container.clientHeight);
+           container.appendChild(renderer.domElement);
+
+
+
+
+            const matrixGroup = new THREE.Group();
+           scene.add(matrixGroup);
+
+           // 1. Central Singularity Core (Black Hole Origin Center Point)
+           const bhGeo = new THREE.SphereGeometry(1.15, 32, 32);
+           const bhMat = new THREE.MeshBasicMaterial({ color: 0x010101 });
+           blackHole = new THREE.Mesh(bhGeo, bhMat);
+           matrixGroup.add(blackHole);
+
+           // 2. Accretion Boundary Ring
+           const ringGeo = new THREE.RingGeometry(1.25, 3.0, 64);
+           const ringMat = new THREE.MeshBasicMaterial({
+               color: 0x111111,
+               side: THREE.DoubleSide,
+               transparent: true,
+               opacity: 0.35,
+               wireframe: true
+           });
+           accretionDisk = new THREE.Mesh(ringGeo, ringMat);
+
+
+
+            accretionDisk.rotation.x = Math.PI / 2.3;
+           matrixGroup.add(accretionDisk);
+
+           // 3. Integrated Dual-Stream Particle System (Azazel Crimson & Sepiroth Cyan)
+           const geometry = new THREE.BufferGeometry();
+           const positions = new Float32Array(particleCount * 3);
+           const colors = new Float32Array(particleCount * 3);
+           
+           const colorAzazel = new THREE.Color(0xff003c);
+           const colorSepiroth = new THREE.Color(0x00ffff);
+
+           for(let i = 0; i < particleCount; i++) {
+               const radius = Math.random() * 7.5 + 1.3;
+               const angle = Math.random() * Math.PI * 2.0;
+               
+               positions[i*3] = Math.cos(angle) * radius;
+               positions[i*3+1] = (Math.random() - 0.5) * 0.4;
+               positions[i*3+2] = Math.sin(angle) * radius;
+
+
+
+
+                // Alternate distribution between structural streams
+               const isSepiroth = Math.random() > 0.5;
+               const chosenColor = isSepiroth ? colorSepiroth : colorAzazel;
+               
+               colors[i*3] = chosenColor.r;
+               colors[i*3+1] = chosenColor.g;
+               colors[i*3+2] = chosenColor.b;
+           }
+
+           geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+           geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+           const pointsMaterial = new THREE.PointsMaterial({
+               size: 0.035,
+               vertexColors: true,
+               transparent: true,
+               opacity: 0.8,
+               blending: THREE.AdditiveBlending
+           });
+
+
+
+
+            particleSystem = new THREE.Points(geometry, pointsMaterial);
+           matrixGroup.add(particleSystem);
+
+           // 4. Combined Tesseract Structural Lattice
+           const latticeGeo = new THREE.IcosahedronGeometry(1.9, 1);
+           const latticeMat = new THREE.MeshBasicMaterial({
+               color: 0x333333,
+               wireframe: true,
+               transparent: true,
+               opacity: 0.25
+           });
+           wireframeLattice = new THREE.Mesh(latticeGeo, latticeMat);
+           matrixGroup.add(wireframeLattice);
+
+           camera.position.z = 6.8;
+           camera.position.y = 1.3;
+           camera.lookAt(0, 0, 0);
+
+           window.addEventListener('resize', onViewportResize);
+
+
+
+        }
+
+       // System Animation Evaluation Loop
+       function animateSystemLoop() {
+           requestAnimationFrame(animateSystemLoop);
+           const time = performance.now() * 0.001;
+
+           if (accretionDisk) accretionDisk.rotation.z -= 0.0025;
+           if (wireframeLattice) {
+               wireframeLattice.rotation.x = time * 0.1;
+               wireframeLattice.rotation.y = time * 0.15;
+           }
+
+           // Inward gravity field computation towards center origin
+           if (particleSystem) {
+               const positions = particleSystem.geometry.attributes.position.array;
+               
+               for(let i = 0; i < particleCount; i++) {
+                   let x = positions[i*3];
+
+
+
+                    let z = positions[i*3+2];
+                   let radius = Math.sqrt(x*x + z*z);
+                   
+                   let angle = Math.atan2(z, x);
+                   angle += 0.012 + (0.006 / (radius - 1.0 || 0.1));
+                   radius -= gravitationalPull;
+
+                   // Bound limit crossing recycle
+                   if(radius <= 1.15) {
+                       radius = Math.random() * 3.5 + 4.5;
+                       angle = Math.random() * Math.PI * 2.0;
+                   }
+
+                   positions[i*3] = Math.cos(angle) * radius;
+                   positions[i*3+2] = Math.sin(angle) * radius;
+                   positions[i*3+1] += Math.sin(time + i) * 0.0015;
+               }
+               particleSystem.geometry.attributes.position.needsUpdate = true;
+           }
+
+
+
+
+            // Real-time structural pseudo-entropy calculations (p log p approach)
+           const p = Math.abs(Math.sin(time * 0.4)) * 0.998 + 0.001;
+           const entropyResult = (-p * Math.log(p) - (1 - p) * Math.log(1 - p)).toFixed(4);
+           document.getElementById('entropy-val').innerText = entropyResult;
+
+           renderer.render(scene, camera);
+       }
+
+       // Setup Event Listeners and Arithmetic Parsers
+       function setupInteractiveListeners() {
+           // Slider 1: Azazel Base Parameter Tuning
+           document.getElementById('slider-thermal').addEventListener('input', function(e) {
+               base_freq = parseFloat(e.target.value);
+               document.getElementById('val-thermal').innerText = base_freq.toFixed(2) + " Hz";
+           });
+
+           // Slider 2: Sepiroth Substitution Scale
+           document.getElementById('slider-quantum').addEventListener('input', function(e) {
+               sepiroth_scale = parseFloat(e.target.value);
+
+
+
+                document.getElementById('val-quantum').innerText = sepiroth_scale.toFixed(2) + " Hz";
+           });
+
+           // Slider 3: Kinetic Gravitational Pull Constants
+           document.getElementById('slider-kinetic').addEventListener('input', function(e) {
+               const scalarVal = parseFloat(e.target.value);
+               gravitationalPull = scalarVal * 0.001;
+               document.getElementById('val-kinetic').innerText = (scalarVal / 10).toFixed(2) + "G";
+           });
+
+           // Arithmetic Deck Expansion Parser Implementation
+           document.getElementById('terminal-input').addEventListener('keydown', function(e) {
+               if (e.key === 'Enter' && this.value.trim()) {
+                   const expressionText = this.value.trim();
+                   logAction("ARITH_EXP", `Evaluating wrapper context: $(( ${expressionText} ))`);
+                   
+                   try {
+                       // Safe variable substitution replacement dictionary mapping environment tokens
+                       let formattedExpr = expressionText
+
+
+
+                            .replace(/base_freq/g, base_freq)
+                           .replace(/sepiroth_scale/g, sepiroth_scale)
+                           .replace(/gravity/g, gravitationalPull);
+                       
+                       // Sanitize string to mathematically legal parameters only
+                       let sanitizedExpr = formattedExpr.replace(/[^0-9.+\-*/().\s]/g, '');
+                       
+                       // Execute compilation inside localized shell context
+                       let evaluationResult = eval(sanitizedExpr);
+                       
+                       if (evaluationResult !== undefined && !isNaN(evaluationResult)) {
+                           logAction("EXP_VALUE", `Output result literal: ${evaluationResult}`);
+                           // Apply physical kinetic mutation response step based on output string length
+                           if (blackHole) {
+                               let scaleFactor = Math.min(2.0, Math.max(0.5, 1.0 + (evaluationResult * 0.001)));
+                               blackHole.scale.set(scaleFactor, scaleFactor, scaleFactor);
+                               setTimeout(() => blackHole.scale.set(1.0, 1.0, 1.0), 350);
+                           }
+                       } else {
+
+
+
+                            logAction("EXP_STRING", `String context returned. (Treated as if double-quoted text)`);
+                       }
+                   } catch (err) {
+                       logAction("ERR_LEX", "Expansion evaluation parse exception or unmapped variant.");
+                   }
+                   this.value = '';
+               }
+           });
+       }
+
+       // Telemetry Feed Logging Pipeline
+       function logAction(tag, message) {
+           const feed = document.getElementById('telemetry-feed');
+           const timestamp = new Date().toISOString().slice(11, 19);
+           const entry = document.createElement('div');
+           entry.className = "py-0.5 border-b border-white/[0.01] leading-relaxed";
+           entry.innerHTML = `[${timestamp}] <span class="text-cyan-400 font-bold">${tag}</span>: ${message}`;
+           
+           feed.appendChild(entry);
+
+
+
+            feed.scrollTop = feed.scrollHeight;
+       }
+
+       function triggerCorePulse() {
+           logAction("CORE_PULSE", "Arithmetic convergence impulse dispatched directly to central origin.");
+           if (blackHole) {
+               blackHole.scale.set(1.6, 1.6, 1.6);
+               setTimeout(() => blackHole.scale.set(1.0, 1.0, 1.0), 200);
+           }
+       }
+
+       function clearTelemetryLog() {
+           document.getElementById('telemetry-feed').innerHTML = '';
+           logAction("SYS_PURGE", "Purged current logging frame memory caches successfully.");
+       }
+
+       function copyCoreSnapshot() {
+           const matrixStateText = `ROSETTA_CORE_SNAPSHOT_V4: BASE_FREQ={sepiroth_scale} GRAVITY_PULL=${gravitationalPull}`;
+           const dummyTextArea = document.createElement("textarea");
+
+
+
+            document.body.appendChild(dummyTextArea);
+           dummyTextArea.value = matrixStateText;
+           dummyTextArea.select();
+           document.execCommand('copy');
+           document.body.removeChild(dummyTextArea);
+           
+           logAction("SNAPSHOT", "Compiled current state configuration array to system clipboard.");
+       }
+
+       function onViewportResize() {
+           const container = document.getElementById('space-canvas');
+           camera.aspect = container.clientWidth / container.clientHeight;
+           camera.updateProjectionMatrix();
+           renderer.setSize(container.clientWidth, container.clientHeight);
+       }
+   </script>
+</body>
+</html>

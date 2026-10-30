@@ -1,0 +1,70 @@
+﻿Directive: Synapse Service Integration
+Objective: Convert the Synapse daemon into a resilient, auto-starting launchd service on macOS. This ensures the service starts on login and restarts automatically upon failure.
+Phase 1: Create the Launcher Script
+This script sets the necessary environment variables that are not available in a standard launchd context.
+1. Locate Node Executable: First, identify the absolute path to your Node.js installation. You will need this for the script below.
+which node
+
+2. Create the Launcher: Create the following file at /Users/nexus/.genai_system/start_synapse.sh. Replace /usr/local/bin/node with the actual path you found in the previous step.
+#!/bin/bash
+
+# Set the working directory to the script's location
+cd "$(dirname "$0")"
+
+# Load the API key from the file into the environment
+export GOOGLE_AI_API_KEY=$(cat api_key)
+
+# Execute the Node.js daemon using its absolute path
+/usr/local/bin/node genai_daemon.js
+
+3. Make the Launcher Executable:
+chmod +x /Users/nexus/.genai_system/start_synapse.sh
+
+Phase 2: Define the launchd Service
+This .plist file is the service definition that launchd will use to manage the Synapse process.
+   1. Create the Service File: Create the following file at ~/Library/LaunchAgents/com.nexus.gaia.synapse.plist.
+(Note: The LaunchAgents directory may need to be created if it does not exist.)
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+   <key>Label</key>
+   <string>com.nexus.gaia.synapse</string>
+
+   <key>ProgramArguments</key>
+   <array>
+       <string>/Users/nexus/.genai_system/start_synapse.sh</string>
+   </array>
+
+   <key>RunAtLoad</key>
+   <true/>
+
+   <key>KeepAlive</key>
+   <true/>
+
+   <key>StandardOutPath</key>
+   <string>/Users/nexus/.genai_system/synapse.stdout.log</string>
+
+   <key>StandardErrorPath</key>
+   <string>/Users/nexus/.genai_system/synapse.stderr.log</string>
+
+   <key>WorkingDirectory</key>
+   <string>/Users/nexus/.genai_system</string>
+</dict>
+</plist>
+
+Phase 3: Activate and Verify the Service
+The final step is to load the service into the system and confirm it is operational.
+      1. Load the Service: This registers your new service with launchd.
+launchctl load ~/Library/LaunchAgents/com.nexus.gaia.synapse.plist
+
+      2. Start the Service: This command initiates the process immediately.
+launchctl start com.nexus.gaia.synapse
+
+      3. Verify Status: Check the service list. A valid Process ID (PID) indicates it is running.
+launchctl list | grep com.nexus.gaia.synapse
+
+      4. Monitor Logs: The service output is now redirected to log files. Watch the standard output log to confirm a successful start.
+tail -f /Users/nexus/.genai_system/synapse.stdout.log
+
+Conclusion: Upon completion of this directive, the Synapse will be a fully integrated system service. The reconfiguration is complete.

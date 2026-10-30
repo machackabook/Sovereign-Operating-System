@@ -1,0 +1,577 @@
+# Mathematical Multi-Model Agent Router & Telemetry Core
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Hyper-Mathematical Multi-Model Router Core</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background-color: #05070f;
+            color: #f3f4f6;
+            font-family: system-ui, -apple-system, sans-serif;
+            overflow-x: hidden;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+
+            background: #090d16;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #1e293b;
+            border-radius: 3px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #334155;
+        }
+        .glow-border {
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.1);
+        }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col font-sans overflow-hidden">
+
+    <!-- Top Status Bar & Mathematical Metric Headers -->
+    <header class="border-b border-slate-900 bg-slate-950/80 backdrop-blur px-6 py-4 flex items-center justify-between shrink-0 z-10">
+        <div class="flex items-center space-x-3">
+
+            <div class="h-2.5 w-2.5 rounded-full bg-cyan-400 animate-pulse"></div>
+            <h1 class="text-sm font-semibold tracking-widest text-slate-200 uppercase font-mono">
+                Multi-Model Time Agent // Differential Engine Core
+            </h1>
+        </div>
+        <div class="flex items-center space-x-8 text-[11px] font-mono text-slate-400">
+            <div>SPACE METRIC: <span class="text-indigo-400">RIEMANNIAN_MANIFOLD_f(x,y,z)</span></div>
+            <div>FALLBACK CONFIG: <span class="text-amber-400">CLIFFORD_QUATERNION_V4</span></div>
+            <div>SHADING NODE: <span class="text-pink-400">MULTI_RES_HASH_GRID</span></div>
+        </div>
+    </header>
+
+    <!-- Main Workspace Split Panels -->
+    <main class="flex-1 flex overflow-hidden w-full relative">
+        
+        <!-- Left Side Control Column Structure -->
+        <section class="w-[380px] border-r border-slate-900 bg-slate-950/50 flex flex-col overflow-y-auto custom-scrollbar p-5 space-y-5 shrink-0 z-10">
+            
+            <!-- Provider Security Authorization Block -->
+
+            <div class="bg-slate-900/40 border border-slate-900 rounded-xl p-4 space-y-3.5 glow-border">
+                <h2 class="text-xs font-semibold tracking-wider text-slate-400 uppercase font-mono">Authentication Registers</h2>
+                
+                <div class="space-y-1.5">
+                    <label class="block text-[10px] text-slate-500 font-mono">OPENAI FRONTIER CREDENTIAL</label>
+                    <input type="password" id="openaiKey" placeholder="sk-proj-..." class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-cyan-500 font-mono transition">
+                </div>
+
+                <div class="space-y-1.5">
+                    <label class="block text-[10px] text-slate-500 font-mono">GEMINI API PROXY KEY</label>
+                    <input type="password" id="geminiKey" placeholder="AIzaSy..." class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-cyan-500 font-mono transition">
+                </div>
+
+                <div class="space-y-1.5">
+                    <label class="block text-[10px] text-slate-500 font-mono">OLLAMA ROUTING HOST ENDPOINT</label>
+                    <input type="text" id="ollamaHost" value="http://localhost:11434" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-300 font-mono focus:outline-none focus:border-cyan-500 transition">
+                </div>
+            </div>
+
+
+            <!-- Mathematical Vector Shifting Field Controllers -->
+            <div class="bg-slate-900/40 border border-slate-900 rounded-xl p-4 space-y-3">
+                <h2 class="text-xs font-semibold tracking-wider text-slate-400 uppercase font-mono">Manifold Deformation Operators</h2>
+                
+                <div class="space-y-2">
+                    <div class="flex justify-between text-[10px] font-mono text-slate-400">
+                        <span>CONTINUOUS EXP FIELD EXPONENT</span>
+                        <span id="expVal" class="text-cyan-400">2.718</span>
+                    </div>
+                    <input type="range" id="expSlider" min="1" max="50" value="27" step="1" oninput="updateMathParameters()" class="w-full accent-cyan-500 h-1 bg-slate-950 rounded-lg cursor-pointer">
+                </div>
+
+                <div class="space-y-2">
+                    <div class="flex justify-between text-[10px] font-mono text-slate-400">
+                        <span>HASH GRID RESOLUTION RESOLVER</span>
+                        <span id="hashVal" class="text-indigo-400">32x32</span>
+                    </div>
+                    <input type="range" id="hashSlider" min="8" max="64" value="32" step="4" oninput="updateMathParameters()" class="w-full accent-indigo-500 h-1 bg-slate-950 rounded-lg cursor-pointer">
+                </div>
+
+            </div>
+
+            <!-- Strategy Selection Framework -->
+            <div class="bg-slate-900/40 border border-slate-900 rounded-xl p-4 space-y-3">
+                <h2 class="text-xs font-semibold tracking-wider text-slate-400 uppercase font-mono">Quantum Dispatcher Matrix</h2>
+                <div class="grid grid-cols-2 gap-2 text-[11px] font-mono">
+                    <button id="stratAuto" onclick="setStrategy('auto')" class="py-2 px-2 bg-cyan-500/10 border border-cyan-500/40 rounded-lg text-cyan-400 text-center transition">DYNAMIC_AUTO</button>
+                    <button id="stratOllama" onclick="setStrategy('ollama')" class="py-2 px-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-400 text-center hover:border-slate-700 transition">EDGE_OLLAMA</button>
+                    <button id="stratOpenai" onclick="setStrategy('openai')" class="py-2 px-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-400 text-center hover:border-slate-700 transition">FRONTIER_OA</button>
+                    <button id="stratGemini" onclick="setStrategy('gemini')" class="py-2 px-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-400 text-center hover:border-slate-700 transition">GOOGLE_GEMINI</button>
+                </div>
+            </div>
+
+            <!-- Prompts Execution Terminal Interface -->
+            <div class="bg-slate-900/40 border border-slate-900 rounded-xl p-4 flex-1 flex flex-col space-y-3.5">
+                <h2 class="text-xs font-semibold tracking-wider text-slate-400 uppercase font-mono">Context Payload Streamer</h2>
+                
+                <div class="flex-1 min-h-[140px] flex flex-col">
+                    <textarea id="promptInput" placeholder="Inject orchestration requests, workflow schema directives, or multimodal analytical processing targets..." class="flex-1 w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-xs text-slate-200 font-mono resize-none focus:outline-none focus:border-cyan-500 transition custom-scrollbar"></textarea>
+
+                </div>
+
+                <div class="space-y-1.5">
+                    <label class="block text-[10px] text-slate-500 font-mono">MULTIMODAL MATRIX INGESTION (IMAGE)</label>
+                    <div class="relative w-full h-11 bg-slate-950 border border-slate-800 rounded-lg flex items-center px-3 hover:border-slate-700 transition cursor-pointer">
+                        <input type="file" id="imageInput" accept="image/*" onchange="ingestBinaryMatrix(event)" class="absolute inset-0 opacity-0 cursor-pointer">
+                        <div id="fileStatus" class="text-[11px] text-slate-500 truncate font-mono">Stream Vector Array Buffer Empty</div>
+                    </div>
+                </div>
+
+                <button onclick="executeAgentTransaction()" class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold py-2.5 rounded-lg text-xs tracking-widest uppercase font-mono shadow-xl transition active:scale-[0.99]">
+                    Trigger Agent Call Loop
+                </button>
+            </div>
+        </section>
+
+        <!-- Right Side Real-Time Mathematical Telemetry Framework -->
+        <section class="flex-1 flex flex-col h-full bg-black relative overflow-hidden">
+            
+
+            <!-- Multi-Raymarcher Field Visualizer Canvas Canvas -->
+            <div class="flex-1 relative">
+                <div class="absolute top-4 left-4 z-10 bg-slate-950/80 border border-slate-800/80 backdrop-blur rounded-lg px-3 py-2 text-[10px] font-mono tracking-wide text-slate-300 space-y-1 select-none pointer-events-none">
+                    <div class="flex items-center space-x-2">
+                        <span class="h-1.5 w-1.5 bg-indigo-400 rounded-full animate-ping"></span>
+                        <span class="text-slate-400 font-semibold text-xs">RIEMANNIAN DIFFERENTIAL GEOMETRY TELEMETRY</span>
+                    </div>
+                    <div class="text-[9px] text-slate-500 uppercase tracking-wider">
+                        Equation Space: f(x,y,z) = e^-(x²+y²) · sin(z·t) + Clifford Quaternion Fallback
+                    </div>
+                </div>
+
+                <div class="absolute top-4 right-4 z-10 bg-slate-950/80 border border-slate-800/80 backdrop-blur rounded-lg px-3 py-1.5 text-[9px] font-mono text-cyan-400 select-none pointer-events-none">
+                    ENGINE_FPS: <span id="fpsMeter">60.0</span> // VOLUMES: <span id="rayVolume">3_FRAMES_SHUFFLED</span>
+                </div>
+
+                <canvas id="mathEngineCanvas" class="w-full h-full block bg-[#03050a]"></canvas>
+            </div>
+
+
+            <!-- Terminal Logger Array Block -->
+            <div class="h-[220px] bg-slate-950 border-t border-slate-900 flex flex-col overflow-hidden z-10">
+                <div class="bg-slate-900/30 border-b border-slate-900 px-4 py-2 flex items-center justify-between shrink-0">
+                    <div class="text-[10px] font-mono tracking-wider text-slate-400 font-bold uppercase">
+                        Orchestration Log Pipeline & Inverted Metric Stack
+                    </div>
+                    <button onclick="wipeTerminalCache()" class="text-[9px] font-mono text-slate-600 hover:text-slate-400 uppercase tracking-widest">Wipe Register</button>
+                </div>
+                <div id="agentTerminal" class="flex-1 p-4 overflow-y-auto font-mono text-[11px] space-y-1.5 text-cyan-400 bg-black/30 custom-scrollbar select-text">
+                    <div class="text-slate-500">[SYSTEM_BOOT] Unified network pipeline mapped successfully. Math topology loops active. Ready for token instructions.</div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Mathematical Operators and Agent Core Scripts -->
+    <script>
+        let routingStrategy = 'auto';
+        let encodedBinaryMatrix = null;
+
+        let animationFrameId = null;
+        let lastTimestamp = performance.now();
+        let frameCount = 0;
+
+        // Mathematical Field Adjusters
+        let expScalar = 2.7;
+        let hashGridDivisions = 32;
+
+        const canvas = document.getElementById('mathEngineCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Clifford Algebra / Quaternion Vector Space Model
+        class Quaternion {
+            constructor(w, x, y, z) {
+                this.w = w; this.x = x; this.y = y; this.z = z;
+            }
+            multiply(q) {
+                return new Quaternion(
+                    this.w * q.w - this.x * q.x - this.y * q.y - this.z * q.z,
+
+                    this.w * q.x + this.x * q.w + this.y * q.z - this.z * q.y,
+                    this.w * q.y - this.x * q.z + this.y * q.w + this.z * q.x,
+                    this.w * q.z + this.x * q.y - this.y * q.x + this.z * q.w
+                );
+            }
+            normalize() {
+                const len = Math.sqrt(this.w*this.w + this.x*this.x + this.y*this.y + this.z*this.z) || 1;
+                return new Quaternion(this.w / len, this.x / len, this.y / len, this.z / len);
+            }
+        }
+
+        // Initialize state variables for field tracking matrix
+        let rotationQuat = new Quaternion(1, 0, 0, 0);
+        let timeOscillator = 0;
+
+        function resizeTelemetryCanvas() {
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+        }
+
+
+        function pushTerminalMessage(msg, origin = 'System') {
+            const terminal = document.getElementById('agentTerminal');
+            const row = document.createElement('div');
+            const timeStr = new Date().toISOString().split('T')[1].slice(0, 8);
+            
+            let formatting = 'text-slate-400';
+            if (origin === 'System') formatting = 'text-slate-500';
+            else if (origin === 'Error') formatting = 'text-rose-400 font-medium';
+            else if (origin === 'Success') formatting = 'text-emerald-400 font-semibold';
+            else if (origin === 'Orchestrator') formatting = 'text-cyan-400';
+
+            row.className = `${formatting}`;
+            row.innerHTML = `<span class="text-slate-700 font-normal">[${timeStr}]</span> <span class="text-[9px] uppercase tracking-wider px-1 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-400 mr-2">${origin}</span> ${msg}`;
+            terminal.appendChild(row);
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        function wipeTerminalCache() {
+            document.getElementById('agentTerminal').innerHTML = '<div class="text-slate-600">[SYSTEM] Logger registers reset clean. Ready for incoming vectors.</div>';
+
+        }
+
+        function setStrategy(strat) {
+            routingStrategy = strat;
+            const matrixButtons = ['stratAuto', 'stratOllama', 'stratOpenai', 'stratGemini'];
+            matrixButtons.forEach(id => {
+                document.getElementById(id).className = "py-2 px-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-400 text-center hover:border-slate-700 transition";
+            });
+            const selectedId = 'strat' + strat.charAt(0).toUpperCase() + strat.slice(1);
+            document.getElementById(selectedId).className = "py-2 px-2 bg-cyan-500/10 border border-cyan-500/40 rounded-lg text-cyan-400 text-center transition";
+            pushTerminalMessage(`Routing tracking strategy overridden manually to value descriptor: ${strat.toUpperCase()}`, 'System');
+        }
+
+        function updateMathParameters() {
+            const expSliderVal = document.getElementById('expSlider').value;
+            expScalar = expSliderVal / 10;
+            document.getElementById('expVal').innerText = expScalar.toFixed(3);
+
+            hashGridDivisions = parseInt(document.getElementById('hashSlider').value);
+
+            document.getElementById('hashVal').innerText = `${hashGridDivisions}x${hashGridDivisions}`;
+        }
+
+        function ingestBinaryMatrix(event) {
+            const asset = event.target.files[0];
+            if (!asset) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                encodedBinaryMatrix = e.target.result.split(',')[1];
+                document.getElementById('fileStatus').innerText = `Matrix [${asset.name}] Ingested`;
+                document.getElementById('fileStatus').className = "text-[11px] text-emerald-400 font-mono truncate";
+                pushTerminalMessage(`Multimodal context array constructed. Vector buffer footprint: ${asset.size} bytes.`, 'System');
+            };
+            reader.readAsDataURL(asset);
+        }
+
+        // Combined 3-Frame Subgroup Shuffling Ray-Marcher & Multiresolution Hash Grid Shading Engine
+        function renderMathematicalManifold() {
+
+            timeOscillator += 0.015;
+            frameCount++;
+
+            // Track operational frame execution frequency benchmarks
+            const currentTicks = performance.now();
+            if (currentTicks >= lastTimestamp + 1000) {
+                document.getElementById('fpsMeter').innerText = ((frameCount * 1000) / (currentTicks - lastTimestamp)).toFixed(1);
+                frameCount = 0;
+                lastTimestamp = currentTicks;
+            }
+
+            const w = canvas.width;
+            const h = canvas.height;
+            ctx.clearRect(0, 0, w, h);
+
+            // Dynamically transform Clifford quaternion matrices over exponential time manifolds
+            let temporalQuat = new Quaternion(
+                Math.cos(timeOscillator * 0.2), 
+                Math.sin(timeOscillator * 0.15) * 0.5, 
+
+                Math.sin(timeOscillator * 0.1) * 0.3, 
+                Math.cos(timeOscillator * 0.05) * 0.2
+            ).normalize();
+            rotationQuat = rotationQuat.multiply(temporalQuat).normalize();
+
+            const centerHorizontal = w / 2;
+            const centerVertical = h / 2;
+            const scalingFactor = Math.min(w, h) * 0.38;
+
+            // Render Layer A: Multiresolution Hash Grid & Exponential Field Equation f(x, y, z) Space mapping
+            ctx.lineWidth = 0.5;
+            
+            for (let i = 0; i <= hashGridDivisions; i++) {
+                for (let j = 0; j <= hashGridDivisions; j++) {
+                    // Map spatial coordinates onto target analytical manifold [-2.0, 2.0]
+                    let xCoords = ((i / hashGridDivisions) - 0.5) * 4.0;
+                    let yCoords = ((j / hashGridDivisions) - 0.5) * 4.0;
+                    
+                    // Continuous Exponentials Field Equation calculation loop
+
+                    let spatialRadius = xCoords * xCoords + yCoords * yCoords;
+                    let zFieldVal = Math.exp(-spatialRadius / expScalar) * Math.sin(spatialRadius * 2.5 - timeOscillator);
+
+                    // Compute Riemannian distance mappings using Clifford Algebra projections
+                    let projectedX = centerHorizontal + (xCoords * Math.cos(timeOscillator * 0.2) - yCoords * Math.sin(timeOscillator * 0.2)) * scalingFactor * 0.5;
+                    let projectedY = centerVertical + (yCoords * Math.cos(timeOscillator * 0.2) + zFieldVal * Math.sin(timeOscillator * 0.2)) * scalingFactor * 0.5;
+
+                    ctx.fillStyle = `rgba(59, 130, 246, ${Math.abs(zFieldVal) * 0.45})`;
+                    
+                    if (i % 2 === 0 && j % 2 === 0) {
+                        ctx.fillRect(projectedX - 1.5, projectedY - 1.5, 3, 3);
+                    }
+                }
+            }
+
+            // Render Layer B: Sub-group shuffled triple ray-marching distance frames (SDF calculations)
+            ctx.lineWidth = 1;
+            const volumesToRender = 3;
+            
+
+            for (let step = 0; step < volumesToRender; step++) {
+                ctx.beginPath();
+                // Introduce sub-group spatial shifts based on active phase variables
+                let subGroupPhaseShift = (step * Math.PI * 2) / volumesToRender;
+                let activeRadiusSDF = Math.abs(Math.sin(timeOscillator + subGroupPhaseShift)) * 0.4 + 0.2;
+                
+                // Track geometric bounds over the pseudo-Riemannian space framework
+                for (let angle = 0; angle < Math.PI * 2; angle += 0.06) {
+                    let evaluationX = Math.cos(angle) * activeRadiusSDF;
+                    let evaluationY = Math.sin(angle) * activeRadiusSDF;
+                    
+                    // Slicing through differential geometry boundaries using exponential mapping functions
+                    let logDeformationMetric = Math.log(1.5 + Math.sin(angle * 5.0 + timeOscillator));
+                    let adjustedX = evaluationX * (1.0 + logDeformationMetric * 0.15);
+                    let adjustedY = evaluationY * (1.0 + logDeformationMetric * 0.15);
+
+                    // Transform coordinates using our tracking rotation quaternion
+                    let mappedCanvasX = centerHorizontal + (adjustedX * rotationQuat.w - adjustedY * rotationQuat.z) * scalingFactor;
+                    let mappedCanvasY = centerVertical + (adjustedY * rotationQuat.w + adjustedX * rotationQuat.z) * scalingFactor;
+
+
+                    if (angle === 0) ctx.moveTo(mappedCanvasX, mappedCanvasY);
+                    else ctx.lineTo(mappedCanvasX, mappedCanvasY);
+                }
+                
+                ctx.closePath();
+                if (step === 0) ctx.strokeStyle = 'rgba(34, 211, 238, 0.45)';       // Cyan Raymarching Frame Node
+                else if (step === 1) ctx.strokeStyle = 'rgba(99, 102, 241, 0.35)';   // Indigo Raymarching Frame Node
+                else ctx.strokeStyle = 'rgba(236, 72, 153, 0.25)';                  // Pink Raymarching Frame Node
+                ctx.stroke();
+            }
+
+            // Draw real-time packet tracking markers intersecting the operational mesh layer
+            if (packetsQueue.length > 0) {
+                renderActiveNetworkTelemetryPackets(centerHorizontal, centerVertical, scalingFactor);
+            }
+
+            animationFrameId = requestAnimationFrame(renderMathematicalManifold);
+        }
+
+
+        // Interactive execution packets mapping interface values
+        let packetsQueue = [];
+        function injectNetworkTelemetryPacket(destinationNode, colorValue) {
+            packetsQueue.push({
+                progress: 0.0,
+                speedMultiplier: 0.035,
+                target: destinationNode,
+                color: colorValue
+            });
+        }
+
+        function renderActiveNetworkTelemetryPackets(cx, cy, sf) {
+            for (let idx = packetsQueue.length - 1; idx >= 0; idx--) {
+                let p = packetsQueue[idx];
+                p.progress += p.speedMultiplier;
+
+                let targetOffsetHorizontal = 0;
+                let targetOffsetVertical = 0;
+
+
+                if (p.target === 'ollama') { targetOffsetHorizontal = sf * 0.7; targetOffsetVertical = -sf * 0.7; }
+                else if (p.target === 'openai') { targetOffsetHorizontal = sf * 0.7; targetOffsetVertical = 0; }
+                else if (p.target === 'gemini') { targetOffsetHorizontal = sf * 0.7; targetOffsetVertical = sf * 0.7; }
+
+                // Interpolate starting coordinates from the main routing coordinator node outwards
+                let trackingX = cx + (targetOffsetHorizontal * p.progress);
+                let trackingY = cy + (targetOffsetVertical * p.progress);
+
+                ctx.beginPath();
+                ctx.arc(trackingX, trackingY, 5, 0, Math.PI * 2);
+                ctx.fillStyle = p.color;
+                ctx.shadowBlur = 12;
+                ctx.shadowColor = p.color;
+                ctx.fill();
+                ctx.shadowBlur = 0;
+
+                if (p.progress >= 1.0) {
+                    packetsQueue.splice(idx, 1);
+                }
+
+            }
+        }
+
+        function evaluateAnalyticalStrategyRoute(promptText) {
+            if (routingStrategy !== 'auto') return routingStrategy;
+            
+            const normalizedText = promptText.toLowerCase();
+            if (encodedBinaryMatrix) return 'ollama'; // Multi-modal assets drop back automatically onto Edge Ollama nodes
+            if (normalizedText.includes('schema') || normalizedText.includes('structural') || normalizedText.includes('json')) {
+                return 'openai';
+            }
+            return 'gemini';
+        }
+
+        // Absolute Standard Fetch Transaction Routines
+        async function executeAgentTransaction() {
+            const inputField = document.getElementById('promptInput');
+            const instructions = inputField.value.trim();
+            
+
+            if (!instructions) {
+                pushTerminalMessage("Aborting transaction pipeline: Input execution parameters register empty.", "Error");
+                return;
+            }
+
+            const activeTargetNode = evaluateAnalyticalStrategyRoute(instructions);
+            pushTerminalMessage(`Orchestrator parsing payload. Routing execution vector down to hardware matrix: [${activeTargetNode.toUpperCase()}]`, 'Orchestrator');
+            
+            // Push animated telemetry markers directly onto the active canvas rendering pipeline
+            let vectorHexColor = '#22d3ee';
+            if (activeTargetNode === 'openai') vectorHexColor = '#10b981';
+            if (activeTargetNode === 'gemini') vectorHexColor = '#f59e0b';
+            
+            injectNetworkTelemetryPacket(activeTargetNode, vectorHexColor);
+
+            // Execute genuine endpoint configurations
+            if (activeTargetNode === 'ollama') {
+                await dispatchLocalOllamaCall(instructions);
+            } else if (activeTargetNode === 'openai') {
+
+                await dispatchOpenAIFrontierCall(instructions);
+            } else if (activeTargetNode === 'gemini') {
+                await dispatchGoogleGeminiCall(instructions);
+            }
+        }
+
+        async function dispatchLocalOllamaCall(prompt) {
+            const hostUrl = document.getElementById('ollamaHost').value.trim();
+            pushTerminalMessage(`Opening stream pipe socket targeting address: ${hostUrl}/api/generate`, 'System');
+            
+            const payloadObject = {
+                model: encodedBinaryMatrix ? "gemma4:e4b" : "gemma4:e2b",
+                prompt: prompt,
+                stream: false
+            };
+            if (encodedBinaryMatrix) {
+                payloadObject.images = [encodedBinaryMatrix];
+            }
+
+
+            try {
+                const endpointResponse = await fetch(`${hostUrl}/api/generate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payloadObject)
+                });
+                
+                if (!endpointResponse.ok) throw new Error(`Target network node returned failure status: ${endpointResponse.status}`);
+                const parsedBody = await endpointResponse.json();
+                pushTerminalMessage(parsedBody.response, 'Success');
+            } catch (err) {
+                pushTerminalMessage(`Ollama connection layer refused: ${err.message}. Verify local process CORS policies are explicitly open.`, 'Error');
+            }
+        }
+
+        async function dispatchOpenAIFrontierCall(prompt) {
+            const authorizationToken = document.getElementById('openaiKey').value.trim();
+            if (!authorizationToken) {
+                pushTerminalMessage("Transaction halted: OpenAI bearer authorization token register empty.", "Error");
+
+                return;
+            }
+
+            pushTerminalMessage("Transmitting absolute authorization frames to OpenAI API cluster...", 'System');
+            const analyticalPayload = {
+                model: "gpt-4o",
+                messages: [{ role: "user", content: prompt }]
+            };
+
+            try {
+                const networkCall = await fetch("https://openai.com", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authorizationToken}`
+                    },
+                    body: JSON.stringify(analyticalPayload)
+                });
+
+
+                if (!networkCall.ok) throw new Error(`Frontier cluster returned execution failure code: ${networkCall.status}`);
+                const completeData = await networkCall.json();
+                pushTerminalMessage(completeData.choices[0].message.content, 'Success');
+            } catch (err) {
+                pushTerminalMessage(`OpenAI runtime operation failed: ${err.message}`, 'Error');
+            }
+        }
+
+        async function dispatchGoogleGeminiCall(prompt) {
+            const providerKeyRegister = document.getElementById('geminiKey').value.trim();
+            if (!providerKeyRegister) {
+                pushTerminalMessage("Transaction halted: Gemini credential key missing from execution state array.", "Error");
+                return;
+            }
+
+            pushTerminalMessage("Transmitting execution content schema frame to Google Gemini cluster matrix...", 'System');
+            const targetUrlString = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${providerKeyRegister}`;
+            
+            const mappingSchema = {
+
+                contents: [{ parts: [{ text: prompt }] }]
+            };
+
+            try {
+                const serviceMeshCall = await fetch(targetUrlString, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(mappingSchema)
+                });
+
+                if (!serviceMeshCall.ok) throw new Error(`Google API gateway returned channel failure code: ${serviceMeshCall.status}`);
+                const telemetryJson = await serviceMeshCall.json();
+                pushTerminalMessage(telemetryJson.candidates[0].content.parts[0].text, 'Success');
+            } catch (err) {
+                pushTerminalMessage(`Gemini analytical matrix transaction failed: ${err.message}`, 'Error');
+            }
+        }
+
+        // Bind document lifecycle listeners to initialize canvas operations smoothly
+
+        window.onload = function() {
+            resizeTelemetryCanvas();
+            renderMathematicalManifold();
+
+            window.addEventListener('resize', () => {
+                resizeTelemetryCanvas();
+            });
+        };
+    </script>
+</body>
+</html>
+
+

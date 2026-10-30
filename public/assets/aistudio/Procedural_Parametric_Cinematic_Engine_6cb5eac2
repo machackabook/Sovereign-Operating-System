@@ -1,0 +1,670 @@
+﻿The Quantum-Resonance Matrix and Transcendental Butterfly profiles share a common parametric foundation scaled by spatial amplitude ($\alpha$) and driven by an angular argument ($\arg = \beta \cdot t$), but differ in their structural formulation:
+* Quantum-Resonance Matrix: Utilizes a harmonic series of cosine and sine combinations across multiple frequency multiples ($1, 2, 4,$ and $8$) to generate smooth, multi-frequency periodic motion.
+* Transcendental Butterfly Lattice: Modulates circular components with a complex exponential-trigonometric scaling factor ($\exp(\cos(\arg)) - 2\cos(4\arg) - \sin^5(\arg/12)$) to produce intricate, expansive spatial lattices.
+Would you like me to analyze the curvature or velocity calculations for either of these profiles?
+Procedural Parametric Cinematic Engine
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+   <meta charset="UTF-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <title>Procedural Parametric Cinematic Engine</title>
+   <script src="https://cdn.tailwindcss.com"></script>
+   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&display=swap" rel="stylesheet">
+   <!-- Three.js Authoritative Allowed CDN Core Dependency Layer -->
+   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+   <style>
+       body {
+           font-family: 'JetBrains Mono', monospace;
+           background-color: #05070c;
+       }
+       .hud-panel {
+           background: rgba(10, 15, 26, 0.85);
+           backdrop-filter: blur(12px);
+           border: 1px solid rgba(55, 65, 81, 0.5);
+
+
+
+        }
+       input[type="range"] {
+           accent-color: #10b981;
+       }
+   </style>
+</head>
+<body class="text-gray-100 min-h-screen h-screen flex flex-col overflow-hidden select-none selection:bg-emerald-500 selection:text-black">
+
+   <!-- Top Status Control Strip -->
+   <header class="border-b border-gray-800/80 bg-gray-950/80 backdrop-blur-md px-6 py-3 flex items-center justify-between z-50 relative shrink-0">
+       <div class="flex items-center space-x-3">
+           <div class="h-2 w-2 bg-rose-500 rounded-full shadow-[0_0_10px_#f43f5e] animate-pulse"></div>
+           <h1 class="text-xs font-bold tracking-widest text-gray-300 uppercase">OMNIBROWSER CINEMATIC PIPELINE // REVERSE_CALCULUS_DRIVEN</h1>
+       </div>
+       <div class="flex items-center space-x-6 text-[10px] text-gray-500 font-mono">
+           <div>PARAMETERIZATION: <span class="text-cyan-400 font-bold uppercase">Arc-Length (s-space)</span></div>
+           <div id="render-fps">FPS: --</div>
+       </div>
+   </header>
+
+
+
+
+    <!-- Master Viewport Grid Canvas Setup -->
+   <div class="flex-1 flex flex-col lg:flex-row overflow-hidden relative w-full h-full">
+       
+       <!-- Interactive 3D Render Canvas Zone - Shrunk to 2/3 width to prevent viewport clipping and scrollbars -->
+       <div id="canvas-container" class="relative w-full lg:w-2/3 h-full min-h-[50vh] lg:min-h-0 bg-black overflow-hidden">
+           <!-- Simulated Viewport HUD Information Cards Overlay -->
+           <div class="absolute top-6 left-6 pointer-events-none z-10 space-y-3">
+               <div class="hud-panel p-4 rounded-xl max-w-xs space-y-2 text-xs">
+                   <div class="text-[10px] text-emerald-400 uppercase tracking-wider font-bold border-b border-gray-800 pb-1">Cinematic Director HUD</div>
+                   <div class="grid grid-cols-2 gap-x-4 gap-y-1 font-mono text-[11px]">
+                       <span class="text-gray-500">Camera Mode:</span> <span id="hud-cam-mode" class="text-gray-200 text-right">Director Tangent</span>
+                       <span class="text-gray-500">Velocity |v|:</span> <span id="hud-velocity" class="text-cyan-400 text-right">Constant</span>
+                       <span class="text-gray-500">G-Force (Acc):</span> <span id="hud-gforce" class="text-fuchsia-400 text-right">0.00G</span>
+                       <span class="text-gray-500">Curvature (κ):</span> <span id="hud-curvature" class="text-amber-400 text-right">0.0000</span>
+                       <span class="text-gray-500">Arc Segment s:</span> <span id="hud-arc" class="text-emerald-400 text-right">0.00m</span>
+                   </div>
+               </div>
+
+               <div class="hud-panel p-3 rounded-lg max-w-xs space-y-1 text-[10px] font-mono text-gray-400">
+
+
+
+                    <div class="text-gray-500 font-bold mb-1">COMPUTATIONAL GEOMETATION LATTICE</div>
+                   <div class="flex items-center space-x-2"><span class="w-2 h-2 rounded-full bg-cyan-400"></span> <span>Tangent Vector [Heading]</span></div>
+                   <div class="flex items-center space-x-2"><span class="w-2 h-2 rounded-full bg-fuchsia-500"></span> <span>Normal Vector [Centripetal Force]</span></div>
+                   <div class="flex items-center space-x-2"><span class="w-2 h-2 rounded-full bg-yellow-400"></span> <span>Binormal Vector [Gimbal Horizon]</span></div>
+               </div>
+           </div>
+
+           <!-- Full-Screen 3D Scene Target Holder Element - Absolute Inset Fixed for IFrame Viewport Stability -->
+           <div id="three-container" class="absolute inset-0 w-full h-full"></div>
+       </div>
+
+       <!-- System Controls Sidebar Menu Panel Overlay - Proportional 1/3 Width to fill out the remaining space -->
+       <div class="w-full lg:w-1/3 border-t lg:border-t-0 lg:border-l border-gray-800 bg-gray-950/90 backdrop-blur-md flex flex-col font-mono text-xs z-20 overflow-y-auto shrink-0">
+           
+           <!-- Spline / Trajectory Configuration Node -->
+           <div class="p-5 border-b border-gray-800/80">
+               <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Geometric Spline Function Profile</label>
+               <select id="sel-preset" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-emerald-400 focus:outline-none cursor-pointer">
+                   <option value="quantum">Quantum-Resonance Matrix Spline</option>
+
+
+
+                    <option value="butterfly">Transcendental Butterfly Lattice</option>
+                   <option value="lissajous">Complex Lissajous Toroidal Knot</option>
+                   <option value="hypotrochoid">Hypotrochoid Boundary Envelope</option>
+               </select>
+           </div>
+
+           <!-- Real-time Calibration Sliders -->
+           <div class="p-5 border-b border-gray-800 space-y-4">
+               <div class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Cinematic Velocity & Calibration Mixer</div>
+               
+               <!-- Speed parameter -->
+               <div class="space-y-1.5">
+                   <div class="flex justify-between text-gray-400">
+                       <span>Linear Speed (ds/dt)</span>
+                       <span id="txt-speed" class="text-emerald-400">2.50 m/s</span>
+                   </div>
+                   <input id="slide-speed" type="range" min="0.5" max="6.0" step="0.1" value="2.5" class="w-full bg-gray-800 h-1 appearance-none cursor-pointer">
+               </div>
+
+
+
+
+                <!-- Amplitude scalar -->
+               <div class="space-y-1.5">
+                   <div class="flex justify-between text-gray-400">
+                       <span>Spatial Amplitude (α)</span>
+                       <span id="txt-alpha" class="text-cyan-400">12.00</span>
+                   </div>
+                   <input id="slide-alpha" type="range" min="5.0" max="25.0" step="0.5" value="12.0" class="w-full bg-gray-800 h-1 appearance-none cursor-pointer">
+               </div>
+
+               <!-- Boundary Wall Height multiplier -->
+               <div class="space-y-1.5">
+                   <div class="flex justify-between text-gray-400">
+                       <span>Curvature-Wall Boundary Scalar</span>
+                       <span id="txt-wall" class="text-fuchsia-400">4.5x</span>
+                   </div>
+                   <input id="slide-wall" type="range" min="0.0" max="10.0" step="0.5" value="4.5" class="w-full bg-gray-800 h-1 appearance-none cursor-pointer">
+               </div>
+           </div>
+
+
+
+
+            <!-- Cinematic Camera Director Control Settings Matrix -->
+           <div class="p-5 border-b border-gray-800 space-y-3">
+               <div class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Camera Choreography Gaze Mode</div>
+               <div class="grid grid-cols-2 gap-2">
+                   <button id="btn-cam-director" class="bg-emerald-600 font-bold text-gray-950 py-2 px-3 rounded text-left transition border border-emerald-500">
+                       • Director Tangent
+                   </button>
+                   <button id="btn-cam-orbit" class="bg-gray-900 text-gray-400 py-2 px-3 rounded text-left transition border border-gray-800 hover:border-gray-700">
+                       • Drone Orbital
+                   </button>
+               </div>
+               <label class="flex items-center space-x-2 mt-2 pt-1 cursor-pointer select-none text-gray-400">
+                   <input type="checkbox" id="chk-gimbal" checked class="accent-emerald-500 rounded">
+                   <span>Simulate Dynamic Corner Banking (Gimbal Lean)</span>
+               </label>
+           </div>
+
+           <!-- Visualization Diagnostics Array Display -->
+           <div class="p-5 space-y-3 flex-1">
+
+
+
+                <div class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Frenet-Serret Tensor Lattice Overlays</div>
+               <div class="grid grid-cols-2 gap-2">
+                   <label class="flex items-center space-x-2 bg-gray-900/40 p-2 rounded border border-gray-800/60 cursor-pointer">
+                       <input type="checkbox" id="chk-vectors" checked class="accent-emerald-500">
+                       <span class="text-gray-300">Frenet Frame Arrows</span>
+                   </label>
+                   <label class="flex items-center space-x-2 bg-gray-900/40 p-2 rounded border border-gray-800/60 cursor-pointer">
+                       <input type="checkbox" id="chk-track" checked class="accent-emerald-500">
+                       <span class="text-gray-300">Spline Track Path</span>
+                   </label>
+               </div>
+           </div>
+
+           <!-- Architecture Mathematical Reference Base Info Element -->
+           <div class="p-4 bg-gray-950 border-t border-gray-900/80 text-[10px] text-gray-600 flex justify-between shrink-0">
+               <span>Calculus Parameter Space: Reparameterized s(t)</span>
+               <span>Geometry: Procedural Mesh</span>
+           </div>
+       </div>
+
+
+
+    </div>
+
+   <!-- Scripting Execution Blueprint Stack Configuration Layer -->
+   <script>
+       // System Application Engine Variables Matrix Namespace
+       let scene, camera, renderer, container;
+       let activePreset = 'quantum';
+       let sProgress = 0; // Absolute progression along integrated arc-length metric parameter space
+       let linearVelocity = 2.5; // Constant spatial distance step increment per sequence update loop
+       let alphaCoeff = 12.0;
+       let betaCoeff = 1.0;
+       let wallScalar = 4.5;
+       
+       let trackLookupTable = []; // Arc-Length Uniform Mapping Integration Vector Spline Array Table
+       let totalArcLength = 0;
+
+       // Visual Asset Nodes Reference Group
+       let trackLineMesh = null;
+       let environmentMeshGroup = null;
+
+
+
+        let vectorHelpersGroup = null;
+       let vehicleAnchorNode = null;
+       
+       let tangentArrowHelper, normalArrowHelper, binormalArrowHelper;
+
+       // Choreography Camera Management States
+       let activeCameraMode = 'director'; // Options: 'director' or 'orbit'
+       let simulateGimbalBanking = true;
+       let showVectors = true;
+       let showTrack = true;
+
+       // Diagnostic Variables Counters
+       let lastFrameTimestamp = performance.now();
+       let diagnosticFrameCounter = 0;
+
+       // Core Mathematical Functions Definitions Mapping
+       function computeRawSplineCoordinate(timeParameter, presetKey, alpha, beta) {
+           let x = 0, y = 0, z = 0;
+           const arg = beta * timeParameter;
+
+
+
+
+            if (presetKey === 'quantum') {
+               x = alpha * (Math.cos(arg) + 0.5 * Math.cos(2 * arg) + 0.5 * Math.cos(4 * arg) + 0.375 * Math.cos(8 * arg));
+               y = alpha * (2 * Math.sin(arg) - Math.sin(2 * arg) + Math.sin(4 * arg) - 0.75 * Math.sin(8 * arg));
+               z = alpha * 0.45 * Math.sin(3 * arg); 
+           } else if (presetKey === 'butterfly') {
+               const factor = Math.exp(Math.cos(arg)) - 2 * Math.cos(4 * arg) - Math.pow(Math.sin(arg / 12), 5);
+               x = alpha * 0.6 * Math.sin(arg) * factor;
+               y = alpha * 0.6 * Math.cos(arg) * factor;
+               z = alpha * 0.3 * Math.cos(3 * arg);
+           } else if (presetKey === 'lissajous') {
+               x = alpha * 1.2 * Math.sin(3 * arg + Math.PI / 2);
+               y = alpha * 1.2 * Math.sin(4 * arg);
+               z = alpha * 0.8 * Math.cos(2 * arg);
+           } else { 
+               x = alpha * (1.1 * Math.cos(arg) + 0.5 * Math.cos(3.5 * arg));
+               y = alpha * (1.1 * Math.sin(arg) - 0.5 * Math.sin(3.5 * arg));
+               z = alpha * 0.4 * Math.sin(2 * arg);
+           }
+           return new THREE.Vector3(x, z, -y); 
+
+
+
+        }
+
+       // Numerical Integration Quadrature Engine for Uniform Speed Reparameterization Mapping Matrix
+       function precomputeArcLengthParameterizationMatrix() {
+           trackLookupTable = [];
+           totalArcLength = 0;
+           
+           const numericalSamplingIntervalSteps = 2000;
+           const maxRangeT = activePreset === 'butterfly' ? Math.PI * 24 : Math.PI * 2;
+           
+           let previousCoordinate = computeRawSplineCoordinate(0, activePreset, alphaCoeff, betaCoeff);
+           trackLookupTable.push({ t: 0, s: 0, position: previousCoordinate.clone() });
+
+           for (let step = 1; step <= numericalSamplingIntervalSteps; step++) {
+               const currentT = (step / numericalSamplingIntervalSteps) * maxRangeT;
+               const currentCoordinate = computeRawSplineCoordinate(currentT, activePreset, alphaCoeff, betaCoeff);
+               
+               const incrementalDistanceDelta = currentCoordinate.distanceTo(previousCoordinate);
+               totalArcLength += incrementalDistanceDelta;
+
+
+
+                
+               trackLookupTable.push({
+                   t: currentT,
+                   s: totalArcLength,
+                   position: currentCoordinate.clone()
+               });
+               previousCoordinate = currentCoordinate.clone();
+           }
+       }
+
+       // Dynamic Mapping Resolution: Lookup Interpolated Position In Continuous Arc Length Space Domain
+       function queryPositionAtArcLengthDistance(targetS) {
+           let boundedS = targetS % totalArcLength;
+           if (boundedS < 0) boundedS += totalArcLength;
+
+           let lowerBoundIndex = 0;
+           let upperBoundIndex = trackLookupTable.length - 1;
+
+           while (lowerBoundIndex < upperBoundIndex - 1) {
+
+
+
+                const midpointIndex = Math.floor((lowerBoundIndex + upperBoundIndex) / 2);
+               if (trackLookupTable[midpointIndex].s < boundedS) {
+                   lowerBoundIndex = midpointIndex;
+               } else {
+                   upperBoundIndex = midpointIndex;
+               }
+           }
+
+           const lowerRecord = trackLookupTable[lowerBoundIndex];
+           const upperRecord = trackLookupTable[upperBoundIndex];
+           
+           if (upperRecord.s === lowerRecord.s) return lowerRecord.position.clone();
+
+           const linearInterpolationRatioFactor = (boundedS - lowerRecord.s) / (upperRecord.s - lowerRecord.s);
+           return new THREE.Vector3().lerpVectors(lowerRecord.position, upperRecord.position, linearInterpolationRatioFactor);
+       }
+
+       // Discrete Kinematics Engine Evaluating Frenet-Serret Vector Frame Space Orientation Tensors
+       function analyzeFrenetSerretFrameMatrixState(targetS) {
+
+
+
+            const infinitesimalDeltaDistanceStep = 0.02;
+
+           const positionBackward = queryPositionAtArcLengthDistance(targetS - infinitesimalDeltaDistanceStep);
+           const positionCenter   = queryPositionAtArcLengthDistance(targetS);
+           const positionForward  = queryPositionAtArcLengthDistance(targetS + infinitesimalDeltaDistanceStep);
+
+           const tangentVector = new THREE.Vector3().subVectors(positionForward, positionBackward).normalize();
+
+           const deltaVectorForward  = new THREE.Vector3().subVectors(positionForward, positionCenter);
+           const deltaVectorBackward = new THREE.Vector3().subVectors(positionCenter, positionBackward);
+           const differentialSecondDerivativeVector = new THREE.Vector3().subVectors(deltaVectorForward, deltaVectorBackward);
+
+           const instantaneousCurvatureKappa = differentialSecondDerivativeVector.length() / (infinitesimalDeltaDistanceStep * infinitesimalDeltaDistanceStep);
+
+           const normalVector = differentialSecondDerivativeVector.clone().normalize();
+           
+           if (normalVector.lengthSq() === 0 || isNaN(normalVector.x)) {
+               normalVector.set(0, 1, 0).projectOnPlane(tangentVector).normalize();
+           }
+
+
+
+
+            const binormalVector = new THREE.Vector3().crossVectors(tangentVector, normalVector).normalize();
+
+           return {
+               position: positionCenter,
+               tangent: tangentVector,
+               normal: normalVector,
+               binormal: binormalVector,
+               curvature: instantaneousCurvatureKappa
+           };
+       }
+
+       // Scene Generation Engine: Procedural Mesh Geometry Pipeline Construction Assembly
+       function rebuildProceduralCinematicEnvironmentMeshMatrix() {
+           if (trackLineMesh) scene.remove(trackLineMesh);
+           if (environmentMeshGroup) scene.remove(environmentMeshGroup);
+           if (vectorHelpersGroup) scene.remove(vectorHelpersGroup);
+
+           environmentMeshGroup = new THREE.Group();
+           vectorHelpersGroup = new THREE.Group();
+
+
+
+            scene.add(environmentMeshGroup);
+           scene.add(vectorHelpersGroup);
+
+           const trackLineGeometry = new THREE.BufferGeometry();
+           const trackLinePositions = [];
+
+           const visualizationPathSegmentsResolution = 400;
+           for (let segmentIndex = 0; segmentIndex <= visualizationPathSegmentsResolution; segmentIndex++) {
+               const currentDistanceTarget = (segmentIndex / visualizationPathSegmentsResolution) * totalArcLength;
+               const positionVector = queryPositionAtArcLengthDistance(currentDistanceTarget);
+               trackLinePositions.push(positionVector.x, positionVector.y, positionVector.z);
+           }
+
+           trackLineGeometry.setAttribute('position', new THREE.Float32BufferAttribute(trackLinePositions, 3));
+           const trackLineMaterial = new THREE.LineBasicMaterial({
+               color: 0x10b981,
+               linewidth: 2,
+               transparent: true,
+               opacity: showTrack ? 0.65 : 0.0
+
+
+
+            });
+           trackLineMesh = new THREE.Line(trackLineGeometry, trackLineMaterial);
+           scene.add(trackLineMesh);
+
+           const wallSlicesStepsResolution = 250;
+           const wallRibbonWidthDistanceOffset = 3.5; 
+           
+           const leftWallVerticesPositionsArray = [];
+           const rightWallVerticesPositionsArray = [];
+
+           for (let sliceIndex = 0; sliceIndex <= wallSlicesStepsResolution; sliceIndex++) {
+               const spatialDistanceTarget = (sliceIndex / wallSlicesStepsResolution) * totalArcLength;
+               const frameState = analyzeFrenetSerretFrameMatrixState(spatialDistanceTarget);
+
+               const rawWallHeightScale = Math.max(0.5, frameState.curvature * 85.0 * wallScalar);
+               
+               const leftBaseOffsetPoint = frameState.position.clone().addScaledVector(frameState.binormal, wallRibbonWidthDistanceOffset);
+               const leftTopOffsetPoint  = leftBaseOffsetPoint.clone().addScaledVector(new THREE.Vector3(0, 1, 0), rawWallHeightScale);
+
+
+
+
+                const rightBaseOffsetPoint = frameState.position.clone().addScaledVector(frameState.binormal, -wallRibbonWidthDistanceOffset);
+               const rightTopOffsetPoint  = rightBaseOffsetPoint.clone().addScaledVector(new THREE.Vector3(0, 1, 0), rawWallHeightScale);
+
+               leftWallVerticesPositionsArray.push(leftBaseOffsetPoint.x, leftBaseOffsetPoint.y, leftBaseOffsetPoint.z);
+               leftWallVerticesPositionsArray.push(leftTopOffsetPoint.x, leftTopOffsetPoint.y, leftTopOffsetPoint.z);
+
+               rightWallVerticesPositionsArray.push(rightBaseOffsetPoint.x, rightBaseOffsetPoint.y, rightBaseOffsetPoint.z);
+               rightWallVerticesPositionsArray.push(rightTopOffsetPoint.x, rightTopOffsetPoint.y, rightTopOffsetPoint.z);
+           }
+
+           function generateMeshRibbonFromCalculatedBuffers(positionsData, colorHex) {
+               const ribbonGeometry = new THREE.BufferGeometry();
+               const totalCalculatedPointsCount = positionsData.length / 3;
+               const indexTrianglesBufferArray = [];
+
+               for (let i = 0; i < (totalCalculatedPointsCount - 2); i += 2) {
+                   indexTrianglesBufferArray.push(i, i + 1, i + 2);
+                   indexTrianglesBufferArray.push(i + 1, i + 3, i + 2);
+               }
+
+
+
+
+                ribbonGeometry.setAttribute('position', new THREE.Float32BufferAttribute(positionsData, 3));
+               ribbonGeometry.setIndex(indexTrianglesBufferArray);
+               ribbonGeometry.computeVertexNormals();
+
+               const wireframeMaterial = new THREE.MeshBasicMaterial({
+                   color: colorHex,
+                   wireframe: true,
+                   transparent: true,
+                   opacity: 0.14,
+                   side: THREE.DoubleSide
+               });
+
+               return new THREE.Mesh(ribbonGeometry, wireframeMaterial);
+           }
+
+           const leftBoundaryStructuralMesh = generateMeshRibbonFromCalculatedBuffers(leftWallVerticesPositionsArray, 0x06b6d4);
+           const rightBoundaryStructuralMesh = generateMeshRibbonFromCalculatedBuffers(rightWallVerticesPositionsArray, 0xec4899);
+
+           environmentMeshGroup.add(leftBoundaryStructuralMesh);
+
+
+
+            environmentMeshGroup.add(rightBoundaryStructuralMesh);
+
+           const floorGridHelper = new THREE.GridHelper(150, 60, 0x1e293b, 0x0f172a);
+           floorGridHelper.position.y = -10;
+           environmentMeshGroup.add(floorGridHelper);
+
+           vehicleAnchorNode = new THREE.Object3D();
+           scene.add(vehicleAnchorNode);
+
+           const arrowLenMetric = 2.5;
+           tangentArrowHelper = new THREE.ArrowHelper(new THREE.Vector3(1,0,0), new THREE.Vector3(0,0,0), arrowLenMetric, 0x22d3ee, 0.4, 0.2);
+           normalArrowHelper  = new THREE.ArrowHelper(new THREE.Vector3(0,1,0), new THREE.Vector3(0,0,0), arrowLenMetric, 0xf43f5e, 0.4, 0.2);
+           binormalArrowHelper = new THREE.ArrowHelper(new THREE.Vector3(0,0,1), new THREE.Vector3(0,0,0), arrowLenMetric, 0xfacc15, 0.4, 0.2);
+
+           vectorHelpersGroup.add(tangentArrowHelper);
+           vectorHelpersGroup.add(normalArrowHelper);
+           vectorHelpersGroup.add(binormalArrowHelper);
+       }
+
+
+
+
+        // Initialize Core ThreeJS Rendering Context Suite Platform Environment
+       function initializeThreeEngineEnvironmentContext() {
+           container = document.getElementById('three-container');
+           
+           const rectWidth = container.clientWidth || window.innerWidth;
+           const rectHeight = container.clientHeight || window.innerHeight;
+
+           scene = new THREE.Scene();
+           scene.background = new THREE.Color(0x04060a);
+           scene.fog = new THREE.FogExp2(0x04060a, 0.015);
+
+           camera = new THREE.PerspectiveCamera(55, rectWidth / rectHeight, 0.1, 1000);
+           
+           renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+           renderer.setSize(rectWidth, rectHeight);
+           renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+           container.appendChild(renderer.domElement);
+
+           const lightAmbient = new THREE.AmbientLight(0xffffff, 0.2);
+
+
+
+            scene.add(lightAmbient);
+
+           const lightDirectional = new THREE.DirectionalLight(0xffffff, 0.8);
+           lightDirectional.position.set(10, 40, 20);
+           scene.add(lightDirectional);
+
+           precomputeArcLengthParameterizationMatrix();
+           rebuildProceduralCinematicEnvironmentMeshMatrix();
+       }
+
+       // Main Simulation Dynamic Loop Frame Animation Routine Controller
+       function executeRenderPipelineTickFrame(currentTimestampDelta) {
+           const realTimeStepDelta = currentTimestampDelta - lastFrameTimestamp;
+           lastFrameTimestamp = currentTimestampDelta;
+           
+           diagnosticFrameCounter++;
+           if (diagnosticFrameCounter % 10 === 0) {
+               document.getElementById('render-fps').textContent = `FPS: ${Math.round(1000 / (realTimeStepDelta || 1))}`;
+           }
+
+
+
+
+            const operationalSpeedFactorConstantStepUnit = (linearVelocity * 0.016); 
+           sProgress += operationalSpeedFactorConstantStepUnit;
+
+           const liveCalculusFrameState = analyzeFrenetSerretFrameMatrixState(sProgress);
+
+           vectorHelpersGroup.visible = showVectors;
+           trackLineMesh.material.opacity = showTrack ? 0.65 : 0.0;
+
+           if (showVectors) {
+               tangentArrowHelper.position.copy(liveCalculusFrameState.position);
+               tangentArrowHelper.setDirection(liveCalculusFrameState.tangent);
+
+               normalArrowHelper.position.copy(liveCalculusFrameState.position);
+               normalArrowHelper.setDirection(liveCalculusFrameState.normal);
+
+               binormalArrowHelper.position.copy(liveCalculusFrameState.position);
+               binormalArrowHelper.setDirection(liveCalculusFrameState.binormal);
+           }
+
+
+
+
+            const currentInstantSpeedValue = linearVelocity;
+           const calculatedInstantCentripetalGForce = (currentInstantSpeedValue * currentInstantSpeedValue) * liveCalculusFrameState.curvature;
+
+           document.getElementById('hud-curvature').textContent = liveCalculusFrameState.curvature.toFixed(4);
+           document.getElementById('hud-arc').textContent = `${(sProgress % totalArcLength).toFixed(1)}m / ${totalArcLength.toFixed(0)}m`;
+           document.getElementById('hud-gforce').textContent = `${(calculatedInstantCentripetalGForce / 9.81).toFixed(2)}G`;
+
+           if (activeCameraMode === 'director') {
+               const eyeHeightElevationOffset = 0.85;
+               const activeCameraCalculatedEyePosition = liveCalculusFrameState.position.clone().addScaledVector(new THREE.Vector3(0, 1, 0), eyeHeightElevationOffset);
+               camera.position.copy(activeCameraCalculatedEyePosition);
+
+               const cameraLookAheadForwardSightDistanceVectorScale = 4.0;
+               const lookTargetCoordinatePositionAnchor = liveCalculusFrameState.position.clone().addScaledVector(liveCalculusFrameState.tangent, cameraLookAheadForwardSightDistanceVectorScale);
+               camera.lookAt(lookTargetCoordinatePositionAnchor);
+
+               if (simulateGimbalBanking) {
+                   const bankingStrengthMultiplierFactor = 0.28;
+                   const calculatedDynamicBankingUpVectorDirectionState = new THREE.Vector3(0, 1, 0).addScaledVector(liveCalculusFrameState.normal, calculatedInstantCentripetalGForce * bankingStrengthMultiplierFactor).normalize();
+
+
+
+                    camera.up.copy(calculatedDynamicBankingUpVectorDirectionState);
+               } else {
+                   camera.up.set(0, 1, 0);
+               }
+           } else {
+               const orbitLoopRadiusDistance = alphaCoeff * 1.5;
+               const orbitLoopSpeedFrequencyTimeParamFactor = currentTimestampDelta * 0.0002;
+               
+               camera.position.set(
+                   Math.cos(orbitLoopSpeedFrequencyTimeParamFactor) * orbitLoopRadiusDistance,
+                   alphaCoeff * 0.9,
+                   Math.sin(orbitLoopSpeedFrequencyTimeParamFactor) * orbitLoopRadiusDistance
+               );
+               camera.lookAt(liveCalculusFrameState.position);
+               camera.up.set(0, 1, 0);
+           }
+
+           renderer.render(scene, camera);
+           requestAnimationFrame(executeRenderPipelineTickFrame);
+
+
+
+        }
+
+       // Operational Interface System Layout Binding Controls Wireframe Setup Hook
+       function attachInterfaceControlsListenersFrameworkHooks() {
+           document.getElementById('sel-preset').addEventListener('change', (e) => {
+               activePreset = e.target.value;
+               sProgress = 0;
+               precomputeArcLengthParameterizationMatrix();
+               rebuildProceduralCinematicEnvironmentMeshMatrix();
+           });
+
+           document.getElementById('slide-speed').addEventListener('input', (e) => {
+               linearVelocity = parseFloat(e.target.value);
+               document.getElementById('txt-speed').textContent = `${linearVelocity.toFixed(2)} m/s`;
+           });
+
+           document.getElementById('slide-alpha').addEventListener('input', (e) => {
+               alphaCoeff = parseFloat(e.target.value);
+               document.getElementById('txt-alpha').textContent = alphaCoeff.toFixed(2);
+
+
+
+                precomputeArcLengthParameterizationMatrix();
+               rebuildProceduralCinematicEnvironmentMeshMatrix();
+           });
+
+           document.getElementById('slide-wall').addEventListener('input', (e) => {
+               wallScalar = parseFloat(e.target.value);
+               document.getElementById('txt-wall').textContent = `${wallScalar.toFixed(1)}x`;
+               rebuildProceduralCinematicEnvironmentMeshMatrix();
+           });
+
+           const btnDir = document.getElementById('btn-cam-director');
+           const btnOrb = document.getElementById('btn-cam-orbit');
+
+           btnDir.addEventListener('click', () => {
+               activeCameraMode = 'director';
+               document.getElementById('hud-cam-mode').textContent = "Director Tangent";
+               btnDir.className = "bg-emerald-600 font-bold text-gray-950 py-2 px-3 rounded text-left transition border border-emerald-500";
+               btnOrb.className = "bg-gray-900 text-gray-400 py-2 px-3 rounded text-left transition border border-gray-800 hover:border-gray-700";
+           });
+
+
+
+
+            btnOrb.addEventListener('click', () => {
+               activeCameraMode = 'orbit';
+               document.getElementById('hud-cam-mode').textContent = "Drone Orbital";
+               btnOrb.className = "bg-emerald-600 font-bold text-gray-950 py-2 px-3 rounded text-left transition border border-emerald-500";
+               btnDir.className = "bg-gray-900 text-gray-400 py-2 px-3 rounded text-left transition border border-gray-800 hover:border-gray-700";
+           });
+
+           document.getElementById('chk-gimbal').addEventListener('change', (e) => simulateGimbalBanking = e.target.checked);
+           document.getElementById('chk-vectors').addEventListener('change', (e) => showVectors = e.target.checked);
+           document.getElementById('chk-track').addEventListener('change', (e) => showTrack = e.target.checked);
+       }
+
+       // Global Orchestration Entry Point Initialisation Configuration Loop Rule Call trigger
+       window.onload = function() {
+           initializeThreeEngineEnvironmentContext();
+           attachInterfaceControlsListenersFrameworkHooks();
+           
+           // Modern ResizeObserver: Detects layout shifts, flex modifications, or preview window resizing natively.
+           const containerResizeEngineObserver = new ResizeObserver((observedEntries) => {
+
+
+
+                if (!container || !renderer || !camera) return;
+               
+               // Read fresh rendering block boundaries
+               const currentObservedWidth = container.clientWidth;
+               const currentObservedHeight = container.clientHeight;
+               
+               if (currentObservedWidth > 0 && currentObservedHeight > 0) {
+                   camera.aspect = currentObservedWidth / currentObservedHeight;
+                   camera.updateProjectionMatrix();
+                   renderer.setSize(currentObservedWidth, currentObservedHeight);
+               }
+           });
+           containerResizeEngineObserver.observe(container);
+
+           requestAnimationFrame(executeRenderPipelineTickFrame);
+       };
+   </script>
+</body>
+</html>

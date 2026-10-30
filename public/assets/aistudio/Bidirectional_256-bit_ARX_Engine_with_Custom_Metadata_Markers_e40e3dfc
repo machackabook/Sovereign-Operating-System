@@ -1,0 +1,212 @@
+﻿Bidirectional 256-bit ARX Engine with Custom Metadata Markers
+
+
+# Cryptic News Copyright PYR
+
+from typing import List, Tuple, Dict, Any
+
+class CustomARXEngine:
+   """
+   A rapid 256-bit hash and tracking architecture composed of eight 32-bit words.
+   Utilizes rapid, bijective Addition-Rotation-XOR (ARX) operations to support
+   both exact forward mapping and instant mathematical inversion, allowing state
+   derivation without re-running from ground zero initialization vectors.
+   """
+   MASK32 = 0xFFFFFFFF
+
+   def __init__(self, seed_r: int = 0x5555555555555555555555555555555555555555555555555555555555555555):
+       # Derive initial state constants from the high-entropy 256-bit parameter R
+       self.constants = self._derive_constants(seed_r)
+       # Standard structural initialization registers A-H
+       self.init_state = [
+           0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
+
+
+
+            0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19
+       ]
+
+   def _derive_constants(self, seed: int) -> List[int]:
+       """Slices a 256-bit initialization seed into eight 32-bit mixing constants."""
+       return [(seed >> (32 * i)) & self.MASK32 for i in range(8)]
+
+   @staticmethod
+   def rotr32(val: int, bits: int) -> int:
+       return ((val >> bits) | (val << (32 - bits))) & CustomARXEngine.MASK32
+
+   @staticmethod
+   def rotl32(val: int, bits: int) -> int:
+       return ((val << bits) | (val >> (32 - bits))) & CustomARXEngine.MASK32
+
+   def forward_step(self, state: List[int], round_idx: int) -> List[int]:
+       """
+       Executes rapid, simple 32-bit operations (Addition, XOR, Bitwise Rotations).
+       Every operation is perfectly bijective, allowing zero-loss inversion.
+
+
+
+        """
+       A, B, C, D, E, F, G, H = list(state)
+       K = self.constants[round_idx % 8]
+
+       # Process rapid ARX mixing chains step-by-step
+       A = (A + B + K) & self.MASK32
+       C = C ^ A
+       C = self.rotl32(C, 7)
+
+       E = (E + F) & self.MASK32
+       G = G ^ E
+       G = self.rotl32(G, 12)
+
+       # Shift registers with modular diffusion feedback
+       next_state = [
+           (H + A) & self.MASK32,
+           A, B, C,
+           (D ^ E) & self.MASK32,
+           E, F, G
+
+
+
+        ]
+       return next_state
+
+   def inverse_step(self, state: List[int], round_idx: int) -> List[int]:
+       """
+       Applies the exact mathematical inverse of the forward step.
+       Reverses register distributions sequentially to unfold state transitions instantly.
+       """
+       # Unpack current state
+       s0, s1, s2, s3, s4, s5, s6, s7 = list(state)
+       K = self.constants[round_idx % 8]
+
+       # Reconstruct components from shifted registers in reverse physical order
+       A = s1
+       B = s2
+       C = s3
+       E = s5
+       F = s6
+       G = s7
+
+
+
+        
+       # Undo shift configurations cleanly
+       H = (s0 - A) & self.MASK32
+       D = (s4 ^ E) & self.MASK32
+
+       # Invert the second ARX mixing group
+       G = self.rotr32(G, 12)
+       G = G ^ E
+       E = (E - F) & self.MASK32
+
+       # Invert the first ARX mixing group
+       C = self.rotr32(C, 7)
+       C = C ^ A
+       A = (A - B - K) & self.MASK32
+
+       return [A, B, C, D, E, F, G, H]
+
+   def concatenate_state(self, state: List[int]) -> Tuple[str, str]:
+       """
+
+
+
+        Concatenates the eight 32-bit words together side-by-side 
+       to compile clean 256-bit hexadecimal and binary strings.
+       """
+       hex_str = "".join(f"{word:08x}" for word in state)
+       bin_str = "".join(f"{word:032b}" for word in state)
+       return hex_str, bin_str
+
+   def execute_and_self_verify(self, total_steps: int) -> List[List[int]]:
+       """
+       Executes the timeline mapping while maintaining an inline historical buffer.
+       """
+       history = [list(self.init_state)]
+       current = list(self.init_state)
+
+       for step in range(total_steps):
+           current = self.forward_step(current, step)
+           history.append(list(current))
+
+       return history
+
+
+
+
+
+if __name__ == "__main__":
+   engine = CustomARXEngine()
+   steps_to_compute = 10
+   
+   print("=========================================================================")
+   print(" ⚡ INITIALIZING RAPID 32-BIT BIDIRECTIONAL ARX ENGINE")
+   print("=========================================================================\n")
+
+   # Run state machine forward to collect live runtime checkpoints
+   state_history = engine.execute_and_self_verify(steps_to_compute)
+   
+   initial_hex, _ = engine.concatenate_state(state_history[0])
+   print(f"✨ Starting Baseline Vector (Init) State:\n  ➔ Hex: {initial_hex}\n")
+
+   # Target an arbitrary deep state marker to demonstrate local prediction extraction
+   target_checkpoint = 5
+   target_state = state_history[target_checkpoint]
+   target_hex, target_bin = engine.concatenate_state(target_state)
+   
+
+
+
+    print(f"📍 Reached Arbitrary Pipeline Intersection [State #{target_checkpoint}]:")
+   print(f"  ➔ Side-by-Side Hex Format (256-bit): {target_hex}")
+   print(f"  ➔ Spliced Inline Word Ticket Structure:")
+   print(f"     [ A:{target_state[0]:08x} | B:{target_state[1]:08x} | C:{target_state[2]:08x} | D:{target_state[3]:08x} ]")
+   print(f"     [ E:{target_state[4]:08x} | F:{target_state[5]:08x} | G:{target_state[6]:08x} | H:{target_state[7]:08x} ]\n")
+
+   print("=========================================================================")
+   print(" 🕵️ PROVING LOCAL INLINE VERIFICATION WITHOUT RE-INITIALIZATION")
+   print("=========================================================================\n")
+
+   print("Applying the mathematical inverse directly to the isolated state to look behind...")
+   # Deduce state T-1 from state T directly using the step index without invoking init setup loops
+   deduced_previous_state = engine.inverse_step(target_state, target_checkpoint - 1)
+   deduced_prev_hex, _ = engine.concatenate_state(deduced_previous_state)
+   
+   # Extract authentic baseline record from execution history array for verification matching
+   actual_previous_state = state_history[target_checkpoint - 1]
+   actual_prev_hex, _ = engine.concatenate_state(actual_previous_state)
+
+
+
+
+    print(f"  ➔ Deduced State #{target_checkpoint-1} (Via Local Inverse):  {deduced_prev_hex}")
+   print(f"  ➔ Historical State #{target_checkpoint-1} (Via Standard Flow): {actual_prev_hex}")
+   
+   if deduced_prev_hex == actual_prev_hex:
+       print("  ➔ Inline Self-Verification Status: SUCCESS ✓ (Adjacent State Matches perfectly)\n")
+   else:
+       print("  ➔ Inline Self-Verification Status: MISMATCH ✗\n")
+
+   print("Looking ahead to calculate the next inline computation step forward...")
+   deduced_next_state = engine.forward_step(target_state, target_checkpoint)
+   deduced_next_hex, _ = engine.concatenate_state(deduced_next_state)
+   
+   actual_next_state = state_history[target_checkpoint + 1]
+   actual_next_hex, _ = engine.concatenate_state(actual_next_state)
+
+   print(f"  ➔ Deduced State #{target_checkpoint+1} (Lookahead Predictor): {deduced_next_hex}")
+   print(f"  ➔ Historical State #{target_checkpoint+1} (Actual Timeline):  {actual_next_hex}")
+
+   if deduced_next_hex == actual_next_hex:
+
+
+
+        print("  ➔ Forward Boundary Status: SUCCESS ✓ (Next Inline Target Verified)\n")
+   else:
+       print("  ➔ Forward Boundary Status: MISMATCH ✗\n")
+       
+   print("-------------------------------------------------------------------------")
+   print(" Execution and reverse-linear structural audit calculations completed.")
+   print("-------------------------------------------------------------------------")
+
+# 137451921129154222

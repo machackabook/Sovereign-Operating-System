@@ -1,0 +1,141 @@
+{
+  "entities": {
+    "userState": {
+      "title": "User State",
+      "description": "Persistence of user UI configuration.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner UID" },
+        "theme": { "type": "string" },
+        "terminalSettings": { "type": "object" },
+        "activeModules": { "type": "array", "items": { "type": "string" } },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "updatedAt"]
+    },
+    "atcStreamConfig": {
+      "title": "ATC Stream Configuration",
+      "description": "User configuration for ATC audio streams.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "streamId": { "type": "string" },
+        "url": { "type": "string" },
+        "type": { "type": "string", "enum": ["liveatc", "icecast", "opensky"] },
+        "enabled": { "type": "boolean" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "streamId", "url", "enabled", "updatedAt"]
+    },
+    "vaultConfig": {
+      "title": "Google Vault Configuration",
+      "description": "Configuration for Google Vault archival access.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "serviceAccountKey": { "type": "string" },
+        "enabled": { "type": "boolean" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "enabled", "updatedAt"]
+    },
+    "waybackConfig": {
+      "title": "Wayback Machine Configuration",
+      "description": "Configuration for Wayback Machine access.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "enabled": { "type": "boolean" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "enabled", "updatedAt"]
+    },
+    "personalityProfile": {
+      "title": "Personality Profile",
+      "description": "Dynamic personality configuration for the AI assistant.",
+      "type": "object",
+      "properties": {
+        "profileName": { "type": "string" },
+        "traits": { "type": "array", "items": { "type": "string" } },
+        "tone": { "type": "string" },
+        "fallbackResponses": { "type": "array", "items": { "type": "string" } },
+        "visualPresets": { "type": "object" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["profileName", "traits", "updatedAt"]
+    },
+    "userScore": {
+      "title": "User Score",
+      "description": "Aggregated user score for media trivia.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "totalScore": { "type": "number" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "totalScore", "updatedAt"]
+    },
+    "history": {
+      "title": "User History",
+      "description": "Action history per user.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "action": { "type": "string" },
+        "metadata": { "type": "object" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "timestamp", "action", "updatedAt"]
+    },
+    "publicKey": {
+      "title": "Public Key",
+      "description": "User public key for E2EE.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "key": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "key", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/userStates/{userId}": {
+      "schema": { "$ref": "userState" },
+      "description": "User specific state document"
+    },
+    "/userStates/{userId}/atcStreams/{streamId}": {
+      "schema": { "$ref": "atcStreamConfig" },
+      "description": "User ATC stream configurations"
+    },
+    "/userStates/{userId}/vaultConfigs/{configId}": {
+      "schema": { "$ref": "vaultConfig" },
+      "description": "User Google Vault configurations"
+    },
+    "/userStates/{userId}/waybackConfigs/{configId}": {
+      "schema": { "$ref": "waybackConfig" },
+      "description": "User Wayback Machine configurations"
+    },
+    "/personalityProfiles/{profileId}": {
+      "schema": { "$ref": "personalityProfile" },
+      "description": "Dynamic personality profiles"
+    },
+    "/userStates/{userId}/score": {
+      "schema": { "$ref": "userScore" },
+      "description": "User trivia score"
+    },
+    "/userStates/{userId}/history/{historyId}": {
+      "schema": { "$ref": "history" },
+      "description": "User history log"
+    },
+    "/publicKeys/{userId}": {
+      "schema": { "$ref": "publicKey" },
+      "description": "User public keys for E2EE"
+    },
+    "/userStates/{userId}/hashReceipts/{receiptId}": {
+      "schema": { "$ref": "history" },
+      "description": "Tamper-proof hash receipts"
+    }
+  }
+}

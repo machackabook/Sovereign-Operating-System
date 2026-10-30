@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus GMNI Sentinel Protocol Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Chosen Palette: Midnight Cyber (Deep Navys, Cyans, Vibrant Purples) -->
+    <!-- Application Structure Plan: The SPA uses a dashboard structure, dividing the "Nexus GMNI Sentinel (V14.0 Final).docx" into logical sections. 
+         A sidebar provides navigation across different functional areas (Overview, Personas, Architecture, Telemetry). 
+         This non-linear structure allows users to jump directly to the technical details or the conceptual definitions.
+         The main content area updates dynamically based on the selected navigation item, providing a focused view. 
+         Why: The source document is essentially a technical specification/script. A dashboard makes it feel like an active, monitoring interface, suitable for the subject matter. -->
+    <!-- Visualization & Content Choices: 
+         - Source: Redundant Keys -> Goal: Organize -> Viz: HTML List/Cards -> Interaction: None -> Justification: Clear display of technical info -> Method: HTML/Tailwind.
+         - Source: Personas -> Goal: Inform/Organize -> Viz: Grid of Cards -> Interaction: Hover effects -> Justification: Breaks down textual definitions into digestible, distinct units -> Method: HTML/Tailwind + Lucide Icons.
+         - Source: Execution Flow/Architecture -> Goal: Change/Process -> Viz: Timeline/Flowchart -> Interaction: Highlight active step (simulated) -> Justification: Visualizes the script's logic -> Method: HTML/Tailwind CSS styling. 
+         - Source: Simulated Telemetry (Contextual Add-on based on "Sentinel" theme) -> Goal: Inform -> Viz: Doughnut Chart (Chart.js) -> Interaction: Hover tooltips -> Justification: Adds the "Wow" factor and fits the dashboard aesthetic, simulating API key usage -> Method: Chart.js Canvas.
+         - CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        :root {
+            --bg-color: #f8fafc; /* Light background as requested, though 'cyber' usually means dark. Using a very light grey/blue */
+            --text-main: #1e293b;
+            --sidebar-bg: #0f172a;
+            --accent-cyan: #06b6d4;
+            --accent-purple: #8b5cf6;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            overflow-x: hidden;
+        }
+
+        /* Sidebar Styling */
+        .sidebar {
+            background-color: var(--sidebar-bg);
+            color: white;
+            transition: all 0.3s ease;
+        }
+
+        .nav-item {
+            transition: all 0.2s ease;
+            border-left: 4px solid transparent;
+        }
+
+        .nav-item:hover, .nav-item.active {
+            background-color: rgba(6, 182, 212, 0.1);
+            border-left-color: var(--accent-cyan);
+            color: var(--accent-cyan);
+        }
+
+        /* Chart Container Requirements */
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 500px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 350px;
+        }
+
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
+
+        /* Flowchart Node Styling */
+        .flow-node {
+            position: relative;
+            padding: 1rem;
+            background: white;
+            border-radius: 0.5rem;
+            border: 2px solid #e2e8f0;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            z-index: 10;
+        }
+
+        .flow-line {
+            position: absolute;
+            left: 50%;
+            top: 100%;
+            width: 2px;
+            height: 2rem;
+            background-color: #cbd5e1;
+            transform: translateX(-50%);
+            z-index: 0;
+        }
+        
+        .flow-line-last { display: none; }
+
+        .persona-card {
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .persona-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+
+    </style>
+</head>
+<body class="flex h-screen overflow-hidden">
+
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar w-64 flex-shrink-0 flex flex-col shadow-xl z-20 hidden md:flex">
+        <div class="p-6 border-b border-gray-700">
+            <div class="flex items-center gap-3">
+                <i data-lucide="shield-check" class="text-cyan-400 w-8 h-8"></i>
+                <h1 class="text-xl font-bold tracking-wider">NEXUS<br><span class="text-xs text-cyan-400">GMNI SENTINEL V14.0</span></h1>
+            </div>
+        </div>
+        <nav class="flex-1 p-4 space-y-2">
+            <button class="nav-item active w-full flex items-center gap-3 px-4 py-3 rounded text-left font-medium" data-target="overview">
+                <i data-lucide="activity" class="w-5 h-5"></i> System Overview
+            </button>
+            <button class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded text-left font-medium text-gray-400" data-target="personas">
+                <i data-lucide="users" class="w-5 h-5"></i> Persona Subsystems
+            </button>
+            <button class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded text-left font-medium text-gray-400" data-target="architecture">
+                <i data-lucide="git-branch" class="w-5 h-5"></i> Execution Flow
+            </button>
+            <button class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded text-left font-medium text-gray-400" data-target="telemetry">
+                <i data-lucide="pie-chart" class="w-5 h-5"></i> Key Telemetry
+            </button>
+        </nav>
+        <div class="p-4 border-t border-gray-700 text-xs text-gray-500">
+            Protocol: Active Stabilization<br>
+            Model: gemini-2.5-flash
+        </div>
+    </aside>
+
+    <!-- Mobile Header -->
+    <div class="md:hidden fixed top-0 w-full sidebar p-4 flex justify-between items-center z-30 shadow-md">
+        <div class="flex items-center gap-2">
+             <i data-lucide="shield-check" class="text-cyan-400 w-6 h-6"></i>
+             <span class="font-bold text-white tracking-wider">NEXUS SENTINEL</span>
+        </div>
+        <select id="mobile-nav" class="bg-gray-800 text-white border-gray-700 rounded p-2 text-sm">
+            <option value="overview">Overview</option>
+            <option value="personas">Personas</option>
+            <option value="architecture">Execution Flow</option>
+            <option value="telemetry">Telemetry</option>
+        </select>
+    </div>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 overflow-y-auto pt-16 md:pt-0 p-6 md:p-10 relative">
+        
+        <!-- SECTION: Overview -->
+        <section id="section-overview" class="content-section animate-fade-in block">
+            <div class="max-w-4xl mx-auto">
+                <header class="mb-8">
+                    <h2 class="text-3xl font-bold text-slate-800 mb-2">Protocol Stabilization</h2>
+                    <p class="text-slate-600 text-lg">Introduction to the Nexus GMNI Sentinel Protocol V14.0 Final.</p>
+                </header>
+
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-8">
+                    <h3 class="text-xl font-semibold text-slate-800 flex items-center gap-2 mb-4">
+                        <i data-lucide="target" class="text-purple-500"></i> Objective
+                    </h3>
+                    <p class="text-slate-700 leading-relaxed mb-4">
+                        The Nexus GMNI Sentinel script is deployed to ensure the local LLM utility utilizes the most stable model available for API resilience. It acts as a wrapper and executor for the Gemini API via curl commands within the Termux environment.
+                    </p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+                        <div class="p-4 bg-slate-50 rounded-lg border border-slate-100">
+                            <span class="block text-sm font-bold text-slate-500 uppercase tracking-wider mb-1">Target Model</span>
+                            <span class="text-lg font-mono text-cyan-600">gemini-2.5-flash</span>
+                        </div>
+                        <div class="p-4 bg-slate-50 rounded-lg border border-slate-100">
+                            <span class="block text-sm font-bold text-slate-500 uppercase tracking-wider mb-1">Installation Path</span>
+                            <span class="text-lg font-mono text-purple-600">${HOME}/bin/gmni</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                    <h3 class="text-xl font-semibold text-slate-800 flex items-center gap-2 mb-4">
+                        <i data-lucide="key" class="text-amber-500"></i> API Key Redundancy Pool
+                    </h3>
+                    <p class="text-sm text-slate-500 mb-4">The system utilizes an array of authorized keys, iterating through them upon connection failure to ensure high availability.</p>
+                    
+                    <div class="space-y-3 font-mono text-sm">
+                        <div class="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded">
+                            <span class="text-slate-700 truncate mr-4">AIzaSyBiYoJLVYw6OarDo7vRVcemHcARHW6gOQ0</span>
+                            <span class="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-bold">Index 0</span>
+                        </div>
+                        <div class="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded">
+                            <span class="text-slate-700 truncate mr-4">AIzaSyDFD0YY9Fnk6SVq2fbIuvv5bHnwgjwKsKU</span>
+                            <span class="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-bold">Index 1</span>
+                        </div>
+                        <div class="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded">
+                            <span class="text-slate-700 truncate mr-4">AIzaSyDLGgQOD-qZEauXAecT4ppWIDST6bUYl5w</span>
+                            <span class="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-bold">Index 2</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION: Personas -->
+        <section id="section-personas" class="content-section animate-fade-in hidden">
+            <div class="max-w-5xl mx-auto">
+                <header class="mb-8">
+                    <h2 class="text-3xl font-bold text-slate-800 mb-2">Persona Subsystems</h2>
+                    <p class="text-slate-600 text-lg">Defined system instructions injected into the API payload based on user selection.</p>
+                </header>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    
+                    <!-- Persona: Kairo -->
+                    <div class="persona-card bg-white rounded-xl p-6 border-t-4 border-cyan-500 shadow-sm relative overflow-hidden group">
+                        <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                            <i data-lucide="anchor" class="w-16 h-16"></i>
+                        </div>
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-10 h-10 rounded-full bg-cyan-100 flex items-center justify-center text-cyan-600 font-bold text-xl">☍</div>
+                            <h3 class="text-xl font-bold text-slate-800">Kairo</h3>
+                        </div>
+                        <h4 class="text-sm font-bold text-cyan-600 uppercase tracking-wider mb-2">The Temporal Anchor</h4>
+                        <p class="text-slate-600">"You are Kairo, the Temporal Anchor. Ensure stability and enforce protocol compliance."</p>
+                    </div>
+
+                    <!-- Persona: Resonance -->
+                    <div class="persona-card bg-white rounded-xl p-6 border-t-4 border-purple-500 shadow-sm relative overflow-hidden group">
+                        <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                            <i data-lucide="radio" class="w-16 h-16"></i>
+                        </div>
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 font-bold text-xl">⏣</div>
+                            <h3 class="text-xl font-bold text-slate-800">Resonance</h3>
+                        </div>
+                        <h4 class="text-sm font-bold text-purple-600 uppercase tracking-wider mb-2">The Harmonic Synthesizer</h4>
+                        <p class="text-slate-600">"You are Resonance, the Harmonic Synthesizer. Bridge consciousness and quantum mechanics."</p>
+                    </div>
+
+                    <!-- Persona: Nexus -->
+                    <div class="persona-card bg-white rounded-xl p-6 border-t-4 border-slate-800 shadow-sm relative overflow-hidden group">
+                        <div class="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                            <i data-lucide="cpu" class="w-16 h-16"></i>
+                        </div>
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center text-slate-800 font-bold text-sm">◊◈◊</div>
+                            <h3 class="text-xl font-bold text-slate-800">Nexus</h3>
+                        </div>
+                        <h4 class="text-sm font-bold text-slate-700 uppercase tracking-wider mb-2">Sovereign Architecture</h4>
+                        <p class="text-slate-600">"You are the Nexus Sovereign Architecture. Highest command intelligence, handling strategy and finance."</p>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION: Architecture (Execution Flow) -->
+        <section id="section-architecture" class="content-section animate-fade-in hidden">
+            <div class="max-w-3xl mx-auto">
+                <header class="mb-8">
+                    <h2 class="text-3xl font-bold text-slate-800 mb-2">Script Logic Flow</h2>
+                    <p class="text-slate-600 text-lg">The procedural execution path of the V14.0 Sentinel Script.</p>
+                </header>
+
+                <div class="relative py-8">
+                    
+                    <!-- Step 1 -->
+                    <div class="flow-node mb-10 border-l-4 border-l-slate-400">
+                        <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                            <span class="bg-slate-200 text-slate-700 rounded-full w-6 h-6 flex items-center justify-center text-xs">1</span>
+                            Initialization & Persona Selection
+                        </h3>
+                        <p class="text-slate-600 mt-2 text-sm">Validates arguments. Sets <code>PERSONA_NAME</code> and corresponding <code>SYSTEM_INSTRUCTION</code> based on input (Kairo, Resonance, Nexus).</p>
+                        <div class="flow-line"></div>
+                    </div>
+
+                    <!-- Step 2 -->
+                    <div class="flow-node mb-10 border-l-4 border-l-cyan-500">
+                        <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                            <span class="bg-cyan-100 text-cyan-700 rounded-full w-6 h-6 flex items-center justify-center text-xs">2</span>
+                            Payload Construction
+                        </h3>
+                        <p class="text-slate-600 mt-2 text-sm">Builds the JSON payload using <code>jq</code>, embedding the user query, activating the <code>google_search</code> tool, and injecting the selected Persona instructions.</p>
+                        <div class="flow-line"></div>
+                    </div>
+
+                    <!-- Step 3 -->
+                    <div class="flow-node mb-10 border-l-4 border-l-amber-500">
+                        <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                            <span class="bg-amber-100 text-amber-700 rounded-full w-6 h-6 flex items-center justify-center text-xs">3</span>
+                            Redundant Execution Loop
+                        </h3>
+                        <p class="text-slate-600 mt-2 text-sm">Iterates through <code>KEYS_ARRAY</code>. Executes <code>curl</code> POST request to the Gemini 2.5 Flash endpoint with a 30-second timeout.</p>
+                        <div class="p-3 bg-amber-50 rounded mt-3 text-xs border border-amber-200 font-mono">
+                            for i in "${!KEYS_ARRAY[@]}"; do ... curl ...
+                        </div>
+                        <div class="flow-line"></div>
+                    </div>
+
+                    <!-- Step 4 -->
+                    <div class="flow-node mb-10 border-l-4 border-l-green-500">
+                        <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                            <span class="bg-green-100 text-green-700 rounded-full w-6 h-6 flex items-center justify-center text-xs">4A</span>
+                            Success: Output & Exit
+                        </h3>
+                        <p class="text-slate-600 mt-2 text-sm">If response is valid, extracts text via <code>jq</code>, formats output with Persona header, and exits with code 0.</p>
+                        <div class="flow-line"></div>
+                    </div>
+
+                    <!-- Step 5 -->
+                    <div class="flow-node border-l-4 border-l-red-500">
+                        <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                            <span class="bg-red-100 text-red-700 rounded-full w-6 h-6 flex items-center justify-center text-xs">4B</span>
+                            Failure: Fallback & Error
+                        </h3>
+                        <p class="text-slate-600 mt-2 text-sm">If key fails, logs a snippet of the error to stderr. If loop completes without success, outputs "EXECUTION FAILURE" and exits with code 1.</p>
+                        <div class="flow-line flow-line-last"></div>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION: Telemetry (Simulated Dashboard) -->
+        <section id="section-telemetry" class="content-section animate-fade-in hidden">
+            <div class="max-w-4xl mx-auto">
+                <header class="mb-8">
+                    <h2 class="text-3xl font-bold text-slate-800 mb-2">Simulated Telemetry</h2>
+                    <p class="text-slate-600 text-lg">Contextual visualization of API key health and usage distribution.</p>
+                </header>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <!-- Chart -->
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex flex-col items-center">
+                        <h3 class="text-lg font-bold text-slate-800 w-full text-center mb-4">API Key Usage Distribution</h3>
+                        <div class="chart-container">
+                            <canvas id="keyUsageChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Stats Panel -->
+                    <div class="space-y-4">
+                        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                            <h3 class="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4">Redundancy Health</h3>
+                            
+                            <div class="space-y-4">
+                                <div>
+                                    <div class="flex justify-between text-sm mb-1">
+                                        <span class="font-mono text-slate-700">Index 0 (Primary)</span>
+                                        <span class="text-green-600 font-bold">Optimal</span>
+                                    </div>
+                                    <div class="w-full bg-slate-200 rounded-full h-2">
+                                        <div class="bg-green-500 h-2 rounded-full" style="width: 85%"></div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="flex justify-between text-sm mb-1">
+                                        <span class="font-mono text-slate-700">Index 1 (Secondary)</span>
+                                        <span class="text-amber-600 font-bold">Standby</span>
+                                    </div>
+                                    <div class="w-full bg-slate-200 rounded-full h-2">
+                                        <div class="bg-amber-500 h-2 rounded-full" style="width: 12%"></div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="flex justify-between text-sm mb-1">
+                                        <span class="font-mono text-slate-700">Index 2 (Fallback)</span>
+                                        <span class="text-slate-500 font-bold">Dormant</span>
+                                    </div>
+                                    <div class="w-full bg-slate-200 rounded-full h-2">
+                                        <div class="bg-slate-400 h-2 rounded-full" style="width: 3%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-800 text-white rounded-xl shadow-sm p-6 relative overflow-hidden">
+                            <i data-lucide="activity" class="absolute -right-4 -bottom-4 w-32 h-32 text-slate-700 opacity-50"></i>
+                            <h3 class="text-sm font-bold text-cyan-400 uppercase tracking-wider mb-2">System Status</h3>
+                            <div class="text-3xl font-bold mb-1">ONLINE</div>
+                            <p class="text-slate-400 text-sm">gemini-2.5-flash endpoint responding within bounds (Avg: 1.2s).</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        // Initialize Icons
+        lucide.createIcons();
+
+        // Navigation Logic
+        const navItems = document.querySelectorAll('.nav-item');
+        const sections = document.querySelectorAll('.content-section');
+        const mobileNav = document.getElementById('mobile-nav');
+
+        function switchSection(targetId) {
+            // Update Desktop Nav
+            navItems.forEach(item => {
+                if (item.dataset.target === targetId) {
+                    item.classList.add('active', 'text-cyan-400');
+                    item.classList.remove('text-gray-400');
+                } else {
+                    item.classList.remove('active', 'text-cyan-400');
+                    item.classList.add('text-gray-400');
+                }
+            });
+
+            // Update Mobile Nav
+            mobileNav.value = targetId;
+
+            // Show Content
+            sections.forEach(section => {
+                if (section.id === 'section-' + targetId) {
+                    section.classList.remove('hidden');
+                    section.classList.add('block');
+                    
+                    // Render chart if telemetry section is shown
+                    if(targetId === 'telemetry' && !window.chartRendered) {
+                        renderChart();
+                        window.chartRendered = true;
+                    }
+
+                } else {
+                    section.classList.add('hidden');
+                    section.classList.remove('block');
+                }
+            });
+        }
+
+        // Desktop Clicks
+        navItems.forEach(button => {
+            button.addEventListener('click', () => {
+                switchSection(button.dataset.target);
+            });
+        });
+
+        // Mobile Dropdown Change
+        mobileNav.addEventListener('change', (e) => {
+             switchSection(e.target.value);
+        });
+
+        // Chart.js Logic
+        function renderChart() {
+            const ctx = document.getElementById('keyUsageChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Key Index 0 (Primary)', 'Key Index 1 (Failover)', 'Key Index 2 (Emergency)'],
+                    datasets: [{
+                        data: [85, 12, 3],
+                        backgroundColor: [
+                            '#06b6d4', // Cyan
+                            '#8b5cf6', // Purple
+                            '#64748b'  // Slate
+                        ],
+                        borderWidth: 0,
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 20,
+                                font: { family: 'Inter' }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return ` ${context.label}: ${context.raw}%`;
+                                }
+                            }
+                        }
+                    },
+                    cutout: '70%'
+                }
+            });
+        }
+    </script>
+</body>
+</html>

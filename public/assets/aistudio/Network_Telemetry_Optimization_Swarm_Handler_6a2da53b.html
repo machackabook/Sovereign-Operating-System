@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>⨋Ⓖန⇔နⒼ⨋ | Network Telemetry Optimization Swarm Handler</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;500;600;700&family=Orbitron:wght@400;600;800;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['Fira Code', 'monospace'],
+            orbitron: ['Orbitron', 'sans-serif'],
+          },
+          colors: {
+            swarm: {
+              gold: '#f59e0b',
+              amber: '#d97706',
+              cyan: '#00f3ff',
+              emerald: '#10b981',
+              neon: '#00ff99',
+              purple: '#a855f7',
+              fuchsia: '#ff00ff',
+              dark: '#03050a',
+              card: '#080c16',
+              border: 'rgba(0, 243, 255, 0.15)',
+              borderDim: 'rgba(30, 41, 59, 0.6)'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      background-color: #03050a;
+      color: #e2e8f0;
+      font-family: 'Inter', sans-serif;
+      overflow-x: hidden;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 4px;
+      height: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: rgba(3, 5, 10, 0.8);
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: rgba(0, 243, 255, 0.25);
+      border-radius: 2px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: rgba(0, 243, 255, 0.5);
+    }
+    .glow-cyan {
+      box-shadow: 0 0 25px rgba(0, 243, 255, 0.12);
+    }
+    .glow-neon {
+      box-shadow: 0 0 25px rgba(0, 255, 153, 0.15);
+    }
+    .glow-fuchsia {
+      box-shadow: 0 0 25px rgba(255, 0, 255, 0.15);
+    }
+    .neon-text {
+      text-shadow: 0 0 8px rgba(0, 243, 255, 0.7);
+    }
+    .green-neon-text {
+      text-shadow: 0 0 8px rgba(0, 255, 153, 0.7);
+    }
+    .scanlines::before {
+      content: " ";
+      display: block;
+      position: absolute;
+      top: 0; left: 0; bottom: 0; right: 0;
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.2) 50%);
+      background-size: 100% 4px;
+      z-index: 40;
+      pointer-events: none;
+      opacity: 0.35;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col custom-scrollbar scanlines">
+
+  <!-- Toast Notification Overlay -->
+  <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+  <!-- Header Telemetry Command Deck -->
+  <header class="border-b border-swarm-border bg-[#050811]/95 backdrop-blur sticky top-0 z-50 px-4 py-2.5 flex flex-wrap items-center justify-between gap-4">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-swarm-cyan/15 border border-swarm-cyan/40 flex items-center justify-center text-swarm-cyan font-orbitron font-bold text-lg shadow-sm">
+        ⨋
+      </div>
+      <div>
+        <div class="flex items-center gap-2">
+          <h1 class="text-sm font-bold text-slate-100 tracking-wider font-orbitron">⨋Ⓖန⇔နⒼ⨋ // SWARM TELEMETRY HANDLER</h1>
+          <span class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-swarm-neon/10 text-swarm-neon border border-swarm-neon/30">ZERO-STRESS ENGINE</span>
+          <span class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-swarm-purple/10 text-swarm-purple border border-swarm-purple/30 hidden sm:inline-block">AUTONOMOUS REALLOCATION</span>
+        </div>
+        <p class="text-[11px] text-slate-400 font-mono">Dynamic Agent Balancer • Loss-Free RingBuffer Pipeline • Multi-Source Ingestion</p>
+      </div>
+    </div>
+
+    <!-- Live Telemetry Health Indicators -->
+    <div class="flex items-center gap-2 font-mono text-xs">
+      <div class="px-2.5 py-1 rounded-lg bg-slate-900/90 border border-slate-800 flex flex-col items-end">
+        <span class="text-[9px] text-slate-400 uppercase">Packet Rate</span>
+        <span id="stat-pkt-rate" class="text-swarm-cyan font-bold">0 pkts/s</span>
+      </div>
+      <div class="px-2.5 py-1 rounded-lg bg-slate-900/90 border border-slate-800 flex flex-col items-end">
+        <span class="text-[9px] text-slate-400 uppercase">Total Dispatched</span>
+        <span id="stat-dispatched" class="text-swarm-neon font-bold">0</span>
+      </div>
+      <div class="px-2.5 py-1 rounded-lg bg-slate-900/90 border border-slate-800 flex flex-col items-end">
+        <span class="text-[9px] text-slate-400 uppercase">Handler Errors</span>
+        <span id="stat-errors" class="text-emerald-400 font-bold">0.00% (0)</span>
+      </div>
+      <div class="px-2.5 py-1 rounded-lg bg-slate-900/90 border border-slate-800 flex flex-col items-end">
+        <span class="text-[9px] text-slate-400 uppercase">Active Agents</span>
+        <span id="stat-agents-count" class="text-swarm-gold font-bold">16 Units</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Viewport -->
+  <main class="flex-1 max-w-[1600px] w-full mx-auto p-4 md:p-6 flex flex-col gap-6">
+
+    <!-- Top Row: Source Dataset Feeders & Control Panel -->
+    <section class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+      
+      <!-- Source Ingestion Hub (Cols 1-5) -->
+      <div class="lg:col-span-5 p-5 rounded-2xl bg-swarm-card border border-swarm-border flex flex-col justify-between space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-swarm-cyan animate-pulse"></span>
+            <h2 class="text-xs font-bold text-swarm-cyan uppercase tracking-wider font-mono">
+              TELEMETRY INGESTION MATRIX
+            </h2>
+          </div>
+          <span id="ingest-status" class="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">STREAM READY</span>
+        </div>
+
+        <div class="space-y-3 text-xs font-mono">
+          <div>
+            <label class="block text-slate-400 mb-1 text-[11px]">Primary Telemetry Source Highway:</label>
+            <select id="sel-data-source" onchange="changeDataSource(this.value)" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-slate-200 focus:outline-none focus:border-swarm-cyan text-xs">
+              <option value="harvester-360">HOP-251 HarvesterWeb 360 NVMe Slot Highway (714 MB/s Proxy)</option>
+              <option value="neural-sdf">Unified Neural SDF Clifford Rotor & Manifold Entropy Stream</option>
+              <option value="quantum-resonance">Sum-Integral Quantum Resonance & Bathymetry Array</option>
+              <option value="omni-macro">OmniAutomation multi-layer Playwright & Macro Burst</option>
+            </select>
+          </div>
+
+          <div class="grid grid-cols-3 gap-2">
+            <div>
+              <label class="block text-slate-400 mb-1 text-[10px]">Backpressure Cap:</label>
+              <input type="text" id="val-backpressure" value="10,000 pkts" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-swarm-neon font-bold text-xs" readonly>
+            </div>
+            <div>
+              <label class="block text-slate-400 mb-1 text-[10px]">Drop Rate Guard:</label>
+              <input type="text" value="0.000% (STRICT)" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-emerald-400 font-bold text-xs" readonly>
+            </div>
+            <div>
+              <label class="block text-slate-400 mb-1 text-[10px]">Buffer Policy:</label>
+              <input type="text" value="Leaky-Adaptive" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-swarm-cyan font-bold text-xs" readonly>
+            </div>
+          </div>
+
+          <!-- Live Sample Stream Frame Preview -->
+          <div class="p-2.5 bg-[#04060d] rounded-xl border border-slate-800">
+            <span class="text-slate-500 text-[10px] block mb-1">INCOMING PACKET TELEMETRY PAYLOAD:</span>
+            <div id="live-packet-preview" class="font-mono text-[11px] text-slate-300 break-all leading-tight">
+              {"timestamp": 1729810000, "source": "slot_000", "throughput_mbps": 714.2, "status": "SYNCHRONIZED"}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Autonomous Swarm Reallocation Engine Controls (Cols 6-12) -->
+      <div class="lg:col-span-7 p-5 rounded-2xl bg-swarm-card border border-swarm-border flex flex-col justify-between space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-swarm-gold animate-pulse"></span>
+            <h2 class="text-xs font-bold text-swarm-gold uppercase tracking-wider font-mono">
+              SWARM REALLOCATION CONTROLLER
+            </h2>
+          </div>
+          <span class="text-[10px] font-mono text-slate-400">Zero-Stress Auto-Scaling Algorithm</span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <!-- Flow Slider -->
+          <div class="space-y-1.5 p-3 rounded-xl bg-slate-950/80 border border-slate-800">
+            <div class="flex justify-between text-xs font-mono">
+              <span class="text-slate-400 text-[11px]">Ingestion Rate</span>
+              <span id="lbl-flow-rate" class="text-swarm-cyan font-bold">1,200/s</span>
+            </div>
+            <input type="range" id="sl-flow-rate" min="100" max="8000" step="100" value="1200" oninput="updateFlowRate(this.value)" class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-400">
+            <div class="flex justify-between text-[9px] text-slate-500 font-mono">
+              <span>100/s</span>
+              <span>Stress-Limit: 8k/s</span>
+            </div>
+          </div>
+
+          <!-- Dynamic Agent Scale Slider -->
+          <div class="space-y-1.5 p-3 rounded-xl bg-slate-950/80 border border-slate-800">
+            <div class="flex justify-between text-xs font-mono">
+              <span class="text-slate-400 text-[11px]">Swarm Nodes</span>
+              <span id="lbl-node-count" class="text-swarm-gold font-bold">16 Agents</span>
+            </div>
+            <input type="range" id="sl-agent-count" min="4" max="64" step="2" value="16" oninput="updateAgentCount(this.value)" class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-amber-500">
+            <div class="flex justify-between text-[9px] text-slate-500 font-mono">
+              <span>Min: 4</span>
+              <span>Swarm Cap: 64</span>
+            </div>
+          </div>
+
+          <!-- Error Rebalancing Threshold -->
+          <div class="space-y-1.5 p-3 rounded-xl bg-slate-950/80 border border-slate-800">
+            <div class="flex justify-between text-xs font-mono">
+              <span class="text-slate-400 text-[11px]">Rebalance Sensitivity</span>
+              <span id="lbl-sensitivity" class="text-swarm-neon font-bold">98.4%</span>
+            </div>
+            <input type="range" id="sl-sensitivity" min="50" max="100" step="1" value="98" oninput="updateSensitivity(this.value)" class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-400">
+            <div class="flex justify-between text-[9px] text-slate-500 font-mono">
+              <span>Loose (50%)</span>
+              <span>Zero-Tolerance</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Action Control Buttons -->
+        <div class="flex flex-wrap items-center justify-between gap-3 pt-2">
+          <div class="flex items-center gap-3">
+            <label class="flex items-center gap-2 text-xs font-mono text-slate-300 cursor-pointer bg-slate-900 border border-slate-800 px-3 py-2 rounded-xl hover:border-slate-700">
+              <input type="checkbox" id="chk-auto-reallocate" checked class="accent-swarm-cyan">
+              <span>Auto-Reallocate Agents</span>
+            </label>
+            <label class="flex items-center gap-2 text-xs font-mono text-slate-300 cursor-pointer bg-slate-900 border border-slate-800 px-3 py-2 rounded-xl hover:border-slate-700">
+              <input type="checkbox" id="chk-burst-guard" checked class="accent-swarm-neon">
+              <span>Zero-Drop Circuit Breaker</span>
+            </label>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <button id="btn-toggle-engine" onclick="toggleEngine()" class="py-2.5 px-5 rounded-xl bg-swarm-cyan hover:bg-cyan-400 text-slate-950 font-bold font-orbitron text-xs tracking-wider transition shadow-lg shadow-swarm-cyan/20 flex items-center gap-2">
+              <svg id="engine-icon" class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+              <span id="engine-btn-label">START SWARM HANDLER</span>
+            </button>
+            <button onclick="injectTelemetrySurge()" class="py-2.5 px-3.5 rounded-xl bg-slate-900 border border-slate-800 hover:border-swarm-fuchsia text-swarm-fuchsia font-mono text-xs transition" title="Inject 5,000 Pkt Burst to test zero-stress reallocation">
+              ⚡ INJECT BURST
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- Center Section: Agent Swarm Reallocation Map & Load Matrix Heatmap -->
+    <section class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+
+      <!-- Agent Cluster Ring Topology (Cols 1-8) -->
+      <div class="lg:col-span-8 p-5 rounded-2xl bg-swarm-card border border-swarm-border flex flex-col">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3 mb-3">
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-swarm-neon"></span>
+            <h3 class="text-xs font-bold text-slate-200 font-orbitron uppercase tracking-wider">
+              SWARM AGENT TOPOLOGY & INGESTION PIPELINES
+            </h3>
+          </div>
+          <div class="flex items-center gap-3 text-[10px] font-mono">
+            <span class="text-swarm-cyan">■ Node Pool: Edge (Jetson/Termux)</span>
+            <span class="text-swarm-gold">■ Node Pool: Compute (Optiplex)</span>
+            <span class="text-swarm-purple">■ Node Pool: Stream Sinks</span>
+          </div>
+        </div>
+
+        <div class="w-full h-72 bg-[#020409] rounded-xl border border-slate-900 overflow-hidden relative">
+          <canvas id="swarm-canvas" class="w-full h-full block"></canvas>
+          <div class="absolute bottom-2 left-3 text-[10px] font-mono text-slate-500 pointer-events-none">
+            Live agent load vectors: Green nodes indicate healthy balanced consumption; zero packet drops recorded.
+          </div>
+        </div>
+      </div>
+
+      <!-- Real-Time Queue & Stress Telemetry (Cols 9-12) -->
+      <div class="lg:col-span-4 p-5 rounded-2xl bg-swarm-card border border-swarm-border flex flex-col justify-between space-y-3">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+          <h3 class="text-xs font-bold text-swarm-cyan uppercase tracking-wider font-mono flex items-center gap-1.5">
+            <span>📊</span> TELEMETRY LOSS-PREVENTION GAUGES
+          </h3>
+          <span class="text-[10px] text-slate-500 font-mono">REAL-TIME SLA</span>
+        </div>
+
+        <!-- Metrics Bars -->
+        <div class="space-y-3.5 text-xs font-mono">
+          <div>
+            <div class="flex justify-between text-[11px] mb-1">
+              <span class="text-slate-400">Swarm Memory Pressure:</span>
+              <span id="lbl-mem-pressure" class="text-swarm-neon font-bold">12.4%</span>
+            </div>
+            <div class="w-full h-2 rounded-full bg-slate-900 border border-slate-800 overflow-hidden">
+              <div id="bar-mem-pressure" class="h-full bg-swarm-neon transition-all duration-300" style="width: 12.4%;"></div>
+            </div>
+          </div>
+
+          <div>
+            <div class="flex justify-between text-[11px] mb-1">
+              <span class="text-slate-400">RingBuffer Saturation:</span>
+              <span id="lbl-ring-saturation" class="text-swarm-cyan font-bold">18.2%</span>
+            </div>
+            <div class="w-full h-2 rounded-full bg-slate-900 border border-slate-800 overflow-hidden">
+              <div id="bar-ring-saturation" class="h-full bg-swarm-cyan transition-all duration-300" style="width: 18.2%;"></div>
+            </div>
+          </div>
+
+          <div>
+            <div class="flex justify-between text-[11px] mb-1">
+              <span class="text-slate-400">Handling Stress Index:</span>
+              <span id="lbl-stress-index" class="text-emerald-400 font-bold">0.00 (NOMINAL)</span>
+            </div>
+            <div class="w-full h-2 rounded-full bg-slate-900 border border-slate-800 overflow-hidden">
+              <div id="bar-stress-index" class="h-full bg-emerald-400 transition-all duration-300" style="width: 0.1%;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Swarm Telemetry Nodes State Summary -->
+        <div class="p-3 bg-slate-950/80 rounded-xl border border-slate-800 space-y-1.5 text-[11px] font-mono">
+          <div class="flex justify-between">
+            <span class="text-slate-400">Worker Routing Balance:</span>
+            <span class="text-slate-200">Equi-Partitioned</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-400">Circuit Breaker State:</span>
+            <span class="text-swarm-neon">PASS-THROUGH (CLEAN)</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-400">Dynamic Rebalancing Latency:</span>
+            <span id="val-rebalance-latency" class="text-swarm-cyan">0.42 ms</span>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- Lower Section: Oscilloscope Bit-Diffusion & Swarm Dispatch Ledger -->
+    <section class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+      
+      <!-- Oscilloscope & Bit-Diffusion Canvas (Cols 1-7) -->
+      <div class="lg:col-span-7 p-5 rounded-2xl bg-swarm-card border border-swarm-border flex flex-col">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-2 mb-3">
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-swarm-fuchsia animate-pulse"></span>
+            <h3 class="text-xs font-bold text-slate-200 font-orbitron uppercase tracking-wider">
+              SWARM ENTROPY & PACKET STRESS OSCILLOSCOPE
+            </h3>
+          </div>
+          <div class="flex items-center gap-3 text-[10px] font-mono">
+            <span class="text-swarm-cyan">■ Input Influx</span>
+            <span class="text-swarm-neon">■ Handled Throughput</span>
+            <span class="text-rose-400">■ Package Rejection Target</span>
+          </div>
+        </div>
+
+        <div class="w-full h-52 bg-[#020409] rounded-xl border border-slate-900 overflow-hidden relative">
+          <canvas id="osc-canvas" class="w-full h-full block"></canvas>
+          <div class="absolute bottom-2 left-3 text-[10px] font-mono text-slate-500 pointer-events-none">
+            Continuous real-time throughput tracking: Zero deviation below baseline affirms no package handling errors.
+          </div>
+        </div>
+      </div>
+
+      <!-- Real-Time Reallocation Dispatch Ledger (Cols 8-12) -->
+      <div class="lg:col-span-5 p-5 rounded-2xl bg-swarm-card border border-swarm-border flex flex-col min-h-[300px]">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-2.5 mb-3">
+          <h3 class="text-xs font-bold text-swarm-neon uppercase tracking-wider font-mono flex items-center gap-1.5">
+            <span>📜</span> REAL-TIME AGENT DISPATCH LOG
+          </h3>
+          <button onclick="clearLedger()" class="text-[10px] text-slate-500 hover:text-slate-300 font-mono underline">Clear Log</button>
+        </div>
+
+        <div id="dispatch-ledger-list" class="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar text-xs font-mono">
+          <div class="text-slate-500 italic text-center py-16 text-[11px]">
+            Engine standby. Click 'START SWARM HANDLER' to begin zero-stress adaptive routing.
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- JAVASCRIPT: SWARM CORE, ZERO-STRESS PIPELINE & DYNAMIC REALLOCATION -->
+  <script>
+    // --- 1. RING BUFFER & LOSS-PREVENTION FIFO QUEUE ---
+    class LosslessRingBuffer {
+      constructor(capacity = 10000) {
+        this.capacity = capacity;
+        this.buffer = new Array(capacity);
+        this.head = 0;
+        this.tail = 0;
+        this.size = 0;
+      }
+
+      push(packet) {
+        if (this.size >= this.capacity) {
+          // Adaptive overflow: Dynamically double capacity rather than dropping packets
+          this.grow();
+        }
+        this.buffer[this.tail] = packet;
+        this.tail = (this.tail + 1) % this.capacity;
+        this.size++;
+        return true;
+      }
+
+      pop() {
+        if (this.size === 0) return null;
+        const item = this.buffer[this.head];
+        this.buffer[this.head] = null;
+        this.head = (this.head + 1) % this.capacity;
+        this.size--;
+        return item;
+      }
+
+      grow() {
+        const newCap = this.capacity * 2;
+        const newBuf = new Array(newCap);
+        for (let i = 0; i < this.size; i++) {
+          newBuf[i] = this.buffer[(this.head + i) % this.capacity];
+        }
+        this.buffer = newBuf;
+        this.head = 0;
+        this.tail = this.size;
+        this.capacity = newCap;
+        document.getElementById('val-backpressure').value = this.capacity.toLocaleString() + " pkts";
+        showToast(`RingBuffer expanded to ${this.capacity.toLocaleString()} slots (Zero-Drop Guarantee)`, 'info');
+      }
+
+      saturation() {
+        return (this.size / this.capacity) * 100;
+      }
+    }
+
+    // --- 2. SWARM AGENT ARCHITECTURE ---
+    class SwarmAgent {
+      constructor(id, tier = 'edge') {
+        this.id = id;
+        this.tier = tier; // 'edge' | 'compute' | 'sink'
+        this.capacity = 500; // packets per step
+        this.load = 0;
+        this.processed = 0;
+        this.efficiency = 0.95 + Math.random() * 0.05;
+        this.angle = (id * 2 * Math.PI) / 16;
+        this.distance = 90 + Math.random() * 20;
+      }
+
+      handle(batchSize) {
+        const processable = Math.min(batchSize, this.capacity);
+        this.load = processable;
+        this.processed += processable;
+        return processable;
+      }
+
+      decay() {
+        this.load *= 0.85;
+      }
+    }
+
+    // --- 3. SYSTEM STATE ---
+    let isRunning = false;
+    let flowRate = 1200; // packets generated per sec
+    let agentCount = 16;
+    let rebalanceSensitivity = 98; // percentage
+    let currentSource = 'harvester-360';
+
+    let totalDispatched = 0;
+    let totalErrors = 0;
+    let packetsPerSecCounter = 0;
+
+    const ringBuffer = new LosslessRingBuffer(10000);
+    let swarmAgents = [];
+
+    // Telemetry Canvas Traces
+    const oscCanvas = document.getElementById('osc-canvas');
+    const oscCtx = oscCanvas.getContext('2d');
+    let inputHistory = [];
+    let outputHistory = [];
+
+    const swarmCanvas = document.getElementById('swarm-canvas');
+    const swarmCtx = swarmCanvas.getContext('2d');
+
+    let animFrame = null;
+    let statsTimer = null;
+    let ledgerHistory = [];
+
+    // --- 4. INITIALIZATION & RESIZE ---
+    function initSwarm() {
+      swarmAgents = [];
+      const tiers = ['edge', 'compute', 'sink'];
+      for (let i = 0; i < agentCount; i++) {
+        const tier = tiers[i % tiers.length];
+        swarmAgents.push(new SwarmAgent(i, tier));
+      }
+      recomputeAgentOrbits();
+    }
+
+    function recomputeAgentOrbits() {
+      swarmAgents.forEach((ag, idx) => {
+        ag.angle = (idx * 2 * Math.PI) / swarmAgents.length;
+      });
+    }
+
+    function resizeCanvases() {
+      if (oscCanvas) {
+        oscCanvas.width = oscCanvas.clientWidth;
+        oscCanvas.height = oscCanvas.clientHeight;
+      }
+      if (swarmCanvas) {
+        swarmCanvas.width = swarmCanvas.clientWidth;
+        swarmCanvas.height = swarmCanvas.clientHeight;
+      }
+    }
+    window.addEventListener('resize', resizeCanvases);
+
+    // --- 5. DATASET SOURCE GENERATOR ---
+    function createTelemetryPacket(sourceType) {
+      const ts = Math.floor(Date.now() / 1000);
+      switch(sourceType) {
+        case 'harvester-360':
+          const slot = Math.floor(Math.random() * 360);
+          return {
+            id: ++totalDispatched,
+            timestamp: ts,
+            source: `slot_${String(slot).padStart(3, '0')}`,
+            type: 'NVMe_PCIe_Proxy',
+            throughput_mbps: 714 + (Math.random() * 80 - 40),
+            payload: `HOP251:CH${slot % 6}:OK`
+          };
+        case 'neural-sdf':
+          return {
+            id: ++totalDispatched,
+            timestamp: ts,
+            source: 'Manifold_Engine',
+            type: 'Clifford_Rotor_Phase',
+            theta: (Math.random() * 6.28).toFixed(4),
+            entropy: (Math.random() * 0.99).toFixed(3),
+            payload: 'NGP_HASH_GRID_SYNC'
+          };
+        case 'quantum-resonance':
+          return {
+            id: ++totalDispatched,
+            timestamp: ts,
+            source: 'TDSE_Bathymetry',
+            type: 'Wave_Sum_Integral',
+            depth_h: (12.4 + Math.sin(Date.now() * 0.002) * 5).toFixed(2),
+            caustic_max: (0.42 + Math.random() * 0.15).toFixed(4),
+            payload: 'SCHRODINGER_LATTICE'
+          };
+        case 'omni-macro':
+          return {
+            id: ++totalDispatched,
+            timestamp: ts,
+            source: 'Playwright_Omni',
+            type: 'Macro_Keystroke_Matrix',
+            deviation: (Math.random() * 0.0001).toFixed(6),
+            fork_phase: (Math.random() * 3.14).toFixed(4),
+            payload: 'EVENT_BUS_BROADCAST'
+          };
+        default:
+          return { id: ++totalDispatched, timestamp: ts, source: 'Generic', type: 'RAW_STREAM' };
+      }
+    }
+
+    // --- 6. CORE SWARM PROCESSING & REALLOCATION LOOP ---
+    function swarmLoop() {
+      if (!isRunning) return;
+
+      // 1. Generate incoming packets based on requested flowRate per frame (~60fps)
+      const packetsThisFrame = Math.round(flowRate / 60);
+      for (let i = 0; i < packetsThisFrame; i++) {
+        const pkt = createTelemetryPacket(currentSource);
+        ringBuffer.push(pkt);
+        packetsPerSecCounter++;
+      }
+
+      // Update sample preview
+      if (packetsThisFrame > 0) {
+        const samplePkt = createTelemetryPacket(currentSource);
+        document.getElementById('live-packet-preview').innerText = JSON.stringify(samplePkt);
+      }
+
+      // 2. Autonomous Dynamic Agent Reallocation
+      const autoReallocate = document.getElementById('chk-auto-reallocate').checked;
+      const queueDepth = ringBuffer.size;
+
+      if (autoReallocate && queueDepth > 0) {
+        // Compute demand and balance across agents
+        let demandPerAgent = Math.ceil(queueDepth / swarmAgents.length);
+        
+        // If demand exceeds current per-agent capacity, reallocate by adjusting efficiencies and scaling
+        if (demandPerAgent > 450 && swarmAgents.length < 64) {
+          scaleUpAgents();
+        }
+      }
+
+      // 3. Dispatch to Agents from RingBuffer (Zero-Drop)
+      let handledThisFrame = 0;
+      for (const agent of swarmAgents) {
+        if (ringBuffer.size === 0) {
+          agent.decay();
+          continue;
+        }
+
+        const batchSize = Math.min(ringBuffer.size, Math.round(agent.capacity * agent.efficiency));
+        const drained = [];
+        for (let j = 0; j < batchSize; j++) {
+          const item = ringBuffer.pop();
+          if (item) drained.push(item);
+        }
+
+        const count = agent.handle(drained.length);
+        handledThisFrame += count;
+
+        // Occasional ledger push of high-volume batches
+        if (Math.random() < 0.04 && drained.length > 0) {
+          logDispatch(agent.id, agent.tier, drained.length, drained[0]);
+        }
+      }
+
+      // 4. Record history for Oscilloscope bit-diffusion
+      inputHistory.push(packetsThisFrame * 60);
+      outputHistory.push(handledThisFrame * 60);
+      if (inputHistory.length > 120) inputHistory.shift();
+      if (outputHistory.length > 120) outputHistory.shift();
+
+      // 5. Update Telemetry UI Gauges
+      updateGauges();
+
+      // 6. Draw Visual Displays
+      renderSwarmCanvas();
+      renderOscilloscope();
+
+      animFrame = requestAnimationFrame(swarmLoop);
+    }
+
+    function scaleUpAgents() {
+      if (swarmAgents.length >= 64) return;
+      const newId = swarmAgents.length;
+      const tiers = ['edge', 'compute', 'sink'];
+      swarmAgents.push(new SwarmAgent(newId, tiers[newId % tiers.length]));
+      agentCount = swarmAgents.length;
+      document.getElementById('sl-agent-count').value = agentCount;
+      document.getElementById('lbl-node-count').innerText = `${agentCount} Agents`;
+      document.getElementById('stat-agents-count').innerText = `${agentCount} Units`;
+      recomputeAgentOrbits();
+      showToast(`Swarm autonomously expanded: Node ${newId} initialized.`, 'info');
+    }
+
+    function updateGauges() {
+      const sat = ringBuffer.saturation();
+      document.getElementById('lbl-ring-saturation').innerText = `${sat.toFixed(1)}%`;
+      document.getElementById('bar-ring-saturation').style.width = `${Math.min(sat, 100)}%`;
+
+      const memP = Math.min(85, (ringBuffer.size / 200) + 12).toFixed(1);
+      document.getElementById('lbl-mem-pressure').innerText = `${memP}%`;
+      document.getElementById('bar-mem-pressure').style.width = `${memP}%`;
+
+      // Stress index: Always zero if buffer doesn't overflow
+      const stress = sat > 85 ? ((sat - 85) / 15).toFixed(2) : "0.00 (NOMINAL)";
+      document.getElementById('lbl-stress-index').innerText = stress;
+      document.getElementById('bar-stress-index').style.width = sat > 85 ? `${(sat - 85) * 6}%` : '0.1%';
+
+      document.getElementById('stat-dispatched').innerText = totalDispatched.toLocaleString();
+      document.getElementById('stat-errors').innerText = `0.00% (${totalErrors})`;
+    }
+
+    // --- 7. VISUAL RENDERERS ---
+
+    // A. Swarm Topology Canvas
+    function renderSwarmCanvas() {
+      if (!swarmCanvas || !swarmCtx) return;
+      const w = swarmCanvas.width;
+      const h = swarmCanvas.height;
+      const cx = w / 2;
+      const cy = h / 2;
+
+      swarmCtx.fillStyle = '#020409';
+      swarmCtx.fillRect(0, 0, w, h);
+
+      // Draw Center Hub Ring
+      const time = Date.now() * 0.001;
+      swarmCtx.strokeStyle = 'rgba(0, 243, 255, 0.25)';
+      swarmCtx.lineWidth = 1.5;
+      swarmCtx.beginPath();
+      swarmCtx.arc(cx, cy, 32 + Math.sin(time * 3) * 3, 0, 2 * Math.PI);
+      swarmCtx.stroke();
+
+      // Hub Center Core
+      swarmCtx.fillStyle = '#00f3ff';
+      swarmCtx.beginPath();
+      swarmCtx.arc(cx, cy, 6, 0, 2 * Math.PI);
+      swarmCtx.fill();
+
+      // Draw Concentric Reference Mesh
+      swarmCtx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+      swarmCtx.beginPath();
+      swarmCtx.arc(cx, cy, 80, 0, 2 * Math.PI);
+      swarmCtx.arc(cx, cy, 120, 0, 2 * Math.PI);
+      swarmCtx.stroke();
+
+      // Draw Agents
+      swarmAgents.forEach((ag, idx) => {
+        // Orbit dynamics
+        const curAngle = ag.angle + time * 0.25;
+        const radius = Math.min(w, h) * 0.35;
+        const ax = cx + Math.cos(curAngle) * radius;
+        const ay = cy + Math.sin(curAngle) * radius;
+
+        // Radiating Data Pulse Beam from Center
+        const loadRatio = Math.min(1, ag.load / ag.capacity);
+        swarmCtx.strokeStyle = ag.tier === 'edge' 
+          ? `rgba(0, 243, 255, ${0.15 + loadRatio * 0.5})` 
+          : (ag.tier === 'compute' 
+            ? `rgba(245, 158, 11, ${0.15 + loadRatio * 0.5})` 
+            : `rgba(168, 85, 247, ${0.15 + loadRatio * 0.5})`);
+        swarmCtx.lineWidth = 1 + loadRatio * 2;
+        swarmCtx.beginPath();
+        swarmCtx.moveTo(cx, cy);
+        swarmCtx.lineTo(ax, ay);
+        swarmCtx.stroke();
+
+        // Node Geometry
+        swarmCtx.fillStyle = ag.tier === 'edge' ? '#00f3ff' : (ag.tier === 'compute' ? '#f59e0b' : '#a855f7');
+        swarmCtx.beginPath();
+        swarmCtx.arc(ax, ay, 4 + loadRatio * 4, 0, 2 * Math.PI);
+        swarmCtx.fill();
+
+        // Glow
+        if (loadRatio > 0.3) {
+          swarmCtx.fillStyle = 'rgba(0, 255, 153, 0.3)';
+          swarmCtx.beginPath();
+          swarmCtx.arc(ax, ay, 8 + loadRatio * 6, 0, 2 * Math.PI);
+          swarmCtx.fill();
+        }
+      });
+    }
+
+    // B. Oscilloscope Bit-Diffusion Canvas
+    function renderOscilloscope() {
+      if (!oscCanvas || !oscCtx) return;
+      const w = oscCanvas.width;
+      const h = oscCanvas.height;
+
+      oscCtx.fillStyle = '#020409';
+      oscCtx.fillRect(0, 0, w, h);
+
+      // Grid Lines
+      oscCtx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+      oscCtx.lineWidth = 1;
+      for (let y = 0; y < h; y += 30) {
+        oscCtx.beginPath();
+        oscCtx.moveTo(0, y);
+        oscCtx.lineTo(w, y);
+        oscCtx.stroke();
+      }
+
+      if (inputHistory.length < 2) return;
+
+      const stepX = w / (inputHistory.length - 1);
+      const maxVal = Math.max(8000, ...inputHistory);
+
+      // Influx Line (Cyan)
+      oscCtx.strokeStyle = '#00f3ff';
+      oscCtx.lineWidth = 2;
+      oscCtx.beginPath();
+      inputHistory.forEach((val, i) => {
+        const x = i * stepX;
+        const y = h - (val / maxVal) * (h * 0.8) - 10;
+        if (i === 0) oscCtx.moveTo(x, y);
+        else oscCtx.lineTo(x, y);
+      });
+      oscCtx.stroke();
+
+      // Handled Throughput Line (Neon Green)
+      oscCtx.strokeStyle = '#00ff99';
+      oscCtx.lineWidth = 1.5;
+      oscCtx.beginPath();
+      outputHistory.forEach((val, i) => {
+        const x = i * stepX;
+        const y = h - (val / maxVal) * (h * 0.8) - 10;
+        if (i === 0) oscCtx.moveTo(x, y);
+        else oscCtx.lineTo(x, y);
+      });
+      oscCtx.stroke();
+
+      // Zero-Error Baseline Guide
+      oscCtx.strokeStyle = 'rgba(244, 63, 94, 0.4)';
+      oscCtx.setLineDash([4, 4]);
+      oscCtx.beginPath();
+      oscCtx.moveTo(0, h - 10);
+      oscCtx.lineTo(w, h - 10);
+      oscCtx.stroke();
+      oscCtx.setLineDash([]);
+    }
+
+    // --- 8. DISPATCH LEDGER & TELEMETRY LOGS ---
+    function logDispatch(agentId, tier, batchCount, sample) {
+      const entry = {
+        time: new Date().toLocaleTimeString(),
+        agentId,
+        tier: tier.toUpperCase(),
+        count: batchCount,
+        sampleType: sample.type,
+        source: sample.source
+      };
+
+      ledgerHistory.unshift(entry);
+      if (ledgerHistory.length > 40) ledgerHistory.pop();
+      renderLedger();
+    }
+
+    function renderLedger() {
+      const container = document.getElementById('dispatch-ledger-list');
+      if (ledgerHistory.length === 0) {
+        container.innerHTML = `<div class="text-slate-500 italic text-center py-16 text-[11px]">No transactions.</div>`;
+        return;
+      }
+
+      container.innerHTML = ledgerHistory.map(item => `
+        <div class="p-2.5 bg-slate-900/80 rounded-xl border border-slate-800/80 flex items-center justify-between text-[11px] hover:border-swarm-cyan/40 transition">
+          <div class="flex items-center gap-2">
+            <span class="px-1.5 py-0.5 rounded text-[9px] font-mono ${
+              item.tier === 'EDGE' ? 'bg-swarm-cyan/15 text-swarm-cyan border border-swarm-cyan/30' :
+              (item.tier === 'COMPUTE' ? 'bg-swarm-gold/15 text-swarm-gold border border-swarm-gold/30' : 'bg-swarm-purple/15 text-swarm-purple border border-swarm-purple/30')
+            }">[${item.tier}] Node #${item.agentId}</span>
+            <span class="text-slate-300">${item.source} (${item.sampleType})</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="text-swarm-neon font-bold">+${item.count} pkts</span>
+            <span class="text-slate-500 text-[10px]">${item.time}</span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function clearLedger() {
+      ledgerHistory = [];
+      renderLedger();
+      showToast('Dispatch ledger cleared.', 'info');
+    }
+
+    // --- 9. INTERACTIVE CONTROLS ---
+    function toggleEngine() {
+      if (isRunning) {
+        stopEngine();
+      } else {
+        startEngine();
+      }
+    }
+
+    function startEngine() {
+      isRunning = true;
+      document.getElementById('engine-btn-label').innerText = 'STOP SWARM HANDLER';
+      const btn = document.getElementById('btn-toggle-engine');
+      btn.classList.remove('bg-swarm-cyan', 'hover:bg-cyan-400', 'text-slate-950');
+      btn.classList.add('bg-rose-600', 'hover:bg-rose-500', 'text-white');
+      document.getElementById('engine-icon').innerHTML = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
+
+      document.getElementById('ingest-status').innerText = 'ROUTING ACTIVE';
+      document.getElementById('ingest-status').className = 'px-2 py-0.5 rounded text-[10px] font-mono bg-swarm-cyan/15 text-swarm-cyan border border-swarm-cyan/40 animate-pulse';
+
+      packetsPerSecCounter = 0;
+      statsTimer = setInterval(() => {
+        document.getElementById('stat-pkt-rate').innerText = `${packetsPerSecCounter.toLocaleString()} pkts/s`;
+        packetsPerSecCounter = 0;
+        document.getElementById('val-rebalance-latency').innerText = `${(0.35 + Math.random() * 0.15).toFixed(2)} ms`;
+      }, 1000);
+
+      swarmLoop();
+      showToast('Swarm Ingestion Pipeline active. Loss-prevention engaged.', 'success');
+    }
+
+    function stopEngine() {
+      isRunning = false;
+      if (animFrame) cancelAnimationFrame(animFrame);
+      if (statsTimer) clearInterval(statsTimer);
+
+      document.getElementById('engine-btn-label').innerText = 'START SWARM HANDLER';
+      const btn = document.getElementById('btn-toggle-engine');
+      btn.classList.remove('bg-rose-600', 'hover:bg-rose-500', 'text-white');
+      btn.classList.add('bg-swarm-cyan', 'hover:bg-cyan-400', 'text-slate-950');
+      document.getElementById('engine-icon').innerHTML = '<path d="M8 5v14l11-7z"/>';
+
+      document.getElementById('ingest-status').innerText = 'STANDBY';
+      document.getElementById('ingest-status').className = 'px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/30';
+
+      document.getElementById('stat-pkt-rate').innerText = '0 pkts/s';
+    }
+
+    function updateFlowRate(val) {
+      flowRate = parseInt(val);
+      document.getElementById('lbl-flow-rate').innerText = `${flowRate.toLocaleString()}/s`;
+    }
+
+    function updateAgentCount(val) {
+      agentCount = parseInt(val);
+      document.getElementById('lbl-node-count').innerText = `${agentCount} Agents`;
+      document.getElementById('stat-agents-count').innerText = `${agentCount} Units`;
+      initSwarm();
+    }
+
+    function updateSensitivity(val) {
+      rebalanceSensitivity = parseInt(val);
+      document.getElementById('lbl-sensitivity').innerText = `${rebalanceSensitivity}%`;
+    }
+
+    function changeDataSource(sourceKey) {
+      currentSource = sourceKey;
+      showToast(`Source highway shifted to ${sourceKey}`, 'info');
+    }
+
+    function injectTelemetrySurge() {
+      const surgeCount = 5000;
+      for (let i = 0; i < surgeCount; i++) {
+        ringBuffer.push(createTelemetryPacket(currentSource));
+      }
+      totalDispatched += surgeCount;
+      updateGauges();
+      showToast(`⚡ Injected ${surgeCount.toLocaleString()} packet surge! Auto-reallocating buffer...`, 'success');
+    }
+
+    // --- 10. TOAST SYSTEM ---
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+
+      let border = 'border-slate-800 bg-slate-950 text-slate-200';
+      if (type === 'success') border = 'border-swarm-cyan bg-[#03151c] text-swarm-cyan shadow-lg shadow-swarm-cyan/15';
+      if (type === 'info') border = 'border-swarm-neon bg-[#03150d] text-swarm-neon shadow-lg shadow-swarm-neon/15';
+
+      toast.className = `pointer-events-auto px-4 py-2.5 rounded-xl border text-xs font-mono shadow-2xl transition-all duration-300 transform translate-y-2 opacity-0 flex items-center gap-2 ${border}`;
+      toast.innerHTML = `<span>${type === 'success' ? '⚡' : 'ℹ'}</span> <span>${message}</span>`;
+
+      container.appendChild(toast);
+      requestAnimationFrame(() => toast.classList.remove('translate-y-2', 'opacity-0'));
+
+      setTimeout(() => {
+        toast.classList.add('opacity-0', '-translate-y-2');
+        setTimeout(() => toast.remove(), 300);
+      }, 3500);
+    }
+
+    // --- 11. BOOTSTRAP ---
+    window.onload = function() {
+      resizeCanvases();
+      initSwarm();
+      updateGauges();
+      renderSwarmCanvas();
+      renderOscilloscope();
+    };
+  </script>
+</body>
+</html>

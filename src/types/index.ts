@@ -1,0 +1,365 @@
+/**
+ * HyperTerminal Polyglot Quine OS - Types & Interfaces
+ */
+import type { RgbLedConfig, RgbLedProfile, RgbLedMode } from '../services/colorProfileService';
+export type { RgbLedConfig, RgbLedProfile, RgbLedMode };
+
+export type TopologyType =
+  | 'torus'
+  | 'tesseract'
+  | 'singularity'
+  | 'neural'
+  | 'galaxy'
+  | 'spindle'
+  | 'dna'
+  | 'galaxy_vfs'
+  | 'robotics_lab'
+  | 'protein_fold'
+  | 'earth_nasa'
+  | 'forest'
+  | 'cybercity';
+
+export type SentimentType =
+  | 'analytical'
+  | 'energetic'
+  | 'alarm'
+  | 'tranquil'
+  | 'cosmic'
+  | 'chaos'
+  | 'creative'
+  | 'nature'
+  | 'cyberpunk'
+  | 'in-session';
+
+export type D3StreamShape = 'force' | 'streamgraph' | 'radar' | 'chord';
+
+export interface D3StreamConfig {
+  active: boolean;
+  shape: D3StreamShape;
+  title: string;
+  packetRate: number; // packets/sec
+  throughputMbps: number; // MB/s
+  nodeCount: number;
+  linkTension: number;
+  jitterMs: number;
+  packetLossPct: number;
+  palette: 'cyan' | 'fuchsia' | 'matrix' | 'amber' | 'cyberpunk';
+  geminiTelemetrySummary: string;
+  showPanel: boolean;
+  lastCommand: string;
+  intensity: number;
+}
+
+export interface CommandHistoryItem {
+  id: string;
+  command: string;
+  timestamp: string;
+  category: string;
+  status: 'success' | 'error' | 'pending';
+  durationMs: number;
+  cwd: string;
+  starred?: boolean;
+}
+
+export type TerminalDockPosition = 'center' | 'bottom' | 'floating' | 'fullscreen';
+
+export interface EnvironmentState {
+  topology: TopologyType;
+  sentiment: SentimentType;
+  primaryColor: string;
+  secondaryColor: string;
+  speed: number;
+  gravity: number;
+  turbulence: number;
+  cameraDistance: number;
+  floatingGlyph: string;
+  activeSpeechText: string;
+  activeSpeechWord?: string;
+  activeSpeechTone?: string;
+  neuralityAuto?: boolean;
+  voiceActive: boolean;
+  voicePitch: number;
+  voiceRate: number;
+  voiceName: string;
+  voiceProfile: string;
+  solfeggio963: boolean;
+  wireframe: boolean;
+  bloomIntensity: number;
+  audioReactiveLevel: number;
+  terminalOpacity: number;
+  terminalDock: TerminalDockPosition;
+  highContrast: boolean;
+  chromeVoxEnabled: boolean;
+  d3Stream: D3StreamConfig;
+  ambientSoundscape: boolean;
+  ambientVolume: number;
+  harmonicResonance: '432' | '528' | '963' | 'all';
+  mountedDevices: string[];
+  rgbLed: RgbLedConfig;
+  youtube: YouTubePlayerState;
+  macros: Record<string, string>;
+  geolocation?: {
+    latitude: number;
+    longitude: number;
+    accuracy: number;
+    timestamp: number;
+  };
+}
+
+export type YouTubeCategory = 'lofi' | 'synthwave' | 'ambient' | 'cyberpunk' | 'space' | 'solfeggio' | 'classical' | 'custom';
+export type YouTubeDisplayMode = 'background' | 'pip' | 'modal' | 'cinema' | 'off';
+
+export interface YouTubeTrack {
+  id: string;
+  title: string;
+  artist: string;
+  category: YouTubeCategory;
+  duration?: string;
+  thumbnail?: string;
+  description?: string;
+}
+
+export interface YouTubePlaylist {
+  id: string;
+  title: string;
+  description: string;
+  category: YouTubeCategory;
+  thumbnail: string;
+  tracks: YouTubeTrack[];
+  isCustom?: boolean;
+  youtubePlaylistId?: string; // YouTube playlist ID (e.g. PL...)
+  createdAt?: string;
+}
+
+export interface GoogleUserProfile {
+  email: string;
+  name: string;
+  picture: string;
+  isAuthenticated: boolean;
+  lastLogin: string;
+  accountType: 'sovereign_operator' | 'google_workspace' | 'guest';
+  preferences: {
+    defaultVideoMode: YouTubeDisplayMode;
+    defaultOpacity: number;
+    defaultBlendWith3D: boolean;
+    autoPlayOnLoad: boolean;
+    harmonicFrequency: '432' | '528' | '963' | 'all';
+    preferredCategory: YouTubeCategory;
+  };
+}
+
+export interface YouTubePlayerState {
+  active: boolean;
+  currentTrack: YouTubeTrack;
+  displayMode: YouTubeDisplayMode;
+  isPlaying: boolean;
+  volume: number; // 0 - 100
+  isMuted: boolean;
+  backgroundOpacity: number; // 0.1 to 1.0
+  blendWith3D: boolean; // overlay Three.js 3D particles over the video
+  showModal: boolean;
+  activePlaylistId: string;
+  currentTrackIndex: number;
+  shuffle: boolean;
+  repeat: boolean;
+  lastCommand?: string;
+  userProfile: GoogleUserProfile;
+  customPlaylists: YouTubePlaylist[];
+}
+
+export interface LinksBrowserPage {
+  url: string;
+  title: string;
+  content: string;
+  protocol: 'file' | 'mhtml' | 'https' | 'nexus';
+  links: { text: string; target: string; index: number }[];
+}
+
+export interface EngramMemory {
+  id: string;
+  title: string;
+  epoch: string;
+  tags: string[];
+  excerpt: string;
+  fullMarkdown: string;
+  primeAnchor: string;
+  syncedToGdrive: boolean;
+  lastUpdated: string;
+}
+
+export interface ChronosHeartbeatProof {
+  beatIndex: number;
+  isoTimestamp: string;
+  dwellDeltaMs: number;
+  pseudoHash: string;
+  canonicalPrime: string;
+  stateCoherence: number;
+  offlineVerified: boolean;
+}
+
+export interface SentinelVerificationResult {
+  dotfilesHashed: number;
+  goldenLedgerHash: string;
+  currentMeshHash: string;
+  mismatchesDetected: number;
+  quinRestoreStatus: 'healthy' | 'repaired' | 'quarantined';
+  repairedBinaries: string[];
+}
+
+export interface VfsFileMetadata {
+  created: number;
+  modified: number;
+  permissions: string;
+  size: number;
+}
+
+export interface VfsNode {
+  type: 'file' | 'directory';
+  content?: string;
+  children?: { [key: string]: VfsNode };
+  metadata?: VfsFileMetadata;
+}
+
+export interface TerminalLine {
+  id: string;
+  type: 'input' | 'output' | 'error' | 'success' | 'system' | 'ai' | 'speech' | 'table' | 'good' | 'warn';
+  text: string;
+  timestamp: string;
+  cwd?: string;
+  glyph?: string;
+  metadata?: Record<string, any>;
+}
+
+export interface TerminalInstance {
+  id: string;
+  title: string;
+  cwd: string;
+  mode: 'bash' | 'js' | 'gemini' | 'mcp';
+  lines: TerminalLine[];
+  history: string[];
+  historyIndex: number;
+  draft: string;
+  active: boolean;
+}
+
+export interface AIResponsePayload {
+  source: string;
+  reply: string;
+  speechText: string;
+  sentiment: SentimentType;
+  topology: TopologyType;
+  primaryColor: string;
+  secondaryColor: string;
+  speed?: number;
+  gravity?: number;
+  turbulence?: number;
+  floatingGlyph?: string;
+  d3Stream?: Partial<D3StreamConfig>;
+}
+
+export interface CommandContext {
+  cwd: string;
+  setCwd: (path: string) => void;
+  env: Record<string, string>;
+  setEnv: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  envState: EnvironmentState;
+  setEnvState: React.Dispatch<React.SetStateAction<EnvironmentState>>;
+  addOutput: (text: string, type?: TerminalLine['type'], glyph?: string) => void;
+  clearTerminal: () => void;
+  speakText: (text: string) => void;
+  playTone: (freq?: number, type?: OscillatorType, durationMs?: number) => void;
+}
+
+export type DevicePermissionStatus = 'granted' | 'denied' | 'prompt' | 'unsupported';
+
+export interface DeviceCapabilityTelemetry {
+  permissions: {
+    microphone: DevicePermissionStatus;
+    clipboardRead: DevicePermissionStatus;
+    clipboardWrite: DevicePermissionStatus;
+    notifications: DevicePermissionStatus;
+    geolocation: DevicePermissionStatus;
+    screenWakeLock: DevicePermissionStatus;
+  };
+  battery: {
+    level: number;
+    charging: boolean;
+    chargingTime: number;
+    dischargingTime: number;
+  } | null;
+  network: {
+    online: boolean;
+    effectiveType?: string;
+    downlink?: number;
+    rtt?: number;
+    saveData?: boolean;
+  };
+  hardware: {
+    logicalCores: number;
+    touchPoints: number;
+    memoryGB?: number;
+    deviceMemoryGb?: number;
+  };
+  wakeLockActive: boolean;
+  onDeviceAI: {
+    supported: boolean;
+    status: string;
+    modelAvailable?: boolean;
+  };
+  screen: {
+    width: number;
+    height: number;
+    availWidth: number;
+    availHeight: number;
+    pixelRatio: number;
+    colorDepth: number;
+    orientation: string;
+    fullscreen: boolean;
+  };
+}
+
+export interface TextFragmentMatch {
+  id: string;
+  text: string;
+  fragmentUrl: string;
+  index?: number;
+  occurrenceIndex?: number;
+  totalOccurrences?: number;
+  fullSnippet?: string;
+  targetSelector?: string;
+  element?: HTMLElement;
+  boundingRect?: {
+    top: number;
+    left: number;
+    width: number;
+    height: number;
+  };
+}
+
+export interface BrowserExecutionResult {
+  id: string;
+  code: string;
+  result: any;
+  resultType: string;
+  executionTimeMs: number;
+  timestamp: string;
+  error?: string;
+}
+
+export interface A11yNavigationState {
+  focusedElementSelector: string;
+  focusedRole: string;
+  focusedAriaLabel: string;
+  focusedText: string;
+  lastAnnouncement: string;
+  announcementHistory: string[];
+  totalTraversableElements: number;
+  currentElementIndex: number;
+}
+
+export interface DeviceAssistAction {
+  action: 'highlight_fragment' | 'wakelock' | 'notify' | 'screen_reader' | 'vibrate' | 'clipboard' | 'browser_exec' | 'none';
+  param?: string;
+  description: string;
+  status: 'success' | 'failed' | 'unsupported';
+}

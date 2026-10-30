@@ -1,0 +1,1172 @@
+/**
+ * AudioVoiceService - Real-time Web Audio, 963Hz Oscillator, Audio Analyser,
+ * Microphone Stream Input & Speech Recognition for Voice Commands
+ */
+
+export interface MicrophoneAudioData {
+  volume: number;
+  frequencyData: Uint8Array;
+  waveformData: Uint8Array;
+  isSpeaking: boolean;
+}
+
+export interface VoiceAudioData {
+  volume: number;
+  frequencyData: Uint8Array;
+  waveformData: Uint8Array;
+  isSpeaking: boolean;
+  activeText: string;
+  activeWord: string;
+  wordIndex: number;
+  totalWords: number;
+  profile: string;
+  carrierFreq: number;
+  sentiment?: string;
+  tone?: string;
+}
+
+export type DialogueTurnState =
+  | 'idle'
+  | 'user_speaking'
+  | 'ai_thinking'
+  | 'ai_speaking'
+  | 'listening_for_user';
+
+export interface VoiceProfileConfig {
+  id: string;
+  name: string;
+  role?: string;
+  pitch: number;
+  rate: number;
+  carrierFreq: number;
+  description: string;
+  conversationalStyle?: string;
+  preferredVoiceKeywords?: string[];
+  samplePhrase?: string;
+  style: string;
+  oscillatorType?: OscillatorType;
+}
+
+export type VoiceProfile = VoiceProfileConfig;
+
+export type WakeWordState = 'passive' | 'active';
+
+export interface WakeWordParseResult {
+  hasWakeWord: boolean;
+  wakeWord?: string;
+  remainder: string;
+  isStandaloneWake: boolean;
+}
+
+/**
+ * Lightweight Wake-Word Parser:
+ * Detects wake words ('gemini', 'terminal', 'nexus', 'computer', 'nova')
+ * and extracts the downstream command or directive.
+ */
+export function parseWakeWord(text: string): WakeWordParseResult {
+  const clean = text.trim();
+  if (!clean) {
+    return { hasWakeWord: false, remainder: '', isStandaloneWake: false };
+  }
+
+  // Regex matching wake words at start or embedded
+  // Supports: "Gemini", "Hey Gemini", "Terminal", "Hey Terminal", "Nexus", "Computer", "Nova"
+  const regex = /^(?:.*?\b)?(?:hey\s+)?(gemini|terminal|nexus|computer|nova)\b[\s,:;—\-]*(.*)$/i;
+  const match = clean.match(regex);
+
+  if (match) {
+    const matchedWord = match[1].toLowerCase();
+    const rest = (match[2] || '').trim().replace(/^[,:;—\-]+/, '').trim();
+    return {
+      hasWakeWord: true,
+      wakeWord: matchedWord,
+      remainder: rest,
+      isStandaloneWake: rest.length === 0,
+    };
+  }
+
+  return {
+    hasWakeWord: false,
+    remainder: clean,
+    isStandaloneWake: false,
+  };
+}
+
+import { mapSpeechToEvent } from './speechCommandMapper';
+
+export class AudioVoiceService {
+  private audioCtx: AudioContext | null = null;
+  private analyser: AnalyserNode | null = null;
+  private solfeggioOsc: OscillatorNode | null = null;
+  private solfeggioGain: GainNode | null = null;
+  private frequencyData: Uint8Array | null = null;
+  private is963Active = false;
+  private isVoiceEnabled = true;
+  private pitch = 1.15;
+  private rate = 1.02;
+  private selectedVoice: SpeechSynthesisVoice | null = null;
+  private speechListeners: ((speaking: boolean, text: string) => void)[] = [];
+  private speechLogListeners: ((text: string) => void)[] = [];
+
+  // Dedicated AI Voice Output Web Audio Stream & Analyser
+  private voiceAnalyser: AnalyserNode | null = null;
+  private voiceFrequencyData: Uint8Array | null = null;
+  private voiceWaveformData: Uint8Array | null = null;
+  private isVoiceSpeaking = false;
+  private currentSpokenText = '';
+  private currentActiveWord = '';
+  private currentWordIndex = 0;
+  private currentTotalWords = 0;
+  private currentTone = 'Neutral';
+  private currentSentiment = 'analytical';
+  private wordListeners: ((word: string, index: number, total: number) => void)[] = [];
+  private voiceCarrierOsc: OscillatorNode | null = null;
+  private voiceFormantFilter: BiquadFilterNode | null = null;
+  private voiceCarrierGain: GainNode | null = null;
+  private voiceAnimTimer: any = null;
+  private wordPacerTimer: any = null;
+  private voiceSynthTime = 0;
+  private combinedFrequencyBuffer: Uint8Array | null = null;
+
+  // Microphone state & audio nodes
+  private micStream: MediaStream | null = null;
+  private micSourceNode: MediaStreamAudioSourceNode | null = null;
+  private micAnalyser: AnalyserNode | null = null;
+  private isMicActive = false;
+  private micFrequencyData: Uint8Array | null = null;
+  private micWaveformData: Uint8Array | null = null;
+  private micListeners: ((active: boolean, level: number) => void)[] = [];
+  private recognition: any = null;
+  private isRecognizing = false;
+  private transcriptListeners: ((transcript: string, isFinal: boolean) => void)[] = [];
+
+  constructor() {
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.onvoiceschanged = () => {
+        this.loadVoice();
+      };
+      this.loadVoice();
+    }
+  }
+
+  private loadVoice(): void {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+    const voices = window.speechSynthesis.getVoices();
+    // Prioritize high-quality English female natural voices
+    const femaleVoice = voices.find(
+      (v) =>
+        v.lang.startsWith('en') &&
+        (v.name.toLowerCase().includes('female') ||
+          v.name.toLowerCase().includes('zira') ||
+          v.name.toLowerCase().includes('samantha') ||
+          v.name.toLowerCase().includes('victoria') ||
+          v.name.toLowerCase().includes('karen') ||
+          v.name.toLowerCase().includes('ava') ||
+          v.name.toLowerCase().includes('jenny') ||
+          v.name.toLowerCase().includes('sonia') ||
+          v.name.toLowerCase().includes('allison') ||
+          v.name.toLowerCase().includes('susan') ||
+          v.name.toLowerCase().includes('fiona'))
+    );
+
+    const preferred =
+      femaleVoice ||
+      voices.find(
+        (v) =>
+          v.lang.startsWith('en') &&
+          (v.name.includes('Google') || v.name.includes('Natural') || v.name.includes('Neural'))
+      ) ||
+      voices.find((v) => v.lang.startsWith('en')) ||
+      voices[0];
+
+    if (preferred) {
+      this.selectedVoice = preferred;
+    }
+  }
+
+  public initContext(): AudioContext {
+    if (!this.audioCtx) {
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      this.audioCtx = new AudioContextClass();
+
+      this.analyser = this.audioCtx.createAnalyser();
+      this.analyser.fftSize = 128;
+      this.analyser.smoothingTimeConstant = 0.85;
+      this.frequencyData = new Uint8Array(this.analyser.frequencyBinCount);
+    }
+    if (this.audioCtx.state === 'suspended') {
+      this.audioCtx.resume();
+    }
+    return this.audioCtx;
+  }
+
+  public toggle963(forceState?: boolean): boolean {
+    const ctx = this.initContext();
+    const target = forceState !== undefined ? forceState : !this.is963Active;
+
+    if (target) {
+      if (this.solfeggioOsc) {
+        this.solfeggioOsc.stop();
+        this.solfeggioOsc.disconnect();
+      }
+      this.solfeggioOsc = ctx.createOscillator();
+      this.solfeggioGain = ctx.createGain();
+
+      this.solfeggioOsc.type = 'sine';
+      this.solfeggioOsc.frequency.setValueAtTime(963, ctx.currentTime);
+
+      // Soft harmonic envelope
+      this.solfeggioGain.gain.setValueAtTime(0.001, ctx.currentTime);
+      this.solfeggioGain.gain.exponentialRampToValueAtTime(0.028, ctx.currentTime + 1.2);
+
+      this.solfeggioOsc.connect(this.solfeggioGain);
+      if (this.analyser) {
+        this.solfeggioGain.connect(this.analyser);
+      }
+      this.solfeggioGain.connect(ctx.destination);
+
+      this.solfeggioOsc.start();
+      this.is963Active = true;
+    } else {
+      if (this.solfeggioGain && this.audioCtx) {
+        this.solfeggioGain.gain.exponentialRampToValueAtTime(0.0001, this.audioCtx.currentTime + 0.4);
+        setTimeout(() => {
+          if (this.solfeggioOsc) {
+            this.solfeggioOsc.stop();
+            this.solfeggioOsc.disconnect();
+            this.solfeggioOsc = null;
+          }
+        }, 450);
+      }
+      this.is963Active = false;
+    }
+    return this.is963Active;
+  }
+
+  public getAudioFrequencyData(): Uint8Array | null {
+    if (!this.analyser || !this.frequencyData) return null;
+    (this.analyser as any).getByteFrequencyData(this.frequencyData);
+    return this.frequencyData;
+  }
+
+  // =========================================================================
+  // AI VOICE RESPONSE OUTPUT WEB AUDIO STREAM & REAL-TIME ANALYSER
+  // =========================================================================
+
+  private initVoiceAnalyser(): AnalyserNode {
+    const ctx = this.initContext();
+    if (!this.voiceAnalyser) {
+      this.voiceAnalyser = ctx.createAnalyser();
+      this.voiceAnalyser.fftSize = 256;
+      this.voiceAnalyser.smoothingTimeConstant = 0.75;
+      this.voiceFrequencyData = new Uint8Array(this.voiceAnalyser.frequencyBinCount);
+      this.voiceWaveformData = new Uint8Array(this.voiceAnalyser.fftSize);
+    }
+    return this.voiceAnalyser;
+  }
+
+  public startVoiceAudioStream(text: string, tone = 'Neutral', sentiment = 'analytical'): void {
+    const ctx = this.initContext();
+    const analyser = this.initVoiceAnalyser();
+    this.isVoiceSpeaking = true;
+    this.currentSpokenText = text;
+    this.currentTone = tone;
+    this.currentSentiment = sentiment;
+    this.voiceSynthTime = 0;
+
+    const words = text.split(/\s+/).filter(Boolean);
+    this.currentTotalWords = words.length;
+    this.currentWordIndex = 0;
+    this.currentActiveWord = words[0] || '';
+
+    const profile = this.getCurrentProfile();
+    const carrier = profile?.carrierFreq || 432;
+
+    try {
+      this.stopVoiceAudioStream();
+
+      // Create carrier oscillator and dual resonant formant filters
+      const osc = ctx.createOscillator();
+      const formant1 = ctx.createBiquadFilter();
+      const formant2 = ctx.createBiquadFilter();
+      const gain = ctx.createGain();
+
+      osc.type = profile?.oscillatorType || 'sawtooth';
+      osc.frequency.setValueAtTime(carrier * (this.pitch || 1.0), ctx.currentTime);
+
+      formant1.type = 'bandpass';
+      formant1.frequency.setValueAtTime(800, ctx.currentTime);
+      formant1.Q.setValueAtTime(3.0, ctx.currentTime);
+
+      formant2.type = 'bandpass';
+      formant2.frequency.setValueAtTime(2200, ctx.currentTime);
+      formant2.Q.setValueAtTime(4.0, ctx.currentTime);
+
+      // Subtle vocal presence gain
+      gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+      gain.gain.linearRampToValueAtTime(0.02, ctx.currentTime + 0.08);
+
+      osc.connect(formant1);
+      formant1.connect(formant2);
+      formant2.connect(gain);
+
+      // Connect to voice analyser & master analyser
+      gain.connect(analyser);
+      if (this.analyser) {
+        gain.connect(this.analyser);
+      }
+      // Connect to audio destination at subtle level
+      gain.connect(ctx.destination);
+
+      osc.start();
+
+      this.voiceCarrierOsc = osc;
+      this.voiceFormantFilter = formant1;
+      this.voiceCarrierGain = gain;
+
+      // Modulation loop to simulate human formant movement across phonemes
+      let step = 0;
+      const totalWords = Math.max(1, words.length);
+
+      if (this.voiceAnimTimer) clearInterval(this.voiceAnimTimer);
+      this.voiceAnimTimer = setInterval(() => {
+        if (!this.isVoiceSpeaking || !this.voiceCarrierOsc || !this.voiceCarrierGain || !this.voiceFormantFilter) {
+          if (this.voiceAnimTimer) clearInterval(this.voiceAnimTimer);
+          return;
+        }
+
+        step++;
+        this.voiceSynthTime += 0.05;
+        const now = ctx.currentTime;
+        const wIndex = Math.min(Math.floor(step / 5), totalWords - 1);
+        const currentWord = words[wIndex] || 'voice';
+
+        if (wIndex !== this.currentWordIndex) {
+          this.currentWordIndex = wIndex;
+          this.currentActiveWord = currentWord;
+          this.notifyWord(currentWord, wIndex, totalWords);
+        }
+
+        // Modulate formant filter based on vowel sounds in active word
+        const vowels = (currentWord.match(/[aeiou]/gi) || []).length;
+        const baseF1 = 450 + (vowels % 4) * 280 + Math.sin(step * 0.4) * 120;
+        const targetPitch = carrier * (this.pitch || 1.0) * (1 + Math.sin(step * 0.25) * 0.08);
+
+        this.voiceCarrierOsc.frequency.setTargetAtTime(targetPitch, now, 0.04);
+        this.voiceFormantFilter.frequency.setTargetAtTime(baseF1, now, 0.05);
+
+        // Syllable volume envelope dip and rise
+        const syllableVol = 0.012 + Math.abs(Math.sin(step * 0.6)) * 0.016;
+        this.voiceCarrierGain.gain.setTargetAtTime(syllableVol, now, 0.03);
+      }, 50);
+
+    } catch (e) {
+      console.warn('Voice Web Audio stream initialization note:', e);
+    }
+  }
+
+  public stopVoiceAudioStream(): void {
+    if (this.voiceAnimTimer) {
+      clearInterval(this.voiceAnimTimer);
+      this.voiceAnimTimer = null;
+    }
+
+    if (this.voiceCarrierGain && this.audioCtx) {
+      try {
+        this.voiceCarrierGain.gain.setTargetAtTime(0.0001, this.audioCtx.currentTime, 0.05);
+      } catch {}
+    }
+
+    if (this.voiceCarrierOsc) {
+      try {
+        this.voiceCarrierOsc.stop(this.audioCtx ? this.audioCtx.currentTime + 0.08 : 0);
+        this.voiceCarrierOsc.disconnect();
+      } catch {}
+      this.voiceCarrierOsc = null;
+    }
+
+    this.voiceFormantFilter = null;
+    this.voiceCarrierGain = null;
+    this.isVoiceSpeaking = false;
+    this.currentSpokenText = '';
+    this.currentActiveWord = '';
+    this.currentWordIndex = 0;
+  }
+
+  public getVoiceAudioData(): VoiceAudioData | null {
+    if (!this.isVoiceSpeaking && !this.isMicActive) {
+      return null;
+    }
+
+    const profile = this.getCurrentProfile();
+    const carrierFreq = profile?.carrierFreq || 432;
+
+    if (this.voiceAnalyser && this.voiceFrequencyData && this.voiceWaveformData) {
+      (this.voiceAnalyser as any).getByteFrequencyData(this.voiceFrequencyData);
+      (this.voiceAnalyser as any).getByteTimeDomainData(this.voiceWaveformData);
+
+      // Compute RMS volume
+      let sum = 0;
+      for (let i = 0; i < this.voiceWaveformData.length; i++) {
+        const norm = (this.voiceWaveformData[i] - 128) / 128;
+        sum += norm * norm;
+      }
+      const rms = Math.sqrt(sum / this.voiceWaveformData.length);
+      const volume = Math.min(1.0, rms * 5.2);
+
+      return {
+        volume,
+        frequencyData: this.voiceFrequencyData,
+        waveformData: this.voiceWaveformData,
+        isSpeaking: this.isVoiceSpeaking,
+        activeText: this.currentSpokenText,
+        activeWord: this.currentActiveWord,
+        wordIndex: this.currentWordIndex,
+        totalWords: this.currentTotalWords,
+        profile: profile.name,
+        carrierFreq,
+        sentiment: this.currentSentiment,
+        tone: this.currentTone,
+      };
+    } else {
+      // Synthetic acoustic fallback for headless / server / isolated canvas
+      if (!this.voiceFrequencyData) this.voiceFrequencyData = new Uint8Array(128);
+      if (!this.voiceWaveformData) this.voiceWaveformData = new Uint8Array(256);
+
+      this.voiceSynthTime += 0.06;
+      const t = this.voiceSynthTime;
+      const voiceVol = this.isVoiceSpeaking ? (0.35 + Math.sin(t * 4.2) * 0.25) : 0;
+
+      for (let i = 0; i < this.voiceWaveformData.length; i++) {
+        const wave = Math.sin(t * 12 + i * 0.14) * 55 * voiceVol + Math.cos(t * 5 + i * 0.28) * 30 * voiceVol;
+        this.voiceWaveformData[i] = Math.max(0, Math.min(255, Math.floor(128 + wave)));
+      }
+      for (let i = 0; i < this.voiceFrequencyData.length; i++) {
+        const freqVal = (Math.sin(t * 3.5 + i * 0.18) * 0.5 + 0.5) * 210 * voiceVol;
+        this.voiceFrequencyData[i] = Math.floor(freqVal);
+      }
+
+      return {
+        volume: voiceVol,
+        frequencyData: this.voiceFrequencyData,
+        waveformData: this.voiceWaveformData,
+        isSpeaking: this.isVoiceSpeaking,
+        activeText: this.currentSpokenText,
+        activeWord: this.currentActiveWord,
+        wordIndex: this.currentWordIndex,
+        totalWords: this.currentTotalWords,
+        profile: profile.name,
+        carrierFreq,
+        sentiment: this.currentSentiment,
+        tone: this.currentTone,
+      };
+    }
+  }
+
+  public isAiSpeaking(): boolean {
+    return this.isVoiceSpeaking;
+  }
+
+  public getActiveSpeechText(): string {
+    return this.currentSpokenText;
+  }
+
+  public getCombinedAudioFrequencyData(): Uint8Array | null {
+    if (!this.combinedFrequencyBuffer) {
+      this.combinedFrequencyBuffer = new Uint8Array(128);
+    }
+
+    const voiceData = this.getVoiceAudioData();
+    const micData = this.isMicActive ? this.getMicrophoneAudioData() : null;
+    const baseAudio = this.getAudioFrequencyData();
+
+    // Fast blend into combinedFrequencyBuffer
+    for (let i = 0; i < 128; i++) {
+      let maxVal = 0;
+      if (voiceData && voiceData.isSpeaking && voiceData.frequencyData) {
+        maxVal = Math.max(maxVal, voiceData.frequencyData[i] || 0);
+      }
+      if (micData && micData.isSpeaking && micData.frequencyData) {
+        maxVal = Math.max(maxVal, micData.frequencyData[i] || 0);
+      }
+      if (baseAudio) {
+        maxVal = Math.max(maxVal, baseAudio[i] || 0);
+      }
+      this.combinedFrequencyBuffer[i] = maxVal;
+    }
+
+    return this.combinedFrequencyBuffer;
+  }
+
+  // =========================================================================
+  // MICROPHONE INPUT & REAL-TIME AUDIO WAVEFORM ANALYSIS
+  // =========================================================================
+
+
+  public async startMicrophone(): Promise<boolean> {
+    const ctx = this.initContext();
+
+    try {
+      if (typeof navigator !== 'undefined' && navigator.mediaDevices?.getUserMedia) {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          },
+        });
+
+        this.micStream = stream;
+        this.micSourceNode = ctx.createMediaStreamSource(stream);
+
+        // Dedicated Analyser for microphone with 256 bins for smooth perimeter waveforms
+        this.micAnalyser = ctx.createAnalyser();
+        this.micAnalyser.fftSize = 256;
+        this.micAnalyser.smoothingTimeConstant = 0.8;
+
+        this.micFrequencyData = new Uint8Array(this.micAnalyser.frequencyBinCount);
+        this.micWaveformData = new Uint8Array(this.micAnalyser.fftSize);
+
+        this.micSourceNode.connect(this.micAnalyser);
+
+        this.isMicActive = true;
+        this.notifyMicChange(true, 0);
+
+        this.initSpeechRecognition();
+        return true;
+      }
+    } catch (err) {
+      console.warn('Microphone access failed; input remains disabled:', err);
+    }
+    this.stopMicrophone();
+    return false;
+  }
+
+  public stopMicrophone(): void {
+    if (this.micStream) {
+      this.micStream.getTracks().forEach((track) => track.stop());
+      this.micStream = null;
+    }
+    if (this.micSourceNode) {
+      this.micSourceNode.disconnect();
+      this.micSourceNode = null;
+    }
+    if (this.recognition) {
+      try {
+        this.recognition.abort();
+      } catch {}
+      this.isRecognizing = false;
+    }
+    this.isMicActive = false;
+    this.notifyMicChange(false, 0);
+  }
+
+  public toggleMicrophone(): Promise<boolean> {
+    if (this.isMicActive) {
+      this.stopMicrophone();
+      return Promise.resolve(false);
+    } else {
+      return this.startMicrophone();
+    }
+  }
+
+  public isMicrophoneActive(): boolean {
+    return this.isMicActive;
+  }
+
+  /**
+   * Retrieves real-time microphone waveform and frequency data,
+   * calculating speech intensity level (0.0 to 1.0)
+   */
+  public getMicrophoneAudioData(): MicrophoneAudioData | null {
+    if (!this.isMicActive || !this.micFrequencyData || !this.micWaveformData) {
+      return null;
+    }
+
+    if (this.micAnalyser) {
+      (this.micAnalyser as any).getByteFrequencyData(this.micFrequencyData);
+      (this.micAnalyser as any).getByteTimeDomainData(this.micWaveformData);
+
+      // Calculate RMS volume level
+      let sum = 0;
+      for (let i = 0; i < this.micWaveformData.length; i++) {
+        const normalized = (this.micWaveformData[i] - 128) / 128;
+        sum += normalized * normalized;
+      }
+      const rms = Math.sqrt(sum / this.micWaveformData.length);
+      const volume = Math.min(1.0, rms * 4.5);
+      const isSpeaking = volume > 0.08;
+
+      return {
+        volume,
+        frequencyData: this.micFrequencyData,
+        waveformData: this.micWaveformData,
+        isSpeaking,
+      };
+    }
+    return null;
+  }
+
+  // =========================================================================
+  // SPEECH RECOGNITION (VOICE-TO-COMMAND INTERFACE)
+  // =========================================================================
+
+  private initSpeechRecognition(): void {
+    if (typeof window === 'undefined') return;
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) return;
+
+    try {
+      this.recognition = new SpeechRecognition();
+      this.recognition.continuous = true;
+      this.recognition.interimResults = true;
+      this.recognition.lang = 'en-US';
+
+      this.recognition.onresult = (event: any) => {
+        let interim = '';
+        let final = '';
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            final += event.results[i][0].transcript;
+          } else {
+            interim += event.results[i][0].transcript;
+          }
+        }
+        if (final) {
+          const eventName = mapSpeechToEvent(final);
+          if (eventName) {
+            window.dispatchEvent(new CustomEvent(eventName));
+          }
+          this.notifyTranscript(final.trim(), true);
+        } else if (interim) {
+          this.notifyTranscript(interim.trim(), false);
+        }
+      };
+
+      this.recognition.onerror = (e: any) => {
+        if (e.error !== 'no-speech') {
+          console.warn('Speech recognition error:', e.error);
+        }
+      };
+
+      this.recognition.onend = () => {
+        // Automatically restart speech recognition while mic is active
+        if (this.isMicActive && this.recognition) {
+          try {
+            setTimeout(() => {
+              if (this.isMicActive && this.recognition) {
+                try {
+                  this.recognition.start();
+                } catch {}
+              }
+            }, 100);
+          } catch {}
+        } else {
+          this.isRecognizing = false;
+        }
+      };
+
+      this.recognition.start();
+      this.isRecognizing = true;
+    } catch (e) {
+      console.warn('Failed to start SpeechRecognition:', e);
+    }
+  }
+
+  public onTranscript(cb: (transcript: string, isFinal: boolean) => void): () => void {
+    this.transcriptListeners.push(cb);
+    return () => {
+      this.transcriptListeners = this.transcriptListeners.filter((l) => l !== cb);
+    };
+  }
+
+  private notifyTranscript(transcript: string, isFinal: boolean): void {
+    // Suppress AI hearing its own synthesized voice to prevent acoustic feedback loop
+    if (this.isVoiceSpeaking) {
+      return;
+    }
+    this.transcriptListeners.forEach((cb) => cb(transcript, isFinal));
+  }
+
+  public onMicChange(cb: (active: boolean, level: number) => void): () => void {
+    this.micListeners.push(cb);
+    return () => {
+      this.micListeners = this.micListeners.filter((l) => l !== cb);
+    };
+  }
+
+  private notifyMicChange(active: boolean, level: number): void {
+    this.micListeners.forEach((cb) => cb(active, level));
+  }
+
+  // =========================================================================
+  // LIGHTWEIGHT WAKE-WORD LISTENER (PASSIVE UNTIL ADDRESSED)
+  // =========================================================================
+
+  private isWakeWordGated = true; // remains passively listening until addressed
+  private wakeWordState: WakeWordState = 'passive';
+  private wakeWordTimeoutMs = 12000; // 12 seconds active speech dwell time
+  private wakeTimer: any = null;
+  private wakeListeners: ((state: WakeWordState, wakeWord?: string) => void)[] = [];
+
+  public isWakeWordEnabled(): boolean {
+    return this.isWakeWordGated;
+  }
+
+  public setWakeWordEnabled(enabled: boolean): void {
+    this.isWakeWordGated = enabled;
+    if (!enabled) {
+      this.activateWakeState('open_mic');
+    } else {
+      this.deactivateWakeState();
+    }
+  }
+
+  public getWakeWordState(): WakeWordState {
+    return this.wakeWordState;
+  }
+
+  public getWakeWordTimeout(): number {
+    return Math.round(this.wakeWordTimeoutMs / 1000);
+  }
+
+  public setWakeWordTimeout(sec: number): void {
+    this.wakeWordTimeoutMs = Math.max(3, Math.min(120, sec)) * 1000;
+  }
+
+  public activateWakeState(wakeWord = 'gemini'): void {
+    this.wakeWordState = 'active';
+    if (this.wakeTimer) {
+      clearTimeout(this.wakeTimer);
+    }
+    this.wakeTimer = setTimeout(() => {
+      this.deactivateWakeState();
+    }, this.wakeWordTimeoutMs);
+
+    this.notifyWakeWordChange('active', wakeWord);
+  }
+
+  public touchWakeActivity(): void {
+    if (this.wakeWordState === 'active') {
+      if (this.wakeTimer) {
+        clearTimeout(this.wakeTimer);
+      }
+      this.wakeTimer = setTimeout(() => {
+        this.deactivateWakeState();
+      }, this.wakeWordTimeoutMs);
+    }
+  }
+
+  public deactivateWakeState(): void {
+    this.wakeWordState = 'passive';
+    if (this.wakeTimer) {
+      clearTimeout(this.wakeTimer);
+      this.wakeTimer = null;
+    }
+    this.notifyWakeWordChange('passive');
+  }
+
+  public onWakeWordChange(cb: (state: WakeWordState, wakeWord?: string) => void): () => void {
+    this.wakeListeners.push(cb);
+    return () => {
+      this.wakeListeners = this.wakeListeners.filter((l) => l !== cb);
+    };
+  }
+
+  private notifyWakeWordChange(state: WakeWordState, wakeWord?: string): void {
+    this.wakeListeners.forEach((cb) => cb(state, wakeWord));
+  }
+
+  // =========================================================================
+  // VOICE PROFILES & ACCESSIBILITY SUBSYSTEM
+  // =========================================================================
+
+  private currentProfileId = 'gemini_female';
+  private announcerListeners: ((message: string, assertive: boolean) => void)[] = [];
+
+  public static readonly PROFILES: Record<string, VoiceProfile> = {
+    natch: {
+      id: 'natch',
+      name: 'Natch Natural',
+      pitch: 1.0,
+      rate: 1.0,
+      carrierFreq: 432,
+      description: 'Organic, grounded human conversational tone with natural acoustic cadence for system inspection',
+      style: 'from-amber-400 to-emerald-400',
+      oscillatorType: 'sine',
+    },
+    gemini_female: {
+      id: 'gemini_female',
+      name: 'Gemini Neural (Female)',
+      pitch: 1.15,
+      rate: 1.02,
+      carrierFreq: 528,
+      description: 'Natural interactive female neural voice with 528Hz Solfeggio carrier, tuned for conversational flow',
+      style: 'from-fuchsia-400 to-cyan-400',
+      oscillatorType: 'sine',
+    },
+    nature_gaia: {
+      id: 'nature_gaia',
+      name: 'Gaia Biophilic (Nature)',
+      pitch: 1.02,
+      rate: 0.92,
+      carrierFreq: 432,
+      description: 'Organic, soothing Earth harmonic resonance tuned to 432Hz verdant frequency',
+      style: 'from-emerald-400 to-amber-300',
+      oscillatorType: 'sine',
+    },
+    cyber_synth: {
+      id: 'cyber_synth',
+      name: 'Cyberpunk Synthesizer',
+      pitch: 0.82,
+      rate: 1.25,
+      carrierFreq: 963,
+      description: 'Accelerated high-tech vocoder cadence tuned for computational & cyberpunk analysis',
+      style: 'from-cyan-400 to-fuchsia-500',
+      oscillatorType: 'sawtooth',
+    },
+    sovereign: {
+      id: 'sovereign',
+      name: 'Sovereign Core',
+      pitch: 0.95,
+      rate: 1.05,
+      carrierFreq: 432,
+      description: 'Balanced, authoritative neural voice with subtle harmonic undertones',
+      style: 'from-cyan-400 to-blue-500',
+      oscillatorType: 'triangle',
+    },
+    quantum: {
+      id: 'quantum',
+      name: 'Quantum Echo',
+      pitch: 1.3,
+      rate: 0.95,
+      carrierFreq: 528,
+      description: 'Ethereal, high-frequency resonance with shimmering spatial reflections',
+      style: 'from-purple-400 to-pink-500',
+      oscillatorType: 'sine',
+    },
+    cyber: {
+      id: 'cyber',
+      name: 'Cyber Pulse',
+      pitch: 0.75,
+      rate: 1.25,
+      carrierFreq: 963,
+      description: 'Accelerated robotic vocoder cadence engineered for high-throughput syntax',
+      style: 'from-emerald-400 to-cyan-400',
+      oscillatorType: 'sawtooth',
+    },
+    tranquil: {
+      id: 'tranquil',
+      name: 'Tranquil Aura',
+      pitch: 1.0,
+      rate: 0.82,
+      carrierFreq: 639,
+      description: 'Warm, meditative stasis cadence calibrated to Solfeggio heart resonance',
+      style: 'from-amber-400 to-rose-400',
+      oscillatorType: 'sine',
+    },
+    alarm_urgent: {
+      id: 'alarm_urgent',
+      name: 'Hazard Vector',
+      pitch: 1.45,
+      rate: 1.3,
+      carrierFreq: 852,
+      description: 'Staccato, urgent alert cadence for anomalies and critical alarms',
+      style: 'from-red-500 to-amber-500',
+      oscillatorType: 'square',
+    },
+  };
+
+  public getVoiceProfiles() {
+    return Object.values(AudioVoiceService.PROFILES);
+  }
+
+  public getCurrentProfile() {
+    return AudioVoiceService.PROFILES[this.currentProfileId] || AudioVoiceService.PROFILES.sovereign;
+  }
+
+  public setVoiceProfile(profileId: string) {
+    const key = profileId.toLowerCase();
+    // Support aliases
+    const targetKey =
+      key === 'nature' ? 'nature_gaia' :
+      key === 'cybercity' || key === 'tech' || key === 'technology' ? 'cyber_synth' :
+      key === 'alarm' || key === 'hazard' ? 'alarm_urgent' :
+      key;
+
+    const profile = AudioVoiceService.PROFILES[targetKey] || AudioVoiceService.PROFILES[key];
+    if (profile) {
+      this.currentProfileId = profile.id;
+      this.pitch = profile.pitch;
+      this.rate = profile.rate;
+      this.playTone(profile.carrierFreq, 'sine', 150, 0.03);
+      return profile;
+    }
+    return null;
+  }
+
+  public onWordSpoken(cb: (word: string, index: number, total: number) => void): () => void {
+    this.wordListeners.push(cb);
+    return () => {
+      this.wordListeners = this.wordListeners.filter((l) => l !== cb);
+    };
+  }
+
+  public notifyWord(word: string, index: number, total: number): void {
+    this.wordListeners.forEach((cb) => cb(word, index, total));
+  }
+
+  public playEarcon(type: 'command' | 'success' | 'error' | 'stream' | 'switch' | 'ping'): void {
+    switch (type) {
+      case 'command':
+        this.playTone(880, 'sine', 45, 0.02);
+        break;
+      case 'success':
+        this.playTone(660, 'sine', 50, 0.02);
+        setTimeout(() => this.playTone(1320, 'sine', 80, 0.025), 45);
+        break;
+      case 'error':
+        this.playTone(220, 'sawtooth', 120, 0.035);
+        break;
+      case 'stream':
+        this.playTone(528, 'sine', 40, 0.015);
+        setTimeout(() => this.playTone(792, 'triangle', 60, 0.02), 35);
+        setTimeout(() => this.playTone(1056, 'sine', 90, 0.025), 75);
+        break;
+      case 'switch':
+        this.playTone(440, 'triangle', 40, 0.02);
+        setTimeout(() => this.playTone(660, 'sine', 50, 0.02), 30);
+        break;
+      case 'ping':
+        this.playTone(1760, 'sine', 30, 0.03);
+        break;
+    }
+  }
+
+  public onAnnounce(cb: (message: string, assertive: boolean) => void): () => void {
+    this.announcerListeners.push(cb);
+    return () => {
+      this.announcerListeners = this.announcerListeners.filter((l) => l !== cb);
+    };
+  }
+
+  public announce(message: string, assertive = false): void {
+    this.announcerListeners.forEach((cb) => cb(message, assertive));
+  }
+
+  // =========================================================================
+  // AUDIO SYNTHESIZER FEEDBACK TONES & TTS
+  // =========================================================================
+
+  public playTone(freq = 880, type: OscillatorType = 'sine', durationMs = 80, gainVal = 0.03): void {
+    try {
+      const ctx = this.initContext();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, ctx.currentTime);
+
+      gain.gain.setValueAtTime(gainVal, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + durationMs / 1000);
+
+      osc.connect(gain);
+      if (this.analyser) gain.connect(this.analyser);
+      gain.connect(ctx.destination);
+
+      osc.start();
+      osc.stop(ctx.currentTime + durationMs / 1000);
+    } catch {
+      // Ignored if user hasn't interacted with audio yet
+    }
+  }
+
+  public playTypingChirp(): void {
+    this.playTone(1800 + Math.random() * 400, 'triangle', 25, 0.008);
+  }
+
+  public playEnterChirp(): void {
+    this.playTone(660, 'sine', 60, 0.02);
+    setTimeout(() => this.playTone(990, 'sine', 80, 0.025), 40);
+  }
+
+  public playErrorChirp(): void {
+    this.playTone(220, 'sawtooth', 120, 0.03);
+  }
+
+  public speak(
+    text: string,
+    options?: {
+      profile?: string;
+      pitch?: number;
+      rate?: number;
+      tone?: string;
+      sentiment?: string;
+      onWord?: (word: string, index: number, total: number) => void;
+      onEnd?: () => void;
+    }
+  ): Promise<void> {
+    return new Promise((resolve) => {
+      // If profile is passed, set it
+      if (options?.profile) {
+        this.setVoiceProfile(options.profile);
+      }
+
+      const activePitch = options?.pitch ?? this.pitch;
+      const activeRate = options?.rate ?? this.rate;
+      const activeTone = options?.tone || this.currentTone || 'Neutral';
+      const activeSentiment = options?.sentiment || this.currentSentiment || 'analytical';
+
+      if (!this.isVoiceEnabled || typeof window === 'undefined' || !('speechSynthesis' in window)) {
+        // Fallback: Still trigger voice audio stream & speech notification for visualizer
+        this.startVoiceAudioStream(text, activeTone, activeSentiment);
+        this.notifySpeech(true, text);
+        this.notifySpeechLog(text);
+        setTimeout(() => {
+          this.stopVoiceAudioStream();
+          this.notifySpeech(false, '');
+          options?.onEnd?.();
+          resolve();
+        }, Math.min(6000, Math.max(1500, text.split(/\s+/).length * 350)));
+        return;
+      }
+
+      window.speechSynthesis.cancel();
+
+      // Clean markdown tags or code blocks for speech
+      const cleanText = text
+        .replace(/```[\s\S]*?```/g, 'Code block omitted.')
+        .replace(/`([^`]+)`/g, '$1')
+        .replace(/[*_#~]/g, '')
+        .trim();
+
+      if (!cleanText) {
+        this.notifySpeech(false, '');
+        options?.onEnd?.();
+        return resolve();
+      }
+
+      const words = cleanText.split(/\s+/).filter(Boolean);
+      const utterance = new SpeechSynthesisUtterance(cleanText);
+      if (this.selectedVoice) utterance.voice = this.selectedVoice;
+      utterance.pitch = activePitch;
+      utterance.rate = activeRate;
+
+      let boundaryFired = false;
+      utterance.onboundary = (e: any) => {
+        if (e.name === 'word') {
+          boundaryFired = true;
+          if (this.wordPacerTimer) {
+            clearInterval(this.wordPacerTimer);
+            this.wordPacerTimer = null;
+          }
+          const charIndex = e.charIndex;
+          const remaining = cleanText.substring(charIndex);
+          const match = remaining.match(/^(\S+)/);
+          const currentWord = match ? match[1].replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, '') : '';
+          const wordsBefore = cleanText.substring(0, charIndex).trim().split(/\s+/).filter(Boolean);
+          const wordIdx = wordsBefore.length;
+          this.currentActiveWord = currentWord;
+          this.currentWordIndex = wordIdx;
+          this.notifyWord(currentWord, wordIdx, words.length);
+          if (options?.onWord) {
+            options.onWord(currentWord, wordIdx, words.length);
+          }
+        }
+      };
+
+      utterance.onstart = () => {
+        this.startVoiceAudioStream(cleanText, activeTone, activeSentiment);
+        this.notifySpeech(true, cleanText);
+        this.notifySpeechLog(cleanText);
+        this.playTone(this.getCurrentProfile().carrierFreq || 528, 'sine', 150, 0.015);
+
+        // Fallback word pacer timer if onboundary is not supported by the synthesis engine
+        let stepIdx = 0;
+        const intervalMs = Math.max(120, Math.floor(360 / (activeRate || 1.0)));
+        this.wordPacerTimer = setInterval(() => {
+          if (!boundaryFired && this.isVoiceSpeaking && stepIdx < words.length) {
+            this.currentActiveWord = words[stepIdx] || '';
+            this.currentWordIndex = stepIdx;
+            this.notifyWord(this.currentActiveWord, stepIdx, words.length);
+            if (options?.onWord) {
+              options.onWord(this.currentActiveWord, stepIdx, words.length);
+            }
+            stepIdx++;
+          }
+        }, intervalMs);
+      };
+
+      utterance.onend = () => {
+        this.stopVoiceAudioStream();
+        this.notifySpeech(false, '');
+        this.touchWakeActivity();
+        options?.onEnd?.();
+        resolve();
+      };
+
+      utterance.onerror = () => {
+        this.stopVoiceAudioStream();
+        this.notifySpeech(false, '');
+        options?.onEnd?.();
+        resolve();
+      };
+
+      try {
+        window.speechSynthesis.speak(utterance);
+      } catch {
+        this.stopVoiceAudioStream();
+        this.notifySpeech(false, '');
+        options?.onEnd?.();
+        resolve();
+      }
+    });
+  }
+
+  public stopSpeaking(): void {
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+    this.stopVoiceAudioStream();
+    this.notifySpeech(false, '');
+  }
+
+  public setVoiceEnabled(enabled: boolean): void {
+    this.isVoiceEnabled = enabled;
+    if (!enabled) this.stopSpeaking();
+  }
+
+  public setVoiceParams(pitch: number, rate: number, voiceName?: string): void {
+    this.pitch = Math.max(0.5, Math.min(2.0, pitch));
+    this.rate = Math.max(0.5, Math.min(2.0, rate));
+    if (voiceName && typeof window !== 'undefined') {
+      const voices = window.speechSynthesis.getVoices();
+      const match = voices.find((v) => v.name.toLowerCase().includes(voiceName.toLowerCase()));
+      if (match) this.selectedVoice = match;
+    }
+  }
+
+  public onSpeechChange(cb: (speaking: boolean, text: string) => void): () => void {
+    this.speechListeners.push(cb);
+    return () => {
+      this.speechListeners = this.speechListeners.filter((l) => l !== cb);
+    };
+  }
+
+  public onSpeechLog(cb: (text: string) => void): () => void {
+    this.speechLogListeners.push(cb);
+    return () => {
+      this.speechLogListeners = this.speechLogListeners.filter((l) => l !== cb);
+    };
+  }
+
+  private notifySpeechLog(text: string): void {
+    this.speechLogListeners.forEach((cb) => cb(text));
+  }
+
+  private notifySpeech(speaking: boolean, text: string): void {
+    this.speechListeners.forEach((cb) => cb(speaking, text));
+  }
+}
+
+export const audioVoiceService = new AudioVoiceService();

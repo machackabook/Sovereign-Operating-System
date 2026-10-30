@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+  <title>S.O.S (SOVEREIGN OPERATING SYSTEMS)</title>
+  <meta name="description" content="© 2026 Cryptic News. An autonomous, multimodal neural-interface OS serving as a Sovereign Operating System, featuring dynamic, database-driven personality profiles, real-time audio-reactive 3D/4D visual rendering, and sovereign terminal-integrated AI reasoning, optimized for high-performance compute and secure cryptographic auditability.">
+  <meta property="og:title" content="S.O.S (SOVEREIGN OPERATING SYSTEMS)">
+  <meta property="og:description" content="© 2026 Cryptic News. An autonomous, multimodal neural-interface OS serving as a Sovereign Operating System, featuring dynamic, database-driven personality profiles, real-time audio-reactive 3D/4D visual rendering, and sovereign terminal-integrated AI reasoning, optimized for high-performance compute and secure cryptographic auditability.">
+  <meta name="theme-color" content="#02050b">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600;700&family=JetBrains+Mono:wght@400;600;700&family=Orbitron:wght@600;800;900&display=swap">
+  <script>
+    // Retire cached versions of the old Cryptic landing shell without deleting user data.
+    if ('serviceWorker' in navigator && /(^|\.)crypticnews\.org$/.test(location.hostname)) {
+      navigator.serviceWorker.getRegistrations().then(regs =>
+        Promise.all(regs.map(reg => reg.unregister()))
+      ).catch(error => console.warn('Service worker retirement failed:', error));
+      if ('caches' in window) {
+        caches.keys().then(keys => Promise.all(keys
+          .filter(key => key.startsWith('cryptic-public-'))
+          .map(key => caches.delete(key))
+        )).catch(error => console.warn('Legacy page cache cleanup failed:', error));
+      }
+    // HMR is disabled in this hosted preview container. Suppress transient Vite WebSocket closed errors.
+    window.addEventListener('unhandledrejection', function(event) {
+      const msg = event?.reason?.message || String(event?.reason || '');
+      if (msg.includes('WebSocket') || msg.includes('websocket')) {
+        event.preventDefault();
+      }
+    });
+    window.addEventListener('error', function(event) {
+      const msg = event?.message || '';
+      if (msg.includes('WebSocket') || msg.includes('websocket')) {
+        event.preventDefault();
+      }
+    });
+  </script>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+</html>

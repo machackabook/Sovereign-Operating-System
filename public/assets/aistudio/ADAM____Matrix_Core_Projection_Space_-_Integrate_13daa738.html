@@ -1,0 +1,920 @@
+# ADAM:// Matrix Core Projection Space - Integrated Bioluminescent Stego Console
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ADAM:// Matrix Core Projection Space</title>
+    <!-- Three.js Production Build via Whitelisted Cloudflare CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        /* ABSOLUTE BOUNDARY CORE RESET */
+        html, body {
+            width: 100%;
+            height: 100%;
+            margin: 0 !important;
+            padding: 0 !important;
+            border: 0 !important;
+            background-color: #020408;
+            color: #c4d9f5;
+            font-family: 'Courier New', Courier, monospace;
+
+            overflow: hidden !important;
+            position: relative;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* HARDWARE ACCELERATED EDGE-TO-EDGE CONTAINER */
+        #viewportContainer {
+            position: absolute;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            z-index: 1;
+            background-color: #010203;
+
+            overflow: hidden;
+        }
+
+        #matrixCoreCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        /* LAYERED HUD OVERLAYS */
+        .canvas-overlay-title {
+            position: absolute;
+            top: 60px;
+            left: 20px;
+            z-index: 50;
+            background: rgba(6, 10, 15, 0.85);
+
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            padding: 6px 12px;
+            border: 1px solid rgba(20, 35, 50, 0.6);
+            font-size: 10px;
+            text-transform: uppercase;
+            color: #00f0ff;
+            letter-spacing: 1px;
+            pointer-events: none;
+            transition: opacity 0.4s ease;
+        }
+
+        #hud-master-toggle {
+            position: absolute;
+            top: 12px !important;
+            left: 20px !important;
+            z-index: 1000;
+            cursor: pointer;
+            font-size: 16px;
+
+            user-select: none;
+            color: #00f0ff;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        #hud-master-toggle:hover {
+            transform: scale(1.2) rotate(90deg);
+            text-shadow: 0 0 10px #39ff14;
+        }
+
+        header {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 45px;
+            background: rgba(6, 10, 15, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+
+            border-bottom: 1px solid rgba(20, 35, 50, 0.7);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px 0 60px;
+            font-size: 11px;
+            letter-spacing: 1px;
+            z-index: 100;
+            transition: transform 0.4s ease, opacity 0.4s ease;
+        }
+
+        /* SYMMETRICAL RESIZING HUD PANEL GRID SYSTEM */
+        .hud-side-panel {
+            position: absolute;
+            top: 45px;
+            width: 340px;
+            height: calc(100vh - 45px - 230px);
+            background: rgba(6, 10, 15, 0.8);
+            backdrop-filter: blur(12px);
+
+            -webkit-backdrop-filter: blur(12px);
+            display: flex;
+            flex-direction: column;
+            z-index: 100;
+            transition: transform 0.4s ease, opacity 0.4s ease;
+        }
+
+        .left-panel {
+            left: 0;
+            border-right: 1px solid rgba(20, 35, 50, 0.7);
+        }
+
+        .right-panel {
+            right: 0;
+            border-left: 1px solid rgba(20, 35, 50, 0.7);
+        }
+
+        .panel-section-header {
+            padding: 10px 14px;
+
+            font-size: 10px;
+            font-weight: bold;
+            background: rgba(10, 18, 28, 0.95);
+            border-bottom: 1px solid rgba(20, 35, 50, 0.6);
+            color: #00f0ff;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .panel-section-header.amber-variant {
+            color: #ffb700;
+        }
+
+        .panel-scroll-bank {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+
+            gap: 12px;
+        }
+
+        /* CONTROL ELEMENTS */
+        .control-block {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            font-size: 10px;
+        }
+
+        .control-label-row {
+            display: flex;
+            justify-content: space-between;
+            color: #a0b6d2;
+        }
+
+        .matrix-range {
+            width: 100%;
+
+            accent-color: #00f0ff;
+            background: #142232;
+            height: 4px;
+            border-radius: 2px;
+            cursor: pointer;
+        }
+
+        .matrix-range.amber-accent {
+            accent-color: #ffb700;
+        }
+
+        .mode-button-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 6px;
+        }
+
+        .matrix-btn {
+            background: #091522;
+
+            border: 1px solid #142b44;
+            color: #a0b6d2;
+            padding: 6px;
+            font-family: monospace;
+            font-size: 9px;
+            cursor: pointer;
+            text-align: center;
+            text-transform: uppercase;
+            transition: all 0.2s ease;
+            border-radius: 2px;
+        }
+
+        .matrix-btn:hover {
+            border-color: #00f0ff;
+            color: #00f0ff;
+            background: rgba(0, 240, 255, 0.05);
+        }
+
+        .matrix-btn.active-node {
+
+            border-color: #39ff14;
+            color: #39ff14;
+            background: rgba(57, 255, 20, 0.1);
+            box-shadow: 0 0 8px rgba(57, 255, 20, 0.2);
+        }
+
+        .matrix-textarea {
+            width: 100%;
+            height: 45px;
+            background: rgba(2, 4, 8, 0.85);
+            border: 1px solid #142b44;
+            color: #39ff14;
+            font-family: monospace;
+            font-size: 10px;
+            padding: 6px;
+            resize: none;
+            border-radius: 2px;
+        }
+
+
+        .matrix-textarea:focus {
+            outline: none;
+            border-color: #00f0ff;
+        }
+
+        /* 3-COLUMN EXTENDED FOOTER MONITOR */
+        footer {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100vw;
+            height: 230px;
+            background: rgba(6, 10, 15, 0.88);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-top: 1px solid rgba(20, 35, 50, 0.7);
+            display: grid;
+            grid-template-columns: 380px 1fr 380px;
+            gap: 15px;
+
+            padding: 15px;
+            z-index: 100;
+            transition: transform 0.4s ease, opacity 0.4s ease;
+        }
+
+        .telemetry-capsule {
+            border: 1px solid rgba(20, 35, 50, 0.5);
+            background: rgba(3, 6, 10, 0.9);
+            padding: 10px;
+            font-size: 10px;
+            line-height: 1.6;
+            overflow-y: auto;
+            border-radius: 4px;
+        }
+
+        .terminal-display-zone {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+
+            height: 100%;
+        }
+
+        .log-terminal-output {
+            flex-grow: 1;
+            overflow-y: auto;
+            font-size: 11px;
+            color: #39ff14;
+            background: rgba(1, 2, 4, 0.95);
+            border: 1px solid rgba(20, 35, 50, 0.7);
+            padding: 8px;
+            border-radius: 4px;
+            max-height: 125px;
+            line-height: 1.4;
+        }
+
+        .action-control-row {
+            display: flex;
+            gap: 8px;
+
+            margin-top: 8px;
+        }
+
+        .grid-data-readout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+        }
+
+        .readout-card {
+            border: 1px solid rgba(20, 35, 50, 0.5);
+            background: rgba(8, 14, 22, 0.6);
+            padding: 6px 10px;
+            border-radius: 2px;
+        }
+
+        .readout-title {
+            font-size: 8px;
+            color: #a0b6d2;
+
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .readout-value {
+            font-size: 12px;
+            font-weight: bold;
+            color: #00f0ff;
+            margin-top: 2px;
+        }
+
+        /* --- LAYOUT SWITCH TRANSFORMS (VOID FOCUS MODE) --- */
+        body.hud-void-active header {
+            transform: translateY(-46px);
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        body.hud-void-active footer {
+
+            transform: translateY(231px);
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        body.hud-void-active .left-panel {
+            transform: translateX(-341px);
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        body.hud-void-active .right-panel {
+            transform: translateX(341px);
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        body.hud-void-active .canvas-overlay-title {
+            opacity: 0.15;
+
+            top: 20px;
+        }
+    </style>
+</head>
+<body>
+<!-- Interface Mode Toggle Button -->
+<div id="hud-master-toggle" onclick="toggleHudVisibilityMatrix()" title="Toggle Matrix core HUD Interface">⚛️</div>
+<!-- Edge-to-Edge Adaptive Viewport Canvas -->
+<div id="viewportContainer">
+    <div class="canvas-overlay-title">🪐 Matrix Core Space // Integrated Biomorphic Layer</div>
+    <canvas id="matrixCoreCanvas"></canvas>
+</div>
+
+<header id="hud-header">
+    <div>ADAM:// CORE ENGINE - BIOLUMINESCENT COLOUR CORE MIX</div>
+    <div id="active-engine-tag" style="color: #00f0ff;">ENGINE MODE: ION</div>
+    <div id="matrix-timestamp">T_TICK: 000000.000</div>
+</header>
+
+
+<!-- LEFT SIDE PANEL: GENERATIVE COLOR ENGINE & WAVES -->
+<div class="hud-side-panel left-panel" id="hud-left-panel">
+    <div class="panel-section-header">🎨 Generative Color Engine</div>
+    <div class="panel-scroll-bank">
+        <div class="control-block">
+            <div class="control-label-row">
+                <span>Color Engine Matrix Selection</span>
+            </div>
+            <div class="mode-button-grid">
+                <button class="matrix-btn" id="mode-ember" onclick="setColorEngineMode('ember')">Ember Engine</button>
+                <button class="matrix-btn active-node" id="mode-ion" onclick="setColorEngineMode('ion')">Ion Engine</button>
+                <button class="matrix-btn" id="mode-nebula" onclick="setColorEngineMode('nebula')">Nebula Engine</button>
+                <button class="matrix-btn" id="mode-cosmic" onclick="setColorEngineMode('cosmic')">Cosmic Engine</button>
+            </div>
+        </div>
+
+        <div class="control-block">
+            <div class="control-label-row">
+                <span>Simulation Wave Velocity Speed</span>
+
+                <span id="lbl-simSpeed">0.80</span>
+            </div>
+            <input type="range" class="matrix-range" id="cfg-simSpeed" min="0.1" max="2.5" step="0.05" value="0.8" oninput="updateCoreVariable('simSpeed', this.value)">
+        </div>
+
+        <div class="control-block">
+            <div class="control-label-row">
+                <span>Wave Complexity Distortion</span>
+                <span id="lbl-waveComplex">2.60</span>
+            </div>
+            <input type="range" class="matrix-range" id="cfg-waveComplex" min="0.5" max="5.0" step="0.1" value="2.6" oninput="updateCoreVariable('waveComplex', this.value)">
+        </div>
+
+        <div class="control-block">
+            <div class="control-label-row">
+                <span>Geometric Rendering Style Matrix</span>
+            </div>
+            <div class="mode-button-grid">
+                <button class="matrix-btn active-node" id="style-fluid" onclick="setRenderStyle('fluid')">Fluid Strands</button>
+
+                <button class="matrix-btn" id="style-quantum" onclick="setRenderStyle('quantum')">Quantum Grid</button>
+                <button class="matrix-btn" id="style-aurora" onclick="setRenderStyle('aurora')">Aurora Horizon</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="panel-section-header" style="border-top: 1px solid rgba(20, 35, 50, 0.7);">🧬 Bioluminescent Runtime</div>
+    <div class="panel-scroll-bank">
+        <div class="control-block">
+            <div class="control-label-row">
+                <span>Luciferin Excitation (Gravity)</span>
+                <span id="lbl-luciferin">1.50</span>
+            </div>
+            <input type="range" class="matrix-range amber-accent" id="cfg-luciferin" min="0.1" max="3.0" step="0.05" value="1.50" oninput="updateCoreVariable('luciferin', this.value)">
+        </div>
+
+        <div class="control-block">
+            <div class="control-label-row">
+                <span>Toroidal Filament Weave Coeff</span>
+
+                <span id="lbl-toroidWeave">1.28</span>
+            </div>
+            <input type="range" class="matrix-range amber-accent" id="cfg-toroidWeave" min="0.2" max="2.5" step="0.02" value="1.28" oninput="updateCoreVariable('toroidWeave', this.value)">
+        </div>
+
+        <div class="control-block">
+            <div class="control-label-row">
+                <span>Photon Pulse Emission Level</span>
+                <span id="lbl-photonPulse">0.85</span>
+            </div>
+            <input type="range" class="matrix-range amber-accent" id="cfg-photonPulse" min="0.0" max="2.0" step="0.05" value="0.85" oninput="updateCoreVariable('photonPulse', this.value)">
+        </div>
+    </div>
+</div>
+<!-- RIGHT SIDE PANEL: DOT-MAPPED STEGO SURFACE LAYERS -->
+<div class="hud-side-panel right-panel" id="hud-right-panel">
+    <div class="panel-section-header amber-variant">🔒 Dot-Mapped LSB Stego Engine</div>
+    <div class="panel-scroll-bank">
+
+        <div class="control-block">
+            <div class="control-label-row">
+                <span>Data Payload Texture Encoding String</span>
+            </div>
+            <textarea class="matrix-textarea" id="stegoTextPayload" placeholder="Enter localized message token data here to hide inside matrix spatial vectors..."></textarea>
+        </div>
+
+        <div class="mode-button-grid" style="grid-template-columns: 1fr;">
+            <button class="matrix-btn" style="border-color:#ffb700; color:#ffb700;" onclick="bakeImagePayloadIntoDots()">Bake Data Into Dot Code Structure</button>
+            <button class="matrix-btn" onclick="verifyExtractLsbStego()">Verify / Extract Stego Atlas</button>
+        </div>
+
+        <div class="control-block" style="margin-top: 5px;">
+            <div class="control-label-row">
+                <span>Dot Matrix Mapping Density</span>
+            </div>
+            <div class="mode-button-grid">
+                <button class="matrix-btn active-node" id="density-high" onclick="setDotDensity('high', 2500)">High</button>
+                <button class="matrix-btn" id="density-medium" onclick="setDotDensity('medium', 1200)">Medium</button>
+
+                <button class="matrix-btn" id="density-low" onclick="setDotDensity('low', 500)">Low</button>
+            </div>
+        </div>
+
+        <div class="control-block">
+            <div class="control-label-row">
+                <span>Synchronous Phase Trajectory Rate</span>
+            </div>
+            <div class="mode-button-grid">
+                <button class="matrix-btn" id="phase-slow" onclick="setPhaseSpeed('slow', 0.01)">Slow</button>
+                <button class="matrix-btn active-node" id="phase-medium" onclick="setPhaseSpeed('medium', 0.03)">Medium</button>
+                <button class="matrix-btn" id="phase-fast" onclick="setPhaseSpeed('fast', 0.08)">Fast</button>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- LIVE METRICS SYSTEM CONSOLE FOOTER -->
+<footer id="hud-footer">
+
+    <div class="telemetry-capsule">
+        <div style="color: #ffb700; font-weight: bold; margin-bottom: 4px; text-transform: uppercase;">Live Organism Telemetry Model</div>
+        SPECIES: <span style="color:#fff;">Pyrocystis_v5 Runtime Matrix</span><br>
+        STATUS: <span style="color:#39ff14; font-weight:bold; animation: pulse 2s infinite;">EMITTING ENERGY</span><br>
+        CARRIER PROFILE: <span id="telemetry-carrier">432.00 Hz</span><br>
+        PHOTON RATIO DENSITY: <span id="telemetry-photon-density" style="color:#00f0ff;">94.8%</span><br>
+        BIO-TOPOLOGY: 200D HAMILTONIAN HARMONIC GRID
+    </div>
+
+    <div class="terminal-display-zone">
+        <div class="log-terminal-output" id="matrixTerminalLogs">[INIT] Planetarium OS Layer integrated with Matrix Core Projection Space...</div>
+        <div class="action-control-row">
+            <button class="matrix-btn" onclick="executeForceMatrixRealign()">⚡ RESET MATRIX REALIGN</button>
+            <button class="matrix-btn" onclick="clearConsoleLogSpace()">Clear Workspace Console</button>
+        </div>
+    </div>
+
+    <div class="telemetry-capsule" style="padding: 10px;">
+        <div style="color:#00f0ff; font-weight:bold; font-size:9px; margin-bottom: 6px; text-transform: uppercase;">Real-Time Matrix Sump Vectors</div>
+
+        <div class="grid-data-readout">
+            <div class="readout-card">
+                <div class="readout-title">LSB Atlas State</div>
+                <div class="readout-value" id="vector-atlas-status" style="color: #ffb700; font-size:10px;">UNBAKED CONTAINER</div>
+            </div>
+            <div class="readout-card">
+                <div class="readout-title">Excitation Delta</div>
+                <div class="readout-value" id="vector-excitation">1.502 eV</div>
+            </div>
+            <div class="readout-card">
+                <div class="readout-title">Weave Resonance</div>
+                <div class="readout-value" id="vector-resonance">1.280 Hz</div>
+            </div>
+            <div class="readout-card">
+                <div class="readout-title">Total Active Nodes</div>
+                <div class="readout-value" id="vector-nodes">2500</div>
+            </div>
+        </div>
+    </div>
+</footer>
+
+<script>
+
+    // --- COMPREHENSIVE ARCHITECTURE CONTROL MATRIX STATE ---
+    const Core_State = {
+        // Generative Color Engine Attributes
+        colorEngineMode: 'ion',
+        simSpeed: 0.8,
+        waveComplexity: 2.6,
+        renderStyle: 'fluid',
+
+        // Bioluminescent Parameters
+        luciferin: 1.5,
+        toroidWeave: 1.28,
+        photonPulse: 0.85,
+
+        // Stego & Coordinate Settings
+        stegoPayloadMessage: '',
+        isPayloadBaked: false,
+        particleDensityCount: 2500,
+        phaseSpeedRate: 0.03,
+
+
+        // Loop Controls
+        tickTime: 0,
+        activeColors: { main: 0x00f0ff, accent: 0x39ff14, base: 0x005588 }
+    };
+
+    const terminalLogs = document.getElementById('matrixTerminalLogs');
+    const systemTickEl = document.getElementById('matrix-timestamp');
+    const viewportCanvas = document.getElementById('matrixCoreCanvas');
+
+    function logTerminalReport(msg, classCategory = 'SYSTEM') {
+        const timestampMarker = `[${classCategory}] `;
+        terminalLogs.innerHTML += `<br>${timestampMarker}${msg}`;
+        terminalLogs.scrollTop = terminalLogs.scrollHeight;
+    }
+
+    // INTERACTION: LAYOUT ADJUSTMENT FOCUS VIEWPORT
+    function toggleHudVisibilityMatrix() {
+        const stateActive = document.body.classList.toggle('hud-void-active');
+        const controlNode = document.getElementById('hud-master-toggle');
+
+        const elementsToToggle = ['hud-header', 'hud-left-panel', 'hud-right-panel', 'hud-footer'];
+        
+        elementsToToggle.forEach(id => {
+            const domEl = document.getElementById(id);
+            if (domEl) {
+                if (stateActive) domEl.setAttribute('hidden', 'true');
+                else domEl.removeAttribute('hidden');
+            }
+        });
+        
+        if (stateActive) {
+            controlNode.style.transform = 'scale(1.2) rotate(180deg)';
+            logTerminalReport("Extended telemetry layers detached. Pure Core Visual Viewport active.", "CORE_VOID");
+        } else {
+            controlNode.style.transform = 'scale(1) rotate(0deg)';
+            logTerminalReport("HUD coordinate grid layouts re-interlocked into display boundaries.", "CORE_HUD");
+        }
+    }
+
+
+    // INTERACTION: ENGINE MODIFIERS
+    function setColorEngineMode(modeName) {
+        Core_State.colorEngineMode = modeName;
+        document.querySelectorAll('[id^="mode-"]').forEach(btn => btn.classList.remove('active-node'));
+        document.getElementById(`mode-${modeName}`).classList.add('active-node');
+        
+        document.getElementById('active-engine-tag').innerText = `ENGINE MODE: ${modeName.toUpperCase()}`;
+        
+        // Dynamic remapping of execution hex parameters
+        if (modeName === 'ember') {
+            Core_State.activeColors = { main: 0xff5500, accent: 0xffb700, base: 0x331100 };
+        } else if (modeName === 'ion') {
+            Core_State.activeColors = { main: 0x00f0ff, accent: 0x39ff14, base: 0x003355 };
+        } else if (modeName === 'nebula') {
+            Core_State.activeColors = { main: 0xbd00ff, accent: 0xff007c, base: 0x220044 };
+        } else if (modeName === 'cosmic') {
+            Core_State.activeColors = { main: 0xffd700, accent: 0x00e5ff, base: 0x443300 };
+        }
+        
+
+        logTerminalReport(`Generative Color Core switched to alignment profile: ${modeName.toUpperCase()}`, "ENGINE");
+        rebuildMatrixParticleSystem();
+    }
+
+    function setRenderStyle(styleName) {
+        Core_State.renderStyle = styleName;
+        document.querySelectorAll('[id^="style-"]').forEach(btn => btn.classList.remove('active-node'));
+        document.getElementById(`style-${styleName}`).classList.add('active-node');
+        logTerminalReport(`Structural wave field morphology altered to standard profile: ${styleName.toUpperCase()}`, "MORPHOLOGY");
+    }
+
+    function updateCoreVariable(paramName, numericValue) {
+        Core_State[paramName] = parseFloat(numericValue);
+        const displayLabel = document.getElementById(`lbl-${paramName}`);
+        if (displayLabel) displayLabel.innerText = Core_State[paramName].toFixed(2);
+        
+        // Direct linkage readout updates
+        if (paramName === 'luciferin') {
+            document.getElementById('vector-excitation').innerText = `${Core_State.luciferin.toFixed(3)} eV`;
+
+        } else if (paramName === 'toroidWeave') {
+            document.getElementById('vector-resonance').innerText = `${Core_State.toroidWeave.toFixed(3)} Hz`;
+        }
+    }
+
+    function setDotDensity(densityId, particleCountValue) {
+        Core_State.particleDensityCount = particleCountValue;
+        document.querySelectorAll('[id^="density-"]').forEach(btn => btn.classList.remove('active-node'));
+        document.getElementById(`density-${densityId}`).classList.add('active-node');
+        
+        document.getElementById('vector-nodes').innerText = particleCountValue;
+        logTerminalReport(`Spatial dot matrix mapping cluster count configured to: ${particleCountValue}`, "STEGO_MESH");
+        rebuildMatrixParticleSystem();
+    }
+
+    function setPhaseSpeed(phaseId, speedFactor) {
+        Core_State.phaseSpeedRate = speedFactor;
+        document.querySelectorAll('[id^="phase-"]').forEach(btn => btn.classList.remove('active-node'));
+        document.getElementById(`phase-${phaseId}`).classList.add('active-node');
+
+        logTerminalReport(`Synchronous phase velocity step factor altered: ${phaseId.toUpperCase()}`, "TRAJECTORY");
+    }
+
+    // STEGANOGRAPHY LSB ENCODING SIMULATOR ACTIONS
+    function bakeImagePayloadIntoDots() {
+        const payloadText = document.getElementById('stegoTextPayload').value.trim();
+        if (!payloadText) {
+            logTerminalReport("Stego Injection Cancelled: Source payload data stream string is empty.", "STEGO_ERR");
+            return;
+        }
+        Core_State.stegoPayloadMessage = payloadText;
+        Core_State.isPayloadBaked = true;
+        
+        document.getElementById('vector-atlas-status').innerText = "ATLAS SECURE (LSB)";
+        document.getElementById('vector-atlas-status').style.color = "#39ff14";
+        
+        logTerminalReport(`Bake successful: Encoded ${payloadText.length} character tokens across local coordinate dimensions.`, "LSB_STEGO");
+        
+        // Trigger structural expand bounce wave flash
+
+        if (particleClusterMesh) {
+            particleClusterMesh.scale.set(1.25, 1.25, 1.25);
+            setTimeout(() => particleClusterMesh.scale.set(1.0, 1.0, 1.0), 120);
+        }
+    }
+
+    function verifyExtractLsbStego() {
+        if (!Core_State.isPayloadBaked) {
+            logTerminalReport("Scan complete: No hidden LSB Stego atlas embedded in this layer frame context.", "STEGO_DISCOVERY");
+            return;
+        }
+        logTerminalReport(`[EXTRACT SUCCESS] Extracted hidden matrix data package token: "${Core_State.stegoPayloadMessage}"`, "STEGO_DECODE");
+    }
+
+    function executeForceMatrixRealign() {
+        Core_State.tickTime = 0;
+        logTerminalReport("Re-align command processed. Hyper-dimensional coordinates zeroed.", "REALIGN");
+    }
+
+
+    function clearConsoleLogSpace() {
+        terminalLogs.innerHTML = "[CONSOLE WORKSPACE ENVIRONMENT PURGED]";
+    }
+
+    // --- THREE.JS HIGH PERFORMANCE GRAPHICS LAYER ---
+    let webglScene, viewportCamera, visualRenderer, particleClusterMesh, bioluminescentWireCore;
+
+    function initMatrixSpaceEngine() {
+        webglScene = new THREE.Scene();
+        viewportCamera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 1000);
+        viewportCamera.position.z = 4.2;
+
+        visualRenderer = new THREE.WebGLRenderer({ canvas: viewportCanvas, antialias: true, alpha: true });
+        visualRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        
+        executeContainerAdaptiveResize();
+        buildMatrixParticleSystem();
+
+        window.addEventListener('resize', executeContainerAdaptiveResize);
+
+        bindSpatialInputControls();
+        
+        runActiveCoreRenderLoop();
+    }
+
+    function executeContainerAdaptiveResize() {
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        viewportCamera.aspect = w / h;
+        viewportCamera.updateProjectionMatrix();
+        visualRenderer.setSize(w, h, false);
+    }
+
+    function buildMatrixParticleSystem() {
+        if (particleClusterMesh) webglScene.remove(particleClusterMesh);
+        if (bioluminescentWireCore) webglScene.remove(bioluminescentWireCore);
+
+        const count = Core_State.particleDensityCount;
+        const geom = new THREE.BufferGeometry();
+
+        const nodePositions = new Float32Array(count * 3);
+        const nodeColors = new Float32Array(count * 3);
+
+        const primaryColorRef = new THREE.Color(Core_State.activeColors.main);
+        const secondaryColorRef = new THREE.Color(Core_State.activeColors.accent);
+
+        for (let i = 0; i < count; i++) {
+            // Raw placement layout mapping vectors safely
+            nodePositions[i * 3] = 0;
+            nodePositions[i * 3 + 1] = 0;
+            nodePositions[i * 3 + 2] = 0;
+
+            // Interpolate color spectrum variants across the dynamic range
+            const gradientRatio = i / count;
+            const mixedColor = primaryColorRef.clone().lerp(secondaryColorRef, gradientRatio);
+            
+            nodeColors[i * 3] = mixedColor.r;
+            nodeColors[i * 3 + 1] = mixedColor.g;
+            nodeColors[i * 3 + 2] = mixedColor.b;
+
+        }
+
+        geom.setAttribute('position', new THREE.BufferAttribute(nodePositions, 3));
+        geom.setAttribute('color', new THREE.BufferAttribute(nodeColors, 3));
+
+        const mat = new THREE.PointsMaterial({
+            size: 0.035,
+            vertexColors: true,
+            transparent: true,
+            opacity: 0.88,
+            blending: THREE.AdditiveBlending
+        });
+
+        particleClusterMesh = new THREE.Points(geom, mat);
+        webglScene.add(particleClusterMesh);
+
+        // Core Toroidal Filament Weave Mesh Shell Component representation
+        const wireFrameGeometry = new THREE.TorusGeometry(0.7, 0.25, 8, 24);
+        const wireFrameMaterial = new THREE.MeshBasicMaterial({
+
+            color: Core_State.activeColors.accent,
+            wireframe: true,
+            transparent: true,
+            opacity: 0.14 * Core_State.photonPulse,
+            blending: THREE.AdditiveBlending
+        });
+        bioluminescentWireCore = new THREE.Mesh(wireFrameGeometry, wireFrameMaterial);
+        webglScene.add(bioluminescentWireCore);
+    }
+
+    function rebuildMatrixParticleSystem() {
+        buildMatrixParticleSystem();
+    }
+
+    function bindSpatialInputControls() {
+        let interactionEngaged = false;
+        let referenceX = 0, referenceY = 0;
+
+        const initiateInteractionTrack = (clientX, clientY) => {
+
+            interactionEngaged = true;
+            referenceX = clientX;
+            referenceY = clientY;
+        };
+
+        const executeInteractionTrack = (clientX, clientY) => {
+            if (!interactionEngaged || !particleClusterMesh) return;
+            const diffX = clientX - referenceX;
+            const diffY = clientY - referenceY;
+
+            particleClusterMesh.rotation.y += diffX * 0.005;
+            particleClusterMesh.rotation.x += diffY * 0.005;
+
+            referenceX = clientX;
+            referenceY = clientY;
+        };
+
+        window.addEventListener('mousedown', (e) => initiateInteractionTrack(e.clientX, e.clientY));
+        window.addEventListener('mousemove', (e) => executeInteractionTrack(e.clientX, e.clientY));
+
+        window.addEventListener('mouseup', () => interactionEngaged = false);
+
+        // Mobile touch response mappings
+        window.addEventListener('touchstart', (e) => {
+            if (e.touches.length > 0) initiateInteractionTrack(e.touches[0].clientX, e.touches[0].clientY);
+        });
+        window.addEventListener('touchmove', (e) => {
+            if (e.touches.length > 0) executeInteractionTrack(e.touches[0].clientX, e.touches[0].clientY);
+        });
+        window.addEventListener('touchend', () => interactionEngaged = false);
+    }
+
+    // --- RECURSIVE GENERATIVE FORMULA EVALUATION ENGINE LOOP ---
+    let frameUpdateThrottleTimer = 0;
+    function runActiveCoreRenderLoop() {
+        requestAnimationFrame(runActiveCoreRenderLoop);
+
+        // Step timeline coordinates based on configured wave velocity rates
+        Core_State.tickTime += (Core_State.simSpeed * 0.02);
+
+        systemTickEl.innerText = `T_TICK: ${Core_State.tickTime.toFixed(3)}`;
+
+        // Fluctuating real-time telemetry metrics emulation
+        frameUpdateThrottleTimer++;
+        if (frameUpdateThrottleTimer % 30 === 0) {
+            const liveExcitationValue = Core_State.luciferin + (Math.sin(Core_State.tickTime) * 0.03);
+            const livePhotonDensityValue = 93.0 + (Math.cos(Core_State.tickTime * 2) * 1.8) + (Core_State.photonPulse * 0.5);
+            const dynamicCarrierHz = 432.00 + (Math.sin(Core_State.tickTime * 0.5) * 0.4);
+            
+            document.getElementById('vector-excitation').innerText = `${liveExcitationValue.toFixed(3)} eV`;
+            document.getElementById('telemetry-photon-density').innerText = `${livePhotonDensityValue.toFixed(1)}%`;
+            document.getElementById('telemetry-carrier').innerText = `${dynamicCarrierHz.toFixed(2)} Hz`;
+        }
+
+        if (particleClusterMesh) {
+            const posAttr = particleClusterMesh.geometry.attributes.position;
+            const totalCount = Core_State.particleDensityCount;
+            
+            const localWaveComplexity = Core_State.waveComplexity;
+
+            const baseWeaveFactor = Core_State.toroidWeave;
+            const localPhaseRate = Core_State.phaseSpeedRate;
+
+            for (let idx = 0; idx < totalCount; idx++) {
+                // Generative math formula transformations mapping biomorphic layers
+                let sampleAngleTheta = (idx * Math.PI * 2) / 12 + (Core_State.tickTime * localPhaseRate);
+                let sampleAnglePhi = (idx * Math.PI) / totalCount * localWaveComplexity;
+                
+                // Incorporate Luciferin Excitation (Gravity) parameters into positioning logic
+                let radiusEnvelope = 1.3 + Math.sin(sampleAnglePhi * baseWeaveFactor + Core_State.tickTime) * 0.35 * Core_State.luciferin;
+
+                let coordinateX = Math.cos(sampleAngleTheta) * Math.sin(sampleAnglePhi) * radiusEnvelope;
+                let coordinateY = Math.sin(sampleAngleTheta) * Math.sin(sampleAnglePhi) * radiusEnvelope;
+                let coordinateZ = Math.cos(sampleAnglePhi) * radiusEnvelope;
+
+                // Alternate morphological rendering styles based on user section switches
+                if (Core_State.renderStyle === 'quantum') {
+                    coordinateX = Math.round(coordinateX * 4) / 4;
+                    coordinateY = Math.round(coordinateY * 4) / 4;
+
+                } else if (Core_State.renderStyle === 'aurora') {
+                    coordinateY += Math.sin(coordinateX * 2.0 + Core_State.tickTime) * 0.25;
+                }
+
+                posAttr.setXYZ(idx, coordinateX * 1.8, coordinateY * 1.8, coordinateZ * 1.8);
+            }
+
+            posAttr.needsUpdate = true;
+
+            // Apply constant operational drift rotation steps
+            particleClusterMesh.rotation.y += 0.001;
+            particleClusterMesh.rotation.x += 0.0004;
+        }
+
+        if (bioluminescentWireCore) {
+            bioluminescentWireCore.rotation.z -= 0.002;
+            bioluminescentWireCore.rotation.x += 0.0005;
+            
+            // Sync scale envelope directly to active simulation emission metrics
+
+            const currentPulseScale = 1.0 + (Math.sin(Core_State.tickTime * 3) * 0.04 * Core_State.photonPulse);
+            bioluminescentWireCore.scale.set(currentPulseScale, currentPulseScale, currentPulseScale);
+            bioluminescentWireCore.material.opacity = 0.14 * Core_State.photonPulse;
+        }
+
+        visualRenderer.render(webglScene, viewportCamera);
+    }
+
+    // Launch matrix console layout environment on page load completion
+    window.onload = function() {
+        initMatrixSpaceEngine();
+    };
+</script>
+</body>
+</html>
+
+

@@ -1,0 +1,814 @@
+# Enhanced Web Worker Pool & Fault-Tolerant Trace Analyzer
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced Worker Pool & Fault-Tolerant Trace Tool</title>
+    <!-- Tailwind CSS for layout and styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom scrollbar styling for unified dark theme developer look */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #475569;
+
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+        .worker-pulse {
+            animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: .6; transform: scale(1.05); }
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 font-mono min-h-screen flex flex-col selection:bg-cyan-500 selection:text-slate-950">
+
+    <!-- Global Top Navigation/Header -->
+    <header class="border-b border-slate-800 bg-slate-900/50 backdrop-blur px-6 py-4 flex flex-wrap items-center justify-between gap-4 sticky top-0 z-50">
+        <div class="flex items-center space-x-3">
+
+            <div class="h-3 w-3 rounded-full bg-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.5)]"></div>
+            <h1 class="text-lg font-bold tracking-wider text-slate-100">
+                PULSE<span class="text-cyan-400">TRACE</span> // ADVANCED ARCHITECTURE LAB
+            </h1>
+        </div>
+        <div class="flex flex-wrap items-center gap-6 text-xs text-slate-400">
+            <div>POOL STATUS: <span id="global-status" class="text-emerald-400 font-semibold">READY</span></div>
+            <div>DATA MOVED: <span id="global-memory" class="text-amber-400 font-semibold">0.00 MB</span></div>
+            <div>THROUGHPUT: <span id="global-throughput" class="text-cyan-400 font-semibold">0.00 ops/s</span></div>
+            <div>AVG LATENCY: <span id="global-latency" class="text-purple-400 font-semibold">0.00 ms</span></div>
+            <div>FAULTS RECOVERED: <span id="global-faults" class="text-rose-400 font-semibold">0</span></div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 p-6 grid grid-cols-1 xl:grid-cols-4 gap-6 max-w-[1600px] w-full mx-auto">
+        
+        <!-- Sidebar Controls Panel -->
+        <section class="xl:col-span-1 bg-slate-900 border border-slate-800 rounded-xl p-5 flex flex-col justify-between space-y-6">
+
+            <div class="space-y-5">
+                <div class="border-b border-slate-800 pb-3">
+                    <h2 class="text-sm font-semibold text-slate-400 tracking-widest uppercase flex items-center gap-2">
+                        <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
+                        Engine Parameters
+                    </h2>
+                </div>
+
+                <!-- Worker Pool Size Control -->
+                <div class="space-y-2">
+                    <div class="flex justify-between text-xs">
+                        <label for="pool-size" class="text-slate-300">Concurrency Level (Workers)</label>
+                        <span id="pool-size-val" class="text-cyan-400 font-bold">4</span>
+                    </div>
+                    <input type="range" id="pool-size" min="1" max="16" value="4" class="w-full accent-cyan-400 bg-slate-800 h-1.5 rounded-lg appearance-none cursor-pointer">
+                </div>
+
+                <!-- Workload / Benchmark Configuration -->
+                <div class="space-y-2">
+
+                    <label for="workload-type" class="text-xs text-slate-300 block">Target Computation Workload</label>
+                    <select id="workload-type" class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-cyan-400">
+                        <option value="heavy-math">Complex Trigonometric Over Sampling</option>
+                        <option value="fractal">Mandelbrot Array Matrix Map</option>
+                        <option value="prime">Prime Factor Array Extraction</option>
+                    </select>
+                </div>
+
+                <!-- Array Chunk Size Control -->
+                <div class="space-y-2">
+                    <div class="flex justify-between text-xs">
+                        <label for="array-size" class="text-slate-300">Array Buffer Size (per batch)</label>
+                        <span id="array-size-val" class="text-cyan-400 font-bold">50,000</span>
+                    </div>
+                    <input type="range" id="array-size" min="10000" max="250000" step="10000" value="50000" class="w-full accent-cyan-400 bg-slate-800 h-1.5 rounded-lg appearance-none cursor-pointer">
+                    <p class="text-[10px] text-slate-500">Calculates physical data bandwidth preserved via Transferable buffers.</p>
+                </div>
+
+                <!-- Batch Size Control -->
+
+                <div class="space-y-2">
+                    <div class="flex justify-between text-xs">
+                        <label for="batch-count" class="text-slate-300">Total Pipeline Batches</label>
+                        <span id="batch-count-val" class="text-cyan-400 font-bold">60</span>
+                    </div>
+                    <input type="range" id="batch-count" min="10" max="300" step="10" value="60" class="w-full accent-cyan-400 bg-slate-800 h-1.5 rounded-lg appearance-none cursor-pointer">
+                </div>
+
+                <!-- Chaos Engine Enhancement (Fault Tolerance) -->
+                <div class="pt-2 border-t border-slate-800/60 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <label for="chaos-toggle" class="text-xs text-slate-300 cursor-pointer select-none flex items-center gap-2">
+                            <span class="inline-block w-2 h-2 rounded-full bg-rose-500"></span>
+                            Inject Chaos Failures
+                        </label>
+                        <input type="checkbox" id="chaos-toggle" class="w-4 h-4 accent-rose-500 cursor-pointer bg-slate-950 border-slate-800 rounded">
+                    </div>
+                    <p class="text-[10px] text-slate-500">Simulates a 15% volatile hardware disruption rate. The pool supervisor intercepts faults, recreates threads, and hot-swaps task queues mid-flight.</p>
+                </div>
+
+            </div>
+
+            <!-- Execution Actions Trigger Buttons -->
+            <div class="space-y-3 pt-4 border-t border-slate-800">
+                <button id="btn-run" class="w-full bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs py-3 px-4 rounded transition-all duration-200 shadow-lg shadow-cyan-500/10 flex items-center justify-center gap-2 tracking-wider">
+                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path></svg>
+                    DISPATCH PIPELINE
+                </button>
+                <button id="btn-clear" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs py-2 px-4 rounded transition-all duration-200 flex items-center justify-center gap-2">
+                    RESET TRACE WORKSPACE
+                </button>
+            </div>
+        </section>
+
+        <!-- Main Workspace: Status Monitors & Performance Timeline Trace -->
+        <section class="xl:col-span-3 space-y-6 flex flex-col">
+            
+            <!-- Real-Time Pool Worker Status Block Matrix -->
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
+
+                <div class="border-b border-slate-800 pb-3 mb-4 flex items-center justify-between">
+                    <h2 class="text-sm font-semibold text-slate-400 tracking-widest uppercase flex items-center gap-2">
+                        <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+                        Thread Supervisor Array View
+                    </h2>
+                    <span id="active-worker-counter" class="text-xs bg-slate-800 text-slate-300 px-2.5 py-1 rounded-full border border-slate-700">0 Tasks Active</span>
+                </div>
+                
+                <!-- Active Grid containing dynamic worker processing boxes -->
+                <div id="workers-grid" class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
+                    <!-- Dynamic entries populate here -->
+                </div>
+            </div>
+
+            <!-- Backpressure Queue Monitor Enhancement -->
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 flex items-center gap-4">
+                <div class="text-xs text-slate-400 font-bold uppercase tracking-wider min-w-[120px]">
+                    Queue Backpressure:
+                </div>
+
+                <div class="flex-1 bg-slate-950 h-5 rounded overflow-hidden border border-slate-800 flex relative items-center">
+                    <div id="queue-bar" class="bg-gradient-to-r from-cyan-600 via-indigo-600 to-purple-600 h-full w-0 transition-all duration-150"></div>
+                    <div id="queue-counter" class="absolute inset-0 text-center text-[10px] font-bold leading-5 text-slate-300">0 / 0 Tasks In Queue</div>
+                </div>
+            </div>
+
+            <!-- Dynamic Performance Profile Trace Timeline Panel -->
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 flex-1 flex flex-col min-h-[380px]">
+                <div class="border-b border-slate-800 pb-3 mb-4 flex flex-wrap items-center justify-between gap-2">
+                    <div class="space-y-1">
+                        <h2 class="text-sm font-semibold text-slate-400 tracking-widest uppercase flex items-center gap-2">
+                            <svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                            High-Resolution Multi-Thread Execution Trace
+                        </h2>
+                        <p class="text-[11px] text-slate-500">Visual profiles tracking individual async execution segments. Faults emit distinct indicators.</p>
+                    </div>
+                    <div class="flex items-center space-x-3 text-xs">
+                        <span class="flex items-center gap-1">
+                            <span class="inline-block w-2.5 h-2.5 bg-purple-500/30 border border-purple-400 rounded-sm"></span>
+
+                            <span class="text-slate-400">Compute</span>
+                        </span>
+                        <span class="flex items-center gap-1">
+                            <span class="inline-block w-2.5 h-2.5 bg-rose-500/40 border border-rose-500 rounded-sm"></span>
+                            <span class="text-slate-400">Fault Block</span>
+                        </span>
+                        <span id="trace-scale-label" class="text-slate-400 font-semibold bg-slate-950 px-2 py-1 border border-slate-800 rounded">Scale: Auto</span>
+                    </div>
+                </div>
+
+                <!-- Trace Visual Canvas Wrapper Container -->
+                <div class="flex-1 relative bg-slate-950 rounded border border-slate-800 overflow-hidden min-h-[240px]">
+                    <canvas id="trace-canvas" class="absolute inset-0 w-full h-full block"></canvas>
+                </div>
+                
+                <!-- Dynamic UI Interactive Status Feedback Modal bar -->
+                <div id="trace-tooltip" class="mt-2 text-xs text-slate-400 min-h-[1.5rem] flex items-center justify-between border-t border-slate-900 pt-2 px-1">
+                    <span>💡 Hover execution bands to probe microsecond timing variables or crash analysis context.</span>
+                    <span id="block-hover-details" class="text-cyan-400 font-medium"></span>
+
+                </div>
+            </div>
+
+        </section>
+    </main>
+
+    <!-- System Message Banner Notification Panel System -->
+    <div id="toast-container" class="fixed bottom-6 right-6 space-y-2 z-50 pointer-events-none"></div>
+
+    <!-- Inline Web Worker Blueprint Code featuring simulated volatile crash states -->
+    <script>
+        const workerScriptText = `
+            self.onmessage = function(e) {
+                const { taskId, workerIndex, taskType, dataArray, payloadSize, simulateChaos } = e.data;
+                const startTime = performance.now();
+                
+                // Inject structural vulnerability if chaos conditions are verified
+                if (simulateChaos && Math.random() < 0.15) {
+                    // Force termination response signaling pool orchestrator to trigger safety measures
+
+                    setTimeout(() => {
+                        self.postMessage({
+                            taskId,
+                            workerIndex,
+                            isFaulted: true,
+                            startTime,
+                            endTime: performance.now() + 15
+                        });
+                    }, 20);
+                    return;
+                }
+
+                const view = new Float64Array(dataArray);
+                
+                // High-utilization numerical processing loops
+                if (taskType === 'heavy-math') {
+                    for (let i = 0; i < view.length; i++) {
+                        let val = view[i];
+                        for(let j = 0; j < 45; j++) {
+
+                            val = Math.sin(val) * Math.cos(val) + Math.tan(val * 0.01);
+                        }
+                        view[i] = val;
+                    }
+                } else if (taskType === 'fractal') {
+                    for (let i = 0; i < view.length; i++) {
+                        let cr = (i % 200) / 200 * 3.0 - 2.0;
+                        let ci = Math.floor(i / 200) / 200 * 3.0 - 1.5;
+                        let zr = 0.0, zi = 0.0;
+                        let iter = 0;
+                        while(zr*zr + zi*zi < 4.0 && iter < 60) {
+                            let temp = zr*zr - zi*zi + cr;
+                            zi = 2.0*zr*zi + ci;
+                            zr = temp;
+                            iter++;
+                        }
+                        view[i] = iter;
+                    }
+                } else if (taskType === 'prime') {
+
+                    for (let i = 0; i < view.length; i++) {
+                        let num = Math.floor(view[i]) % 5000 + 5000;
+                        let factors = 0;
+                        for (let d = 2; d <= Math.sqrt(num); d++) {
+                            if (num % d === 0) { factors++; }
+                        }
+                        view[i] = factors;
+                    }
+                }
+
+                const endTime = performance.now();
+                
+                // Return ownership map dynamically via zero-copy Transferables
+                self.postMessage({
+                    taskId,
+                    workerIndex,
+                    isFaulted: false,
+                    duration: endTime - startTime,
+                    startTime,
+
+                    endTime
+                }, [dataArray]);
+            };
+        `;
+
+        const blobUrl = URL.createObjectURL(new Blob([workerScriptText], { type: 'application/javascript' }));
+    </script>
+
+    <!-- Core Main-Thread Pipeline & Fault-Recovery Orchestration -->
+    <script>
+        const domElements = {
+            poolSizeSlider: document.getElementById('pool-size'),
+            poolSizeVal: document.getElementById('pool-size-val'),
+            arraySizeSlider: document.getElementById('array-size'),
+            arraySizeVal: document.getElementById('array-size-val'),
+            batchSlider: document.getElementById('batch-count'),
+            batchCountVal: document.getElementById('batch-count-val'),
+            workloadType: document.getElementById('workload-type'),
+            chaosToggle: document.getElementById('chaos-toggle'),
+
+            btnRun: document.getElementById('btn-run'),
+            btnClear: document.getElementById('btn-clear'),
+            workersGrid: document.getElementById('workers-grid'),
+            activeWorkerCounter: document.getElementById('active-worker-counter'),
+            globalStatus: document.getElementById('global-status'),
+            globalThroughput: document.getElementById('global-throughput'),
+            globalLatency: document.getElementById('global-latency'),
+            globalMemory: document.getElementById('global-memory'),
+            globalFaults: document.getElementById('global-faults'),
+            queueBar: document.getElementById('queue-bar'),
+            queueCounter: document.getElementById('queue-counter'),
+            canvas: document.getElementById('trace-canvas'),
+            blockHoverDetails: document.getElementById('block-hover-details'),
+            traceScaleLabel: document.getElementById('trace-scale-label'),
+            toastContainer: document.getElementById('toast-container')
+        };
+
+        // System Core State Model
+        let currentPoolSize = parseInt(domElements.poolSizeSlider.value);
+
+        let currentArraySize = parseInt(domElements.arraySizeSlider.value);
+        let totalBatches = parseInt(domElements.batchSlider.value);
+        
+        let workerPool = [];
+        let taskQueue = [];
+        let activeTaskCount = 0;
+        let traceRecords = [];
+        let totalFaultsCount = 0;
+        let accumulativeMemoryBytes = 0;
+
+        const ctx = domElements.canvas.getContext('2d');
+        let hoverBlock = null;
+
+        function createSystemToast(header, message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `p-4 rounded-lg border text-xs shadow-xl min-w-[280px] bg-slate-900 transition-all duration-300 border-slate-800 pointer-events-auto transform translate-y-2 opacity-0`;
+            
+            const colorClass = type === 'success' ? 'text-emerald-400' : type === 'error' ? 'text-rose-400' : 'text-cyan-400';
+            toast.innerHTML = `
+
+                <div class="font-bold ${colorClass} uppercase tracking-wider mb-1">${header}</div>
+                <div class="text-slate-300 font-sans">${message}</div>
+            `;
+            domElements.toastContainer.appendChild(toast);
+            
+            setTimeout(() => toast.classList.remove('translate-y-2', 'opacity-0'), 10);
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+
+        function initializeWorkerGridUI() {
+            domElements.workersGrid.innerHTML = '';
+            for (let i = 0; i < currentPoolSize; i++) {
+                const card = document.createElement('div');
+                card.id = `worker-card-${i}`;
+                card.className = `bg-slate-950 border border-slate-800 rounded p-3 flex flex-col justify-between items-start space-y-2 transition-all duration-200`;
+                card.innerHTML = `
+
+                    <div class="flex items-center justify-between w-full">
+                        <span class="text-[10px] text-slate-500 font-bold uppercase">WK-[#${String(i).padStart(2, '0')}]</span>
+                        <span id="worker-status-${i}" class="text-[9px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 font-medium">IDLE</span>
+                    </div>
+                    <div class="w-full flex items-end justify-between">
+                        <div class="h-1.5 w-1.5 rounded-full bg-slate-700" id="worker-indicator-${i}"></div>
+                        <span id="worker-count-${i}" class="text-[10px] text-slate-400">0 ops</span>
+                    </div>
+                `;
+                domElements.workersGrid.appendChild(card);
+            }
+            resizeCanvas();
+        }
+
+        function setupWorkerPool() {
+            workerPool.forEach(w => w.thread.terminate());
+            workerPool = [];
+            
+            for (let i = 0; i < currentPoolSize; i++) {
+
+                createWorkerInstance(i);
+            }
+            initializeWorkerGridUI();
+        }
+
+        function createWorkerInstance(index) {
+            const workerInstance = new Worker(blobUrl);
+            workerInstance.onmessage = function(e) {
+                onWorkerTaskComplete(e.data);
+            };
+            
+            // If replacing an old broken thread index, hot-swap object mapping references smoothly
+            if (workerPool[index]) {
+                workerPool[index].thread.terminate();
+                workerPool[index].thread = workerInstance;
+                workerPool[index].isBusy = false;
+            } else {
+                workerPool.push({
+                    thread: workerInstance,
+
+                    isBusy: false,
+                    assignedWorkerIndex: index,
+                    cumulativeTasksRun: 0
+                });
+            }
+        }
+
+        function dispatchWorkloadSequence() {
+            if (activeTaskCount > 0 || taskQueue.length > 0) {
+                createSystemToast("Engine Conflict", "A processing trace dispatch is currently active.", "error");
+                return;
+            }
+
+            const chosenWorkload = domElements.workloadType.value;
+            taskQueue = [];
+            traceRecords = [];
+            activeTaskCount = 0;
+            totalFaultsCount = 0;
+            accumulativeMemoryBytes = 0;
+
+            
+            domElements.globalStatus.innerText = "PROCESSING";
+            domElements.globalStatus.className = "text-amber-400 font-semibold worker-pulse";
+            domElements.globalFaults.innerText = "0";
+            
+            for(let i=0; i<currentPoolSize; i++) {
+                const countNode = document.getElementById(`worker-count-${i}`);
+                if(countNode) countNode.innerText = "0 ops";
+                workerPool[i].cumulativeTasksRun = 0;
+            }
+
+            for (let i = 0; i < totalBatches; i++) {
+                const bytesSize = currentArraySize * 8; // Double precision floating matrix maps
+                const buffer = new ArrayBuffer(bytesSize);
+                const view = new Float64Array(buffer);
+                
+                for (let j = 0; j < view.length; j++) {
+                    view[j] = Math.random() * 100 + (i * 2);
+                }
+
+
+                taskQueue.push({
+                    taskId: i,
+                    taskType: chosenWorkload,
+                    dataArray: buffer,
+                    payloadSize: currentArraySize,
+                    rawBytes: bytesSize
+                });
+            }
+
+            createSystemToast("Pipeline Active", `Dispatched ${totalBatches} execution items containing zero-copy structures.`, "success");
+            updateQueueMonitorUI();
+            pumpTaskExecutionQueue();
+        }
+
+        function pumpTaskExecutionQueue() {
+            if (taskQueue.length === 0 && activeTaskCount === 0) {
+                onAllPipelineTasksFinished();
+                return;
+            }
+
+
+            const simulateChaos = domElements.chaosToggle.checked;
+
+            for (let i = 0; i < workerPool.length; i++) {
+                if (!workerPool[i].isBusy && taskQueue.length > 0) {
+                    const task = taskQueue.shift();
+                    const worker = workerPool[i];
+                    
+                    worker.isBusy = true;
+                    activeTaskCount++;
+                    
+                    updateWorkerCardUIState(worker.assignedWorkerIndex, "BUSY");
+                    updateQueueMonitorUI();
+                    
+                    // Maintain historical tracking references for tasks if they have to undergo fault recovery re-queuing
+                    worker.currentTaskContext = task;
+
+                    worker.thread.postMessage({
+                        taskId: task.taskId,
+                        workerIndex: worker.assignedWorkerIndex,
+
+                        taskType: task.taskType,
+                        dataArray: task.dataArray,
+                        payloadSize: task.payloadSize,
+                        simulateChaos: simulateChaos
+                    }, [task.dataArray]);
+                }
+            }
+            domElements.activeWorkerCounter.innerText = `${activeTaskCount} Parallel Pipes Active`;
+        }
+
+        function onWorkerTaskComplete(responseMetadata) {
+            const { taskId, workerIndex, isFaulted, duration, startTime, endTime } = responseMetadata;
+            
+            const worker = workerPool[workerIndex];
+            activeTaskCount--;
+
+            if (isFaulted) {
+                totalFaultsCount++;
+                domElements.globalFaults.innerText = totalFaultsCount;
+
+                
+                // Track fault block records visually onto our timeline map
+                traceRecords.push({
+                    taskId,
+                    workerIndex,
+                    isFaulted: true,
+                    duration: endTime - startTime,
+                    startTime,
+                    endTime
+                });
+
+                // Extract lost buffer data context to simulate self-healing safety pipeline re-generation
+                const failedTaskData = worker.currentTaskContext;
+                
+                // Re-provision fresh underlying buffers to substitute lost memory tracks safely
+                const newBuffer = new ArrayBuffer(failedTaskData.payloadSize * 8);
+                failedTaskData.dataArray = newBuffer;
+
+                // Push task block straight back to the front of backpressure arrays scheduler
+
+                taskQueue.unshift(failedTaskData);
+
+                // Tear down faulted hardware worker loop and hot-swap a clean instance immediately
+                createWorkerInstance(workerIndex);
+                updateWorkerCardUIState(workerIndex, "IDLE");
+                
+                createSystemToast("Fault Recovered", `Task #${taskId} crashed on Track ${workerIndex}. Worker hot-swapped & item re-queued.`, "error");
+                
+                renderPerformanceTimelineTrace();
+                updateQueueMonitorUI();
+                pumpTaskExecutionQueue();
+                return;
+            }
+
+            // Normal operation handling
+            worker.isBusy = false;
+            worker.cumulativeTasksRun++;
+            accumulativeMemoryBytes += worker.currentTaskContext.rawBytes;
+            
+
+            // Formatted byte optimization calculations 
+            domElements.globalMemory.innerText = `${(accumulativeMemoryBytes / (1024 * 1024)).toFixed(2)} MB`;
+
+            const counterNode = document.getElementById(`worker-count-${workerIndex}`);
+            if (counterNode) counterNode.innerText = `${worker.cumulativeTasksRun} ops`;
+
+            updateWorkerCardUIState(workerIndex, "IDLE");
+
+            traceRecords.push({
+                taskId,
+                workerIndex,
+                isFaulted: false,
+                duration,
+                startTime,
+                endTime
+            });
+
+            renderPerformanceTimelineTrace();
+            updateQueueMonitorUI();
+
+            pumpTaskExecutionQueue();
+        }
+
+        function updateQueueMonitorUI() {
+            const percentage = (taskQueue.length / totalBatches) * 100;
+            domElements.queueBar.style.width = `${percentage}%`;
+            domElements.queueCounter.innerText = `${taskQueue.length} / ${totalBatches} Tasks Outstanding In Backpressure Queue`;
+        }
+
+        function onAllPipelineTasksFinished() {
+            domElements.globalStatus.innerText = "READY";
+            domElements.globalStatus.className = "text-emerald-400 font-semibold";
+            domElements.activeWorkerCounter.innerText = "0 Tasks Active";
+            updateQueueMonitorUI();
+            
+            const validComputeRecords = traceRecords.filter(r => !r.isFaulted);
+            if (validComputeRecords.length === 0) return;
+
+            const minStart = Math.min(...traceRecords.map(r => r.startTime));
+
+            const maxEnd = Math.max(...traceRecords.map(r => r.endTime));
+            const totalDurationSpanMs = maxEnd - minStart;
+            
+            const computedThroughput = (validComputeRecords.length / (totalDurationSpanMs / 1000)).toFixed(2);
+            const totalDurationMetricsSum = validComputeRecords.reduce((acc, curr) => acc + curr.duration, 0);
+            const computedAvgLatency = (totalDurationMetricsSum / validComputeRecords.length).toFixed(2);
+
+            domElements.globalThroughput.innerText = `${computedThroughput} ops/s`;
+            domElements.globalLatency.innerText = `${computedAvgLatency} ms`;
+
+            createSystemToast("Analysis Completed", `All pipeline tasks resolved successfully. Integrity bounds validated.`, "info");
+        }
+
+        function updateWorkerCardUIState(index, status) {
+            const card = document.getElementById(`worker-card-${index}`);
+            const text = document.getElementById(`worker-status-${index}`);
+            const indicator = document.getElementById(`worker-indicator-${index}`);
+            
+            if(!card || !text || !indicator) return;
+
+
+            if (status === "BUSY") {
+                card.className = "bg-slate-900 border-cyan-500/40 border rounded p-3 flex flex-col justify-between items-start space-y-2 transition-all duration-200 shadow-md shadow-cyan-500/5";
+                text.className = "text-[9px] px-1.5 py-0.5 rounded bg-cyan-950 text-cyan-400 border border-cyan-800/40 font-semibold worker-pulse";
+                text.innerText = "BUSY";
+                indicator.className = "h-1.5 w-1.5 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)]";
+            } else {
+                card.className = "bg-slate-950 border border-slate-800 rounded p-3 flex flex-col justify-between items-start space-y-2 transition-all duration-200";
+                text.className = "text-[9px] px-1.5 py-0.5 rounded bg-slate-900 text-slate-500 font-medium";
+                text.innerText = "IDLE";
+                indicator.className = "h-1.5 w-1.5 rounded-full bg-slate-700";
+            }
+        }
+
+        function renderPerformanceTimelineTrace() {
+            ctx.clearRect(0, 0, domElements.canvas.width, domElements.canvas.height);
+            
+            if (traceRecords.length === 0) {
+                ctx.strokeStyle = "#1e293b";
+                ctx.lineWidth = 1;
+
+                const rowHeight = domElements.canvas.height / currentPoolSize;
+                for(let i = 1; i < currentPoolSize; i++) {
+                    ctx.beginPath();
+                    ctx.moveTo(0, i * rowHeight);
+                    ctx.lineTo(domElements.canvas.width, i * rowHeight);
+                    ctx.stroke();
+                }
+                return;
+            }
+
+            const paddingLeft = 12;
+            const paddingRight = 12;
+            const drawWidth = domElements.canvas.width - paddingLeft - paddingRight;
+            const drawHeight = domElements.canvas.height;
+            const rowHeight = drawHeight / currentPoolSize;
+            
+            const globalMinStart = Math.min(...traceRecords.map(r => r.startTime));
+            const globalMaxEnd = Math.max(...traceRecords.map(r => r.endTime));
+            const timeSpan = (globalMaxEnd - globalMinStart) || 1;
+
+
+            domElements.traceScaleLabel.innerText = `Window: ${timeSpan.toFixed(1)} ms`;
+
+            ctx.strokeStyle = "#111827";
+            ctx.lineWidth = 2;
+            for (let i = 0; i <= currentPoolSize; i++) {
+                ctx.beginPath();
+                ctx.moveTo(0, i * rowHeight);
+                ctx.lineTo(domElements.canvas.width, i * rowHeight);
+                ctx.stroke();
+            }
+
+            traceRecords.forEach(record => {
+                const relativeXStart = ((record.startTime - globalMinStart) / timeSpan) * drawWidth + paddingLeft;
+                const relativeXEnd = ((record.endTime - globalMinStart) / timeSpan) * drawWidth + paddingLeft;
+                let blockWidth = relativeXEnd - relativeXStart;
+                if(blockWidth < 3) blockWidth = 3;
+
+                const blockY = record.workerIndex * rowHeight + 4;
+                const blockHeight = rowHeight - 8;
+
+                const isHovered = hoverBlock && hoverBlock.taskId === record.taskId && hoverBlock.startTime === record.startTime;
+
+                if (record.isFaulted) {
+                    ctx.fillStyle = isHovered ? 'rgba(244, 63, 94, 0.6)' : 'rgba(225, 29, 72, 0.35)';
+                    ctx.strokeStyle = '#f43f5e';
+                } else {
+                    ctx.fillStyle = isHovered ? 'rgba(34, 211, 238, 0.45)' : 'rgba(147, 51, 234, 0.25)';
+                    ctx.strokeStyle = isHovered ? '#22d3ee' : '#a855f7';
+                }
+                
+                ctx.lineWidth = isHovered ? 2 : 1;
+                ctx.fillRect(relativeXStart, blockY, blockWidth, blockHeight);
+                ctx.strokeRect(relativeXStart, blockY, blockWidth, blockHeight);
+
+                if (blockWidth > 45) {
+                    ctx.fillStyle = record.isFaulted ? '#fecdd3' : (isHovered ? '#e2e8f0' : '#c084fc');
+                    ctx.font = '9px monospace';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+
+                    ctx.fillText(record.isFaulted ? `CRASH` : `T-${record.taskId}`, relativeXStart + (blockWidth/2), blockY + (blockHeight/2));
+                }
+            });
+        }
+
+        function evaluateHoverCoordinates(event) {
+            if (traceRecords.length === 0) return;
+
+            const boundingBox = domElements.canvas.getBoundingClientRect();
+            const cursorX = ((event.clientX - boundingBox.left) / boundingBox.width) * domElements.canvas.width;
+            const cursorY = ((event.clientY - boundingBox.top) / boundingBox.height) * domElements.canvas.height;
+
+            const paddingLeft = 12;
+            const paddingRight = 12;
+            const drawWidth = domElements.canvas.width - paddingLeft - paddingRight;
+            
+            const rowHeight = domElements.canvas.height / currentPoolSize;
+            const inferredWorkerIndex = Math.floor(cursorY / rowHeight);
+
+
+            const globalMinStart = Math.min(...traceRecords.map(r => r.startTime));
+            const globalMaxEnd = Math.max(...traceRecords.map(r => r.endTime));
+            const timeSpan = (globalMaxEnd - globalMinStart) || 1;
+
+            const detectedMatch = traceRecords.find(record => {
+                if (record.workerIndex !== inferredWorkerIndex) return false;
+                
+                const relativeXStart = ((record.startTime - globalMinStart) / timeSpan) * drawWidth + paddingLeft;
+                const relativeXEnd = ((record.endTime - globalMinStart) / timeSpan) * drawWidth + paddingLeft;
+                let blockWidth = relativeXEnd - relativeXStart;
+                if(blockWidth < 3) blockWidth = 3;
+
+                return cursorX >= relativeXStart && cursorX <= (relativeXStart + blockWidth);
+            });
+
+            if (detectedMatch) {
+                if (!hoverBlock || hoverBlock.taskId !== detectedMatch.taskId || hoverBlock.startTime !== detectedMatch.startTime) {
+                    hoverBlock = detectedMatch;
+                    domElements.canvas.style.cursor = 'pointer';
+
+                    if (hoverBlock.isFaulted) {
+                        domElements.blockHoverDetails.innerText = `⚠️ [Task #${hoverBlock.taskId} FAULTED] -> Intercepted Hardware Thread Failure // Lifetime: ${hoverBlock.duration.toFixed(2)}ms`;
+                    } else {
+                        domElements.blockHoverDetails.innerText = `[Task #${hoverBlock.taskId}] -> Track ${hoverBlock.workerIndex} // Pure Compute Duration: ${hoverBlock.duration.toFixed(2)}ms`;
+                    }
+                    renderPerformanceTimelineTrace();
+                }
+            } else {
+                if (hoverBlock !== null) {
+                    hoverBlock = null;
+                    domElements.canvas.style.cursor = 'default';
+                    domElements.blockHoverDetails.innerText = '';
+                    renderPerformanceTimelineTrace();
+                }
+            }
+        }
+
+        function resizeCanvas() {
+            const displayWidth = domElements.canvas.parentElement.clientWidth;
+
+            const displayHeight = domElements.canvas.parentElement.clientHeight;
+            
+            if (domElements.canvas.width !== displayWidth || domElements.canvas.height !== displayHeight) {
+                domElements.canvas.width = displayWidth;
+                domElements.canvas.height = displayHeight;
+                renderPerformanceTimelineTrace();
+            }
+        }
+
+        function attachApplicationEventListenerTriggers() {
+            domElements.poolSizeSlider.addEventListener('input', (e) => {
+                currentPoolSize = parseInt(e.target.value);
+                domElements.poolSizeVal.innerText = currentPoolSize;
+                setupWorkerPool();
+            });
+
+            domElements.arraySizeSlider.addEventListener('input', (e) => {
+                currentArraySize = parseInt(e.target.value);
+                domElements.arraySizeVal.innerText = currentArraySize.toLocaleString();
+
+            });
+
+            domElements.batchSlider.addEventListener('input', (e) => {
+                totalBatches = parseInt(e.target.value);
+                domElements.batchCountVal.innerText = totalBatches;
+            });
+
+            domElements.btnRun.addEventListener('click', dispatchWorkloadSequence);
+            
+            domElements.btnClear.addEventListener('click', () => {
+                traceRecords = [];
+                hoverBlock = null;
+                totalFaultsCount = 0;
+                accumulativeMemoryBytes = 0;
+                domElements.blockHoverDetails.innerText = '';
+                domElements.globalThroughput.innerText = "0.00 ops/s";
+                domElements.globalLatency.innerText = "0.00 ms";
+                domElements.globalMemory.innerText = "0.00 MB";
+                domElements.globalFaults.innerText = "0";
+
+                updateQueueMonitorUI();
+                renderPerformanceTimelineTrace();
+                createSystemToast("Workspace Cleared", "Performance profiles and historical trace indices cleared.", "info");
+            });
+
+            domElements.canvas.addEventListener('mousemove', evaluateHoverCoordinates);
+            domElements.canvas.addEventListener('mouseleave', () => {
+                if (hoverBlock) {
+                    hoverBlock = null;
+                    domElements.blockHoverDetails.innerText = '';
+                    renderPerformanceTimelineTrace();
+                }
+            });
+
+            window.addEventListener('resize', resizeCanvas);
+        }
+
+        window.onload = function() {
+            attachApplicationEventListenerTriggers();
+
+            setupWorkerPool();
+            setTimeout(resizeCanvas, 100);
+        };
+    </script>
+</body>
+</html>
+
+
