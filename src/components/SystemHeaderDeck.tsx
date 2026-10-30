@@ -25,6 +25,7 @@ import {
   Key,
   Fingerprint,
   Compass,
+  Camera,
 } from 'lucide-react';
 import { EnvironmentState, TopologyType } from '../types';
 import { HealthState } from './SystemSelfTest';
@@ -34,6 +35,7 @@ import { KeyManagementModal } from './KeyManagementModal';
 import { IntegrityLedgerModal } from './IntegrityLedgerModal';
 import { ComplianceAndSSOModal } from './ComplianceAndSSOModal';
 import { getAllReceipts, verifyReceiptIntegrity, createStateReceipt } from '../services/cryptoStorageService';
+import { SovereignSentinelCore } from '../services/sovereignSentinelCore';
 
 interface SystemHeaderDeckProps {
   envState: EnvironmentState;
@@ -71,11 +73,35 @@ export const SystemHeaderDeck: React.FC<SystemHeaderDeckProps> = ({
   const [isLedgerOpen, setIsLedgerOpen] = useState(false);
   const [isComplianceOpen, setIsComplianceOpen] = useState(false);
   const [tamperedCount, setTamperedCount] = useState(0);
+  const [isScanningLedger, setIsScanningLedger] = useState(false);
+  const [scanPulseCount, setScanPulseCount] = useState(0);
 
-  // Periodic integrity check to flag tampering in the header deck
+  // Periodic integrity check to flag tampering in the header deck with visual heartbeat pulse
   useEffect(() => {
     let isSubscribed = true;
+
+    const saveBeginningStageSnapshot = async () => {
+      try {
+        await createStateReceipt(
+          envState,
+          'Beginning Stage System Snapshot (Initial Baseline Artifact)',
+          'STATE_SNAPSHOT',
+          'machackabook@gmail.com'
+        );
+        SovereignSentinelCore.serializeSurvivalState();
+      } catch {
+        // Silently handle before IndexedDB readiness
+      }
+    };
+
     const checkIntegrity = async () => {
+      if (!isSubscribed) return;
+      setIsScanningLedger(true);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('gaia:ledger-scan-started'));
+      }
+
+      const startTime = performance.now();
       try {
         const receipts = await getAllReceipts();
         let corrupted = 0;
@@ -83,23 +109,51 @@ export const SystemHeaderDeck: React.FC<SystemHeaderDeckProps> = ({
           const res = await verifyReceiptIntegrity(r);
           if (!res.isValid) corrupted++;
         }
-        if (isSubscribed) setTamperedCount(corrupted);
+        if (isSubscribed) {
+          setTamperedCount(corrupted);
+          setScanPulseCount((prev) => prev + 1);
+        }
+
+        // Guarantee smooth visual heartbeat pulse visibility (min 1.2s pulse)
+        const elapsed = performance.now() - startTime;
+        const minPulseTime = 1200;
+        if (elapsed < minPulseTime) {
+          await new Promise((r) => setTimeout(r, minPulseTime - elapsed));
+        }
       } catch {
         // Silently handle before IndexedDB initialization
+      } finally {
+        if (isSubscribed) {
+          setIsScanningLedger(false);
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('gaia:ledger-scan-completed'));
+          }
+        }
       }
     };
 
+    saveBeginningStageSnapshot();
     checkIntegrity();
     const interval = setInterval(checkIntegrity, 8000);
 
+    const onTriggerScan = () => checkIntegrity();
+    const onScanStart = () => setIsScanningLedger(true);
+    const onScanComplete = () => setIsScanningLedger(false);
     const onOpenLedger = () => setIsLedgerOpen(true);
     const onOpenSSOAuditor = () => setIsComplianceOpen(true);
+
+    window.addEventListener('gaia:trigger-ledger-scan', onTriggerScan);
+    window.addEventListener('gaia:ledger-scan-started', onScanStart);
+    window.addEventListener('gaia:ledger-scan-completed', onScanComplete);
     window.addEventListener('gaia:open-integrity-ledger', onOpenLedger);
     window.addEventListener('gaia:open-sso-auditor', onOpenSSOAuditor);
 
     return () => {
       isSubscribed = false;
       clearInterval(interval);
+      window.removeEventListener('gaia:trigger-ledger-scan', onTriggerScan);
+      window.removeEventListener('gaia:ledger-scan-started', onScanStart);
+      window.removeEventListener('gaia:ledger-scan-completed', onScanComplete);
       window.removeEventListener('gaia:open-integrity-ledger', onOpenLedger);
       window.removeEventListener('gaia:open-sso-auditor', onOpenSSOAuditor);
     };
@@ -300,6 +354,33 @@ export const SystemHeaderDeck: React.FC<SystemHeaderDeckProps> = ({
           </kbd>
         </button>
 
+        {/* Manual System Snapshot Button (Versioned Artifact in Cryptographic Ledger) */}
+        <button
+          onClick={async () => {
+            try {
+              const receipt = await createStateReceipt(
+                envState,
+                `Manual Environment State Snapshot (Versioned Artifact #${scanPulseCount + 1})`,
+                'STATE_SNAPSHOT',
+                'machackabook@gmail.com'
+              );
+              SovereignSentinelCore.serializeSurvivalState();
+              audioVoiceService.playTone(880, 'sine', 120);
+              if (typeof window !== 'undefined') {
+                window.dispatchEvent(new CustomEvent('gaia:trigger-ledger-scan'));
+              }
+              setIsLedgerOpen(true);
+            } catch (err: any) {
+              alert('Failed to store snapshot artifact: ' + err?.message);
+            }
+          }}
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 text-emerald-200 text-[11px] font-bold shadow-[0_0_12px_rgba(16,185,129,0.25)] transition cursor-pointer"
+          title="Trigger Manual System Snapshot & Store as Versioned Artifact in IndexedDB Cryptographic Ledger"
+        >
+          <Camera className="w-3.5 h-3.5 text-emerald-400" />
+          <span className="hidden lg:inline">SNAPSHOT</span>
+        </button>
+
         {/* Export State Backup */}
         <button
           onClick={handleExportState}
@@ -318,34 +399,77 @@ export const SystemHeaderDeck: React.FC<SystemHeaderDeckProps> = ({
           <ShieldAlert className="w-3.5 h-3.5" />
         </button>
 
-        {/* Visual Integrity Ledger Trigger (Hashed Receipts & Anti-Tamper) */}
+        {/* Real-Time Integrity Ledger Cryptographic Seal Verification Heartbeat */}
         <button
           onClick={() => setIsLedgerOpen(true)}
-          className={`relative p-1.5 rounded-xl border transition cursor-pointer flex items-center gap-1 ${
+          className={`relative flex items-center gap-2 px-2.5 py-1 rounded-xl border text-[11px] font-bold transition cursor-pointer select-none ${
             tamperedCount > 0
-              ? 'bg-red-950/50 border-red-500/80 text-red-300 hover:bg-red-900/60 shadow-[0_0_15px_rgba(239,68,68,0.35)] animate-pulse'
-              : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-cyan-300 hover:border-cyan-500/40'
+              ? 'bg-red-950/60 border-red-500/80 text-red-300 hover:bg-red-900/70 shadow-[0_0_18px_rgba(239,68,68,0.4)] animate-pulse'
+              : isScanningLedger
+              ? 'bg-cyan-950/70 border-cyan-400 text-cyan-200 shadow-[0_0_18px_rgba(0,242,255,0.45)]'
+              : 'bg-black/60 border-slate-800/80 text-slate-300 hover:text-cyan-300 hover:border-cyan-500/50'
           }`}
           title={
             tamperedCount > 0
               ? `CRITICAL: ${tamperedCount} Tampered Receipts Detected in Integrity Ledger!`
-              : 'Open Cryptographic Integrity Ledger (Anti-Tamper Proofs)'
+              : isScanningLedger
+              ? 'WebCrypto SHA-256 Background Scan Active — Verifying Cryptographic Receipts'
+              : `Cryptographic Seal Verification Heartbeat (Scan #${scanPulseCount}) — 100% Intact. Click to open Ledger.`
           }
         >
+          {/* Heartbeat Pulse Node */}
+          <span className="relative flex h-2.5 w-2.5 items-center justify-center">
+            {isScanningLedger ? (
+              <span
+                className={`absolute inline-flex h-full w-full rounded-full opacity-75 animate-ping ${
+                  tamperedCount > 0 ? 'bg-red-400' : 'bg-cyan-400'
+                }`}
+              />
+            ) : (
+              <span
+                className={`absolute inline-flex h-full w-full rounded-full opacity-30 animate-pulse [animation-duration:2.5s] ${
+                  tamperedCount > 0 ? 'bg-red-500' : 'bg-emerald-400'
+                }`}
+              />
+            )}
+            <span
+              className={`relative inline-flex h-2.5 w-2.5 rounded-full transition-colors duration-300 ${
+                tamperedCount > 0
+                  ? 'bg-red-500'
+                  : isScanningLedger
+                  ? 'bg-cyan-400 shadow-[0_0_8px_rgba(0,242,255,0.9)]'
+                  : 'bg-emerald-400'
+              }`}
+            />
+          </span>
+
+          {/* Icon */}
           {tamperedCount > 0 ? (
             <ShieldAlert className="w-3.5 h-3.5 text-red-400" />
           ) : (
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+            <ShieldCheck
+              className={`w-3.5 h-3.5 transition-transform duration-500 ${
+                isScanningLedger ? 'text-cyan-300 animate-spin [animation-duration:3s]' : 'text-emerald-400'
+              }`}
+            />
           )}
-          {tamperedCount > 0 && (
-            <span className="text-[10px] font-extrabold text-red-300 pr-0.5">
-              {tamperedCount}
-            </span>
-          )}
-          {tamperedCount > 0 && (
-            <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
+
+          {/* Live Heartbeat Label & Status */}
+          <div className="hidden xl:flex items-center gap-1.5 font-mono text-[10px] tracking-wide">
+            <span className="text-slate-400 font-bold">SEAL:</span>
+            {tamperedCount > 0 ? (
+              <span className="text-red-400 font-extrabold">TAMPERED ({tamperedCount})</span>
+            ) : isScanningLedger ? (
+              <span className="text-cyan-300 font-extrabold animate-pulse">VERIFYING...</span>
+            ) : (
+              <span className="text-emerald-400 font-bold">100% INTACT</span>
+            )}
+          </div>
+
+          {/* Pulse Cycle Counter Badge */}
+          {scanPulseCount > 0 && (
+            <span className="hidden sm:inline-block px-1 py-0.2 rounded bg-cyan-950/80 border border-cyan-500/30 text-[9px] text-cyan-300 font-extrabold">
+              #{scanPulseCount}
             </span>
           )}
         </button>

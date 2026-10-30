@@ -664,12 +664,82 @@ Host kali 192.168.1.150
         },
       },
     },
+    sys: {
+      type: 'directory',
+      metadata: { created: Date.now(), modified: Date.now(), permissions: 'rwxr-xr-x', size: 4096 },
+      children: {
+        kernel: {
+          type: 'directory',
+          metadata: { created: Date.now(), modified: Date.now(), permissions: 'rw-r--r--', size: 4096 },
+          children: {
+            'kernel_state.json': {
+              type: 'file',
+              content: JSON.stringify({
+                version: '2026.1-TRANSCENDENCE',
+                arch: 'HyperTerminal Polyglot Quine OS',
+                authority: 'Architect_01',
+                primeAnchor: '137451921129154222',
+                checksumSeal: '0x77446C2E',
+                status: 'HEALTHY',
+                vfsMount: 'Volatile RAM Disk / Immutable Reference Matrix'
+              }, null, 2),
+              metadata: { created: Date.now(), modified: Date.now(), permissions: 'rw-r--r--', size: 340 }
+            }
+          }
+        },
+        telemetry: {
+          type: 'directory',
+          metadata: { created: Date.now(), modified: Date.now(), permissions: 'rw-r--r--', size: 4096 },
+          children: {
+            'hardware_matrix.json': {
+              type: 'file',
+              content: JSON.stringify({
+                threads: 16,
+                ramDisk: 'Volatile RAM-backed Storage',
+                vfsMount: '/sys',
+                hotSwapAutoAttendant: 'ACTIVE',
+                tamperDetection: 'ENFORCED',
+                owner: 'machackabook@gmail.com'
+              }, null, 2),
+              metadata: { created: Date.now(), modified: Date.now(), permissions: 'rw-r--r--', size: 300 }
+            }
+          }
+        },
+        render: {
+          type: 'directory',
+          metadata: { created: Date.now(), modified: Date.now(), permissions: 'rwxr-xr-x', size: 4096 },
+          children: {
+            'background.frag': {
+              type: 'file',
+              content: `/* Autopoietic Neural-Implicit Background Fragment Substrate */
+precision highp float;
+uniform vec2 u_resolution;
+uniform float u_time;
+uniform float u_coherence;
+uniform float u_systemicFactor;
+
+void main() {
+  vec2 st = gl_FragCoord.xy / u_resolution.xy;
+  vec3 color = vec3(0.02, 0.04, 0.08);
+  float dist = length(st - vec2(0.5));
+  float pulse = sin(u_time * 2.0 - dist * 10.0) * 0.5 + 0.5;
+  color += vec3(0.0, 0.9, 1.0) * pulse * 0.25 * u_coherence;
+  color += vec3(0.6, 0.2, 0.9) * (1.0 - dist) * 0.15 * u_systemicFactor;
+  gl_FragColor = vec4(color, 1.0);
+}`,
+              metadata: { created: Date.now(), modified: Date.now(), permissions: 'rw-r--r--', size: 512 }
+            }
+          }
+        }
+      }
+    },
   },
 };
 
 class VfsService {
   private root: VfsNode;
   private dbPromise: Promise<IDBPDatabase>;
+  private referenceMatrix: VfsNode = JSON.parse(JSON.stringify(INITIAL_VFS));
 
   constructor() {
     this.root = JSON.parse(JSON.stringify(INITIAL_VFS));
@@ -767,18 +837,39 @@ class VfsService {
     return { node: curr, absPath, parent, key: lastKey };
   }
 
-  public readFile(cwd: string, targetPath: string): string {
-    const { node } = this.getNode(cwd, targetPath);
+  public readFile(cwdOrPath: string, targetPath?: string): string {
+    const cwd = targetPath !== undefined ? cwdOrPath : '/';
+    const path = targetPath !== undefined ? targetPath : cwdOrPath;
+    const { node } = this.getNode(cwd, path);
     if (!node) {
-      throw new Error(`cat: ${targetPath}: No such file or directory`);
+      throw new Error(`cat: ${path}: No such file or directory`);
     }
     if (node.type === 'directory') {
-      throw new Error(`cat: ${targetPath}: Is a directory`);
+      throw new Error(`cat: ${path}: Is a directory`);
     }
     return node.content || '';
   }
 
-  public writeFile(cwd: string, targetPath: string, content: string, append = false): string {
+  public writeFile(arg1: string, arg2: string, arg3?: string | boolean, arg4: boolean = false): string {
+    let cwd = '/';
+    let targetPath = '';
+    let content = '';
+    let append = false;
+
+    // Disambiguate signatures:
+    // writeFile(cwd, targetPath, content, append) vs writeFile(targetPath, content, author/append)
+    if (typeof arg3 === 'string' && (arg1 === '/' || arg1 === '/root' || arg1 === '' || arg1 === '.')) {
+      cwd = arg1;
+      targetPath = arg2;
+      content = arg3;
+      append = Boolean(arg4);
+    } else {
+      cwd = '/';
+      targetPath = arg1;
+      content = arg2;
+      append = typeof arg3 === 'boolean' ? arg3 : false;
+    }
+
     const absPath = this.normalizePath(cwd, targetPath);
     const parts = absPath.split('/').filter(Boolean);
     if (parts.length === 0) throw new Error('Cannot write directly to root directory');
@@ -937,7 +1028,107 @@ class VfsService {
   public exportJson(): string {
     return JSON.stringify(this.root, null, 2);
   }
+
+  public async getSectorHash(sectorPath: string): Promise<string> {
+    const { node } = this.getNode('/', sectorPath);
+    if (!node) return '0x00000000';
+    const json = JSON.stringify(node);
+    const enc = new TextEncoder();
+    const buffer = await crypto.subtle.digest('SHA-256', enc.encode(json));
+    return '0x' + Array.from(new Uint8Array(buffer)).map((b) => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  public async verifyAndHotSwap(): Promise<{
+    checkedSectors: string[];
+    corruptedSectors: string[];
+    repairedSectors: string[];
+  }> {
+    const sectors = ['/sys/kernel', '/sys/telemetry', '/docs/lineage', '/etc', '/bin'];
+    const checkedSectors: string[] = [];
+    const corruptedSectors: string[] = [];
+    const repairedSectors: string[] = [];
+
+    for (const sector of sectors) {
+      checkedSectors.push(sector);
+      const currentHash = await this.getSectorHash(sector);
+      const refNode = this.getNodeFromRoot(this.referenceMatrix, sector);
+      if (!refNode) {
+        // Sector should exist in reference matrix
+        this.hotSwapSectorFromReference(sector);
+        corruptedSectors.push(sector);
+        repairedSectors.push(sector);
+        continue;
+      }
+      const refHash = await this.getNodeHash(refNode);
+
+      if (currentHash !== refHash) {
+        corruptedSectors.push(sector);
+        this.hotSwapSectorFromReference(sector);
+        repairedSectors.push(sector);
+      }
+    }
+
+    if (repairedSectors.length > 0) {
+      await this.save();
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('gaia:vfs-hotswapped', {
+            detail: { corruptedSectors, repairedSectors, timestamp: Date.now() },
+          })
+        );
+      }
+    }
+
+    return { checkedSectors, corruptedSectors, repairedSectors };
+  }
+
+  private hotSwapSectorFromReference(sectorPath: string) {
+    const parts = sectorPath.split('/').filter(Boolean);
+    if (parts.length === 0) return;
+    const targetKey = parts.pop()!;
+    const parentPath = '/' + parts.join('/');
+
+    this.mkdir('/', parentPath);
+    const { node: parentNode } = this.getNode('/', parentPath);
+    const refParent = this.getNodeFromRoot(this.referenceMatrix, parentPath);
+    if (parentNode && parentNode.children && refParent && refParent.children && refParent.children[targetKey]) {
+      parentNode.children[targetKey] = JSON.parse(JSON.stringify(refParent.children[targetKey]));
+    }
+  }
+
+  private getNodeFromRoot(rootNode: VfsNode, absPath: string): VfsNode | null {
+    if (absPath === '/' || absPath === '') return rootNode;
+    const parts = absPath.split('/').filter(Boolean);
+    let curr = rootNode;
+    for (const part of parts) {
+      if (curr.type !== 'directory' || !curr.children || !curr.children[part]) return null;
+      curr = curr.children[part];
+    }
+    return curr;
+  }
+
+  private async getNodeHash(node: VfsNode): Promise<string> {
+    const json = JSON.stringify(node);
+    const enc = new TextEncoder();
+    const buffer = await crypto.subtle.digest('SHA-256', enc.encode(json));
+    return '0x' + Array.from(new Uint8Array(buffer)).map((b) => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  public async verifySectorHash(sectorPath: string): Promise<boolean> {
+    const currentHash = await this.getSectorHash(sectorPath);
+    const refNode = this.getNodeFromRoot(this.referenceMatrix, sectorPath);
+    if (!refNode) return false;
+    const refHash = await this.getNodeHash(refNode);
+    return currentHash === refHash;
+  }
+
+  public async triggerAutoRecovery(sectorPath: string): Promise<boolean> {
+    this.hotSwapSectorFromReference(sectorPath);
+    await this.save();
+    return true;
+  }
 }
 
 export const vfs = new VfsService();
+export const vfsService = vfs;
 

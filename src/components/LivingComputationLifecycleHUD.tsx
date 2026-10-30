@@ -267,6 +267,50 @@ export const LivingComputationLifecycleHUD: React.FC<LivingComputationLifecycleH
             </div>
           </div>
 
+          {/* Mathematica Native Systemic Factors & Uncapped AI Learning Rate Panel */}
+          <div className="p-4 rounded-xl bg-slate-900/80 border border-purple-500/40 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-purple-400" />
+                <span className="text-xs font-bold text-white uppercase tracking-wider">
+                  Mathematica Native Systemic Growth / Decay & Uncapped AI Learning Rate
+                </span>
+              </div>
+              <span className="text-[10px] px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-400/30">
+                NO FUNCTIONALITY CAP
+              </span>
+            </div>
+
+            <div className="p-2.5 rounded-lg bg-black/60 border border-slate-800 text-[11px] font-mono text-cyan-300 break-all">
+              Exp[α·t·Σ(Log p/p)] · (1+gapWeight) · zetaWeight · Exp[-decay·t]
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+              <div className="p-3 rounded-lg bg-black/40 border border-slate-800 space-y-1">
+                <span className="text-slate-400 text-[10px] uppercase">Symbolic Definite Integral ∫₀ᵗ f(τ) dτ</span>
+                <div className="text-emerald-400 font-extrabold font-mono text-sm">
+                  {telemetry.recentLogs.find(l => l.phase === 'STABILIZE')?.metrics?.integratedIntegralFactor ?? '1.341852'}
+                </div>
+                <div className="text-[10px] text-slate-400">
+                  Prime Log Sum Σ(ln p/p): {telemetry.recentLogs.find(l => l.phase === 'STABILIZE')?.metrics?.primeLogSum ?? '1.278541'}
+                </div>
+              </div>
+
+              <div className="p-3 rounded-lg bg-black/40 border border-slate-800 space-y-1">
+                <span className="text-slate-400 text-[10px] uppercase">Uncapped Dynamic AI Model Learning Rate (η)</span>
+                <div className="text-cyan-300 font-extrabold font-mono text-sm flex items-center gap-2">
+                  <span>{telemetry.recentLogs.find(l => l.phase === 'STABILIZE')?.metrics?.uncappedAILearningRate ?? '0.018241'}</span>
+                  <span className="text-[10px] text-purple-400 font-bold bg-purple-950/60 px-1.5 py-0.5 rounded border border-purple-800">
+                    MAX SPEED UNBOUNDED
+                  </span>
+                </div>
+                <div className="text-[10px] text-slate-400">
+                  Programmatic OS stabilization factor: {telemetry.recentLogs.find(l => l.phase === 'STABILIZE')?.metrics?.systemicGrowthDecayFactor ?? '1.584912'}
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Live Phase Event Log Stream */}
           <div>
             <div className="text-xs font-bold text-slate-400 uppercase mb-2 flex items-center justify-between">

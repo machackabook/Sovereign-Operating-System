@@ -105,7 +105,7 @@ test('Every iteration confirms that all GitHub and AI Studio options are seamles
   assert.ok(telemetry.aiStudioGitHubDigest);
 });
 
-test('Subsystem verification pass confirms all 18 options are functioning together without error', () => {
+test('Subsystem verification pass confirms all 26 options are functioning together without error', () => {
   const result = githubAiStudioSyncService.verifyAllOptions();
   assert.equal(result.success, true);
   assert.equal(result.conflicts, 0);

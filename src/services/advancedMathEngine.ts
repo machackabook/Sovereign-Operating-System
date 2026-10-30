@@ -3,8 +3,11 @@
  * 
  * Incorporates polynomial root extraction (specifically 4x² - 5x - 12 = 0),
  * Hamiltonian phase-space orbital attractors, Clifford bivector algebra,
- * and robust fault-tolerant argument parsing ("compute the parts out there are an invalid argument, and run the rest").
+ * Mathematica native prime-zeta symbolic integration,
+ * and robust fault-tolerant argument parsing.
  */
+
+import { SovereignSentinelCore } from './sovereignSentinelCore';
 
 export interface QuadraticResult {
   equation: string;
@@ -101,7 +104,29 @@ class AdvancedMathEngine {
       const clean = raw.trim();
       if (!clean) continue;
 
-      // 1. Check for quadratic formula trigger: e.g. "4x^2-5x-12=0" or "quadratic:4,-5,-12"
+      // 1. Check for Mathematica Prime-Zeta / Systemic Decay expression: Exp[alpha*t*Sum[Log p/p]] * (1+gapWeight) * zetaWeight * Exp[-decay*t]
+      if (/Exp|Sum\[Log|gapWeight|zetaWeight|decay/i.test(clean)) {
+        try {
+          const res = SovereignSentinelCore.calculateSystemicFactors({
+            alpha: 0.12,
+            t: 1.0,
+            gapWeight: 0.08,
+            zetaWeight: 1.41421356,
+            decay: 0.05,
+            baseLearningRate: 0.01,
+          });
+          computedResults.push({
+            input: clean,
+            output: `Integral = ${res.integratedFactor.toFixed(6)} | Point f(t) = ${res.factor.toFixed(6)} | PrimeLogSum = ${res.primeLogSum.toFixed(6)} | Uncapped LR = ${res.uncappedLearningRate.toFixed(6)}`,
+            category: 'MATHEMATICA_NATIVE_INTEGRAL'
+          });
+        } catch {
+          invalidArguments.push(clean);
+        }
+        continue;
+      }
+
+      // 2. Check for quadratic formula trigger: e.g. "4x^2-5x-12=0" or "quadratic:4,-5,-12"
       if (/quadratic/i.test(clean) || /x\^2|x²/i.test(clean)) {
         try {
           const match = clean.match(/(-?\d*\.?\d*)\s*x[\^²]2\s*([+-]?\s*\d*\.?\d*)\s*x\s*([+-]?\s*\d*\.?\d*)/i);

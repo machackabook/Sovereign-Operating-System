@@ -71,6 +71,9 @@ export const IntegrityLedgerModal: React.FC<IntegrityLedgerModalProps> = ({
 
   const loadAndVerifyAll = useCallback(async () => {
     setIsLoading(true);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('gaia:ledger-scan-started'));
+    }
     const t0 = performance.now();
     try {
       let rawReceipts = await getAllReceipts();
@@ -99,6 +102,9 @@ export const IntegrityLedgerModal: React.FC<IntegrityLedgerModalProps> = ({
       showNotification('Failed to access IndexedDB integrity vault', 'error');
     } finally {
       setIsLoading(false);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('gaia:ledger-scan-completed'));
+      }
     }
   }, [envState]);
 

@@ -47,7 +47,7 @@ test('Interoperable Osmosis arbitrates conflicts to guarantee operational status
   assert.equal(evConflict.value, 'DEFAULT_OPERATIONAL_FALLBACK');
 });
 
-test('System Automated Self-Evaluation Check passes 100% across all 8 diagnostic checks', () => {
+test('System Automated Self-Evaluation Check passes 100% across all 9 diagnostic checks', () => {
   const report = hyperbolicFusionOsmosisEngine.runSelfEvalCheck();
   assert.equal(report.passed, true);
   assert.equal(report.scorePercent, 100);

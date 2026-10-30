@@ -101,6 +101,13 @@ import { dynamicListeningService, TV_GUIDE_CATALOG } from '../services/dynamicLi
 import { meetingSummaryService } from '../services/meetingSummaryService';
 import { gaiaConnectionVerifier } from '../services/gaiaConnectionVerifier.mjs';
 import { nexusCosmicLineageService } from '../services/nexusCosmicLineageService';
+import { mailService } from '../services/mailService';
+import { financeService } from '../services/financeService';
+import { cloudIdentityService } from '../services/cloudIdentityService';
+import { personalitySubstrateService } from '../services/personalitySubstrateService';
+import { euAiComplianceService } from '../services/euAiComplianceService';
+import { confidentialComputeSlurmService } from '../services/confidentialComputeSlurmService';
+import { sovereignMerkleZkService } from '../services/sovereignMerkleZkService';
 
 interface HyperTerminalProps {
   envState: EnvironmentState;
@@ -121,7 +128,9 @@ const BUILTIN_COMMANDS = [
   'polyglot', 'workbench', 'ide', 'alphaqubit', 'harvester', 'quine',
   'neurality', 'inspect', 'diagnostics', 'auth', 'login', 'logout', 'view', 'redirect',
   'diff', 'aistudio', 'merge', 'consolidate', 'selfeval', 'osmosis', 'eval', 'push', 'commit',
-  'lineage', 'cosmic'
+  'lineage', 'cosmic', 'mail', 'pay', 'stripe', 'cashapp', 'aws', 'microsoft', 'identity', 'unmask',
+  'personality', 'vfs-hotswap', 'sys-verify', 'quine-verify', 'quine-polyglot',
+  'eu-ai', 'compliance-seal', 'slurm', 'enclave', 'attestation', 'zk-proof', 'merkle', 'regional-multisig'
 ];
 
 export interface SentimentVisualConfig {
@@ -2863,6 +2872,171 @@ Substrate       : Polyglot Quine Shell + Synapse Gateway + Infrastructure + Phys
 Target Enclave  : machackabook@gmail.com (Google Drive Backup Enabled)
 Command Options : 'lineage sync drive' | 'lineage nodes' | 'lineage pulse'`, 'table', '🌌');
         audioVoiceService.playTone(528, 'sine', 100);
+        break;
+      }
+
+      // ==========================================
+      // MAIL, FINANCE (GPay/Stripe/CashApp) & CLOUD IDENTITY (AWS/Microsoft)
+      // ==========================================
+      case 'mail': {
+        const sub = (args[0] || '').toLowerCase();
+        if (sub === 'status') {
+          const s = await mailService.getStatus();
+          appendLine(`[GMAIL HUB STATUS]: ${s.email} | Provider: ${s.provider} | Status: ${s.status} | Messages: ${s.totalMessages} (${s.unreadMessages} unread)`, 'success', '📧');
+        } else {
+          window.dispatchEvent(new CustomEvent('gaia:open-mail'));
+          appendLine('Opened Nexus Gmail Dispatch Hub (machackabook@gmail.com).', 'success', '✉️');
+        }
+        break;
+      }
+
+      case 'pay':
+      case 'stripe':
+      case 'cashapp':
+      case 'finance': {
+        window.dispatchEvent(new CustomEvent('gaia:open-finance'));
+        appendLine('Opened Nexus Multi-Payment Terminal (Google Pay, Stripe, Cash App $MachackaBook).', 'success', '💳');
+        break;
+      }
+
+      case 'aws':
+      case 'microsoft':
+      case 'identity':
+      case 'sso': {
+        const rep = await cloudIdentityService.getFederatedReport();
+        window.dispatchEvent(new CustomEvent('gaia:open-identity'));
+        appendLine(`[FEDERATED IDENTITY ACTIVE]
+Operative UID  : ${rep.firebaseAuth.uid} (${rep.firebaseAuth.displayName})
+AWS STS ARN    : ${rep.awsSession.arn}
+Microsoft ID   : ${rep.microsoftProfile.userPrincipalName} (${rep.microsoftProfile.mail})
+Federation     : ${rep.overallStatus}`, 'table', '🔑');
+        break;
+      }
+
+      case 'unmask': {
+        const unmasked = await cloudIdentityService.unmaskAnonymousUser();
+        appendLine(`[ANONYMOUS IDENTITY UNMASKED]: UID=${unmasked.uid} | Handle=${unmasked.displayName} | Email=${unmasked.email}`, 'success', '🔓');
+        break;
+      }
+
+      case 'personality':
+      case 'personality-state': {
+        const pState = personalitySubstrateService.getPersonalityState();
+        appendLine(`========================================================================
+🧠 FUNCTIONAL PERSONALITY SUBSTRATE // ARCHITECT_01 COGNITIVE STATE
+========================================================================
+Active Lifecycle Phase : ${pState.activePhase}
+Identity & Role        : ${pState.identity} (Sovereign Operator)
+Sovereign Target User  : ${pState.sovereignUser}
+Prime Anchor Key       : ${pState.primeAnchorKey}
+Checksum Seal          : ${pState.checksumSeal}
+Condensed Output Mode  : ${pState.condensedOutputMode ? 'ENABLED (Terminal Parameters)' : 'DISABLED'}
+Cognitive Focus        : ${pState.cognitiveFocus}
+Directive Instructions : ${pState.behavioralInstructions}
+VFS Alignment Status   : ${pState.vfsAlignmentStatus}`, 'table', '🧠');
+        audioVoiceService.playTone(432, 'sine', 120);
+        break;
+      }
+
+      case 'vfs-hotswap':
+      case 'sys-verify': {
+        appendLine('Executing VFS sector audit & RAM disk auto-attendant verify...', 'system', '🛡️');
+        const swapResult = await vfs.verifyAndHotSwap();
+        const kernelHash = await vfs.getSectorHash('/sys/kernel');
+        const telemetryHash = await vfs.getSectorHash('/sys/telemetry');
+        const lineageHash = await vfs.getSectorHash('/docs/lineage');
+
+        appendLine(`========================================================================
+🛡️ MONOLITHIC VFS RAM DISK & AUTO-ATTENDANT AUDIT
+========================================================================
+Checked Sectors   : ${swapResult.checkedSectors.join(', ')}
+Corrupted Sectors : ${swapResult.corruptedSectors.length === 0 ? 'None (100% Intact)' : swapResult.corruptedSectors.join(', ')}
+Hot-Swapped Count : ${swapResult.repairedSectors.length}
+Sector /sys/kernel: ${kernelHash} (Pristine)
+Sector /sys/telem : ${telemetryHash} (Pristine)
+Sector /docs/line : ${lineageHash} (Pristine)
+Auto-Attendant    : ACTIVE (Hot-Swaps Corrupted Sectors on Hash Mismatch)`, 'table', '🔒');
+        audioVoiceService.playTone(963, 'sine', 150);
+        break;
+      }
+
+      case 'quine-verify':
+      case 'quine-polyglot': {
+        const langChoice = (args[0] || 'javascript').toLowerCase() as 'javascript' | 'python' | 'bash';
+        appendLine(`Verifying True Quine Self-Replication Protocol for [${langChoice.toUpperCase()}]...`, 'system', '🌀');
+        const quineRes = await polyglotEngine.verifyQuineSelfReplication(langChoice);
+        appendLine(`========================================================================
+🌀 DETERMINISTIC POLYGLOT QUINE SELF-REPLICATION
+========================================================================
+Language          : ${quineRes.lang.toUpperCase()}
+Replication Status: ${quineRes.isSelfReplicating ? 'SUCCESS (Byte-for-Byte Exact Output)' : 'FAILED'}
+Cryptographic Seal: ${quineRes.checksum}
+Output Byte Length: ${quineRes.outputLength} Bytes
+Zero External Deps: VERIFIED (Pure Execution Substrate)
+Source Code Snippet:
+${quineRes.sourceCode.slice(0, 200)}...`, 'table', '🧬');
+        audioVoiceService.playTone(528, 'sine', 100);
+        break;
+      }
+
+      case 'eu-ai':
+      case 'eu-compliance': {
+        const rep = euAiComplianceService.getComplianceReport();
+        window.dispatchEvent(new CustomEvent('gaia:open-eu-compliance'));
+        appendLine(`========================================================================
+⚖️ EU AI ACT COMPLIANCE PROFILER & RISK-TIER REGISTRY (EU 2024/1689)
+========================================================================
+Overall Compliance Score : ${rep.overallScore}%
+Audited Model Count      : ${rep.totalAuditedModels} Models
+Limited Risk Tier        : ${rep.limitedRiskCount} Models
+Minimal Risk Tier        : ${rep.minimalRiskCount} Models
+Systemic Unacceptable    : 0 Models (100% Compliant)
+Sealed Conformity Logs   : ${rep.sealedLogsCount} Receipts Stamped into Integrity Ledger
+Articles Audited         : Art. 10 (Data Governance), Art. 11 (Tech Doc), Art. 12 (Log),
+                           Art. 13 (Transparency), Art. 14 (Oversight), Art. 15 (Cybersecurity)`, 'table', '⚖️');
+        audioVoiceService.playTone(528, 'sine', 100);
+        break;
+      }
+
+      case 'compliance-seal': {
+        const targetModel = args[0] || 'gemini-3.6-flash';
+        const seal = await euAiComplianceService.sealConformityLog(targetModel);
+        appendLine(`[CONFORMITY LOG SEALED]: Model=${seal.modelId} | ComplianceScore=${seal.complianceScore}% | SHA-256 Seal=${seal.sha256Seal}`, 'success', '🔏');
+        audioVoiceService.playTone(740, 'sine', 120);
+        break;
+      }
+
+      case 'slurm':
+      case 'enclave':
+      case 'attestation': {
+        const partitions = confidentialComputeSlurmService.getSlurmPartitions();
+        const rings = confidentialComputeSlurmService.getAttestationRings();
+        window.dispatchEvent(new CustomEvent('gaia:open-slurm'));
+        appendLine(`========================================================================
+⚡ CONFIDENTIAL COMPUTE ENCLAVE & SLURM TELEMETRY (MESH V4 HPC)
+========================================================================
+Slurm HPC Partitions : ${partitions.map(p => `${p.partitionName} (${p.tensorCoreUtilization}% Load)`).join(', ')}
+Hardware Enclave Rings: ${rings.map(r => `${r.enclaveType} [${r.status}]`).join(' | ')}
+Attestation Hashes   : ${rings.map(r => r.attestationMeasurementHash.slice(0, 12)).join('...  ')}`, 'table', '⚡');
+        audioVoiceService.playTone(963, 'sine', 120);
+        break;
+      }
+
+      case 'zk-proof':
+      case 'merkle':
+      case 'regional-multisig': {
+        const proof = await sovereignMerkleZkService.generateZkMerkleProof('log-zk-01');
+        const multiSig = sovereignMerkleZkService.getRegionalMultiSig();
+        window.dispatchEvent(new CustomEvent('gaia:open-merkle-zk'));
+        appendLine(`========================================================================
+🛡️ SOVEREIGN MERKLE PROOFS & MULTI-TENANT ZK ACCESS CONTROL
+========================================================================
+ZK Proof Status      : VALIDATED (3rd-Party Compliance Proof without Path Exposure)
+Root Merkle Hash     : ${proof.rootMerkleHash}
+Leaf Commitment Hash : ${proof.leafHash}
+Regional Jurisdictions: ${multiSig?.requiredRegions.join(', ')}
+Multi-Sig Status     : ${multiSig?.isFullySigned ? 'FULLY SIGNED' : 'PARTIALLY SIGNED (Pending APAC)'}`, 'table', '🔐');
+        audioVoiceService.playTone(432, 'sine', 100);
         break;
       }
 

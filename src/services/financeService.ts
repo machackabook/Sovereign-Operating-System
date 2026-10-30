@@ -46,7 +46,8 @@ export const FINANCE_CATALOG: PaymentItem[] = [
     name: 'Sovereign Contributor Seed',
     description: 'Direct backing to ecosystem maintainer machackabook@gmail.com',
     amount: 1000, // $10.00
-    currency: 'DIRECT_CONTRIBUTION',
+    currency: 'USD',
+    category: 'DIRECT_CONTRIBUTION',
   },
 ];
 

@@ -21,6 +21,12 @@ import { SystemDockBar } from './components/SystemDockBar';
 import { CommandPaletteModal } from './components/CommandPaletteModal';
 import { LivingComputationLifecycleHUD } from './components/LivingComputationLifecycleHUD';
 import { NexusCosmicLineageModal } from './components/NexusCosmicLineageModal';
+import { MailHubModal } from './components/MailHubModal';
+import { FinanceHubModal } from './components/FinanceHubModal';
+import { CloudIdentityModal } from './components/CloudIdentityModal';
+import { EUAIActComplianceModal } from './components/EUAIActComplianceModal';
+import { ConfidentialComputeSlurmModal } from './components/ConfidentialComputeSlurmModal';
+import { SovereignMerkleZkModal } from './components/SovereignMerkleZkModal';
 import { metadataPersistenceService } from './services/metadataPersistenceService';
 import { voiceAuthGateService } from './services/voiceAuthGateService';
 import { openSystemPage } from './services/nexusSystemRouter.mjs';
@@ -121,6 +127,12 @@ export function App() {
   const [isLogViewerOpen, setIsLogViewerOpen] = useState(false);
   const [isLifecycleOpen, setIsLifecycleOpen] = useState(false);
   const [isLineageOpen, setIsLineageOpen] = useState(false);
+  const [isMailOpen, setIsMailOpen] = useState(false);
+  const [isFinanceOpen, setIsFinanceOpen] = useState(false);
+  const [isIdentityOpen, setIsIdentityOpen] = useState(false);
+  const [isEuComplianceOpen, setIsEuComplianceOpen] = useState(false);
+  const [isSlurmOpen, setIsSlurmOpen] = useState(false);
+  const [isMerkleZkOpen, setIsMerkleZkOpen] = useState(false);
 
   // Sync canvas mode toggle with HyperTerminal
   const handleToggleCanvas = useCallback(() => {
@@ -189,7 +201,17 @@ export function App() {
     const handleOpenLifecycle = () => setIsLifecycleOpen(true);
     const handleToggleLineage = () => setIsLineageOpen(prev => !prev);
     const handleOpenLineage = () => setIsLineageOpen(true);
+    const handleToggleMail = () => setIsMailOpen(prev => !prev);
+    const handleOpenMail = () => setIsMailOpen(true);
+    const handleToggleFinance = () => setIsFinanceOpen(prev => !prev);
+    const handleOpenFinance = () => setIsFinanceOpen(true);
+    const handleToggleIdentity = () => setIsIdentityOpen(prev => !prev);
+    const handleOpenIdentity = () => setIsIdentityOpen(true);
+    const handleOpenEuCompliance = () => setIsEuComplianceOpen(true);
+    const handleOpenSlurm = () => setIsSlurmOpen(true);
+    const handleOpenMerkleZk = () => setIsMerkleZkOpen(true);
     const handleUnlockAllPaths = () => voiceAuthGateService.unlockAllPaths(true);
+
     window.addEventListener('gaia:toggle-meet', handleToggleMeet);
     window.addEventListener('gaia:toggle-atc', handleToggleAtc);
     window.addEventListener('gaia:toggle-listening', handleToggleListening);
@@ -201,6 +223,15 @@ export function App() {
     window.addEventListener('gaia:open-lifecycle', handleOpenLifecycle);
     window.addEventListener('gaia:toggle-lineage-map', handleToggleLineage);
     window.addEventListener('gaia:open-lineage-map', handleOpenLineage);
+    window.addEventListener('gaia:toggle-mail', handleToggleMail);
+    window.addEventListener('gaia:open-mail', handleOpenMail);
+    window.addEventListener('gaia:toggle-finance', handleToggleFinance);
+    window.addEventListener('gaia:open-finance', handleOpenFinance);
+    window.addEventListener('gaia:toggle-identity', handleToggleIdentity);
+    window.addEventListener('gaia:open-identity', handleOpenIdentity);
+    window.addEventListener('gaia:open-eu-compliance', handleOpenEuCompliance);
+    window.addEventListener('gaia:open-slurm', handleOpenSlurm);
+    window.addEventListener('gaia:open-merkle-zk', handleOpenMerkleZk);
     window.addEventListener('gaia:unlock-all-paths', handleUnlockAllPaths);
 
     window.addEventListener('keydown', handleKeyDown);
@@ -217,6 +248,12 @@ export function App() {
       window.removeEventListener('gaia:open-lifecycle', handleOpenLifecycle);
       window.removeEventListener('gaia:toggle-lineage-map', handleToggleLineage);
       window.removeEventListener('gaia:open-lineage-map', handleOpenLineage);
+      window.removeEventListener('gaia:toggle-mail', handleToggleMail);
+      window.removeEventListener('gaia:open-mail', handleOpenMail);
+      window.removeEventListener('gaia:toggle-finance', handleToggleFinance);
+      window.removeEventListener('gaia:open-finance', handleOpenFinance);
+      window.removeEventListener('gaia:toggle-identity', handleToggleIdentity);
+      window.removeEventListener('gaia:open-identity', handleOpenIdentity);
       window.removeEventListener('gaia:unlock-all-paths', handleUnlockAllPaths);
     };
   }, [handleToggleCanvas]);
@@ -327,6 +364,42 @@ export function App() {
         <NexusCosmicLineageModal
           isOpen={isLineageOpen}
           onClose={() => setIsLineageOpen(false)}
+        />
+
+        {/* Gmail API & Sovereign Mail Dispatch Hub */}
+        <MailHubModal
+          isOpen={isMailOpen}
+          onClose={() => setIsMailOpen(false)}
+        />
+
+        {/* Multi-Gateway Finance & Payment Hub (Google Pay, Stripe, Cash App) */}
+        <FinanceHubModal
+          isOpen={isFinanceOpen}
+          onClose={() => setIsFinanceOpen(false)}
+        />
+
+        {/* Federated Cloud SSO & Identity Manager (AWS STS, Microsoft Entra ID) */}
+        <CloudIdentityModal
+          isOpen={isIdentityOpen}
+          onClose={() => setIsIdentityOpen(false)}
+        />
+
+        {/* EU AI Act Compliance Profiler & Risk-Tier Registry */}
+        <EUAIActComplianceModal
+          isOpen={isEuComplianceOpen}
+          onClose={() => setIsEuComplianceOpen(false)}
+        />
+
+        {/* Confidential Compute Enclave & Slurm Orchestration Telemetry */}
+        <ConfidentialComputeSlurmModal
+          isOpen={isSlurmOpen}
+          onClose={() => setIsSlurmOpen(false)}
+        />
+
+        {/* Sovereign Merkle Proofs & Multi-Tenant ZK Access Control */}
+        <SovereignMerkleZkModal
+          isOpen={isMerkleZkOpen}
+          onClose={() => setIsMerkleZkOpen(false)}
         />
       </div>
       )}

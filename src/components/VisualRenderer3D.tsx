@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import * as THREE from 'three';
+import * as THREE from 'three/webgpu';
 import { EnvironmentState, VfsNode, SentimentType } from '../types';
 import { audioVoiceService } from '../services/audioVoiceService';
 import { vfs } from '../services/vfsService';
@@ -13,6 +13,8 @@ import { pllmSensorAgent } from '../services/pllmSensorAgent.mjs';
 import { axsResourceGovernor, octaveTrace } from '../services/axsResourceGovernor.mjs';
 import { advancedMathEngine } from '../services/advancedMathEngine';
 import { alphaFoldService, ProteinModel } from '../services/alphaFoldService';
+import { BackgroundEvolutionEngine } from '../services/backgroundEvolutionEngine';
+import { BathymetricPicFaceEngine } from '../services/bathymetricPicFaceEngine';
 
 export interface SentimentPaletteConfig {
   primary: THREE.Color;
@@ -205,11 +207,10 @@ export const VisualRenderer3D: React.FC<VisualRenderer3DProps> = ({ envState, on
     camera.rotation.order = 'YXZ';
 
     const isHeadless = navigator.webdriver || /HeadlessChrome/i.test(navigator.userAgent);
-    const renderer = new THREE.WebGLRenderer({
+    const renderer = new THREE.WebGPURenderer({
       antialias: !isHeadless,
       alpha: true,
-      powerPreference: 'high-performance',
-      preserveDrawingBuffer: true,
+      forceWebGL: false, // Prefer WebGPU
     });
     renderer.setSize(width, height);
     renderer.setPixelRatio(isHeadless ? 1 : Math.min(window.devicePixelRatio, 2));
@@ -999,6 +1000,12 @@ export const VisualRenderer3D: React.FC<VisualRenderer3DProps> = ({ envState, on
     let activePixelRatio = isHeadless ? 1 : Math.min(window.devicePixelRatio || 1, 2);
     pGeo.setDrawRange(0, activeParticleCount);
 
+    // Mount Particle-In-Cell (PIC) Bathymetric Voice Resonator Face Substrate
+    const picFaceMesh = BathymetricPicFaceEngine.initEngine();
+    picFaceMesh.scale.set(40, 40, 40);
+    picFaceMesh.position.set(0, 0, -40);
+    scene.add(picFaceMesh);
+
     // =========================================================================
     // 3D VOID FREQUENCY WAVEFORM MATRIX & AUDIO SPECTRUM HORIZON RIBBON
     // =========================================================================
@@ -1463,6 +1470,9 @@ export const VisualRenderer3D: React.FC<VisualRenderer3DProps> = ({ envState, on
         audioVolume = voiceAudioData.volume;
       }
       smoothedAudio += (audioVolume - smoothedAudio) * 0.22;
+
+      // Update Particle-In-Cell (PIC) Bathymetric Voice Resonator Face Substrate
+      BathymetricPicFaceEngine.updateField(renderer, t, smoothedAudio, 60.0);
 
       // Update 3D Holographic Speech Texture
       const currentActiveWord = voiceAudioData?.activeWord || currentEnv.activeSpeechWord || '';
