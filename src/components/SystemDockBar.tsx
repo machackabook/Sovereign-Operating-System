@@ -21,6 +21,8 @@ import {
   ShieldCheck,
   Zap,
   Compass,
+  FileText,
+  Globe,
 } from 'lucide-react';
 import { EnvironmentState, TerminalDockPosition } from '../types';
 import { voiceAuthGateService } from '../services/voiceAuthGateService';
@@ -98,6 +100,19 @@ export const SystemDockBar: React.FC<SystemDockBarProps> = ({
         >
           <Cpu className="w-3 h-3 text-cyan-400 animate-pulse" />
           <span>SWARM 16K</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            window.dispatchEvent(new CustomEvent('gaia:open-remote-hub'));
+            audioVoiceService.playEarcon('switch');
+          }}
+          className="hidden lg:flex items-center gap-1 text-[11px] text-cyan-400 hover:text-cyan-300 transition cursor-pointer"
+          title="Open Nexus Remote: SSH, ADB, SMB & Mounting Hub"
+        >
+          <Network className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
+          <span>NEXUS REMOTE</span>
         </button>
 
         {/* Divider */}
@@ -219,6 +234,16 @@ export const SystemDockBar: React.FC<SystemDockBarProps> = ({
 
         <button
           type="button"
+          onClick={() => window.dispatchEvent(new CustomEvent('gaia:open-youtube-portal'))}
+          className="px-2 py-0.5 rounded-lg border border-red-500/40 bg-red-950/40 text-red-300 hover:bg-red-900/50 hover:border-red-400 text-[10px] font-bold transition cursor-pointer flex items-center gap-1 shadow-[0_0_10px_rgba(239,68,68,0.25)]"
+          title="Open YouTube Claunch Portal: Interactive Login & Music Selection"
+        >
+          <Globe className="w-3 h-3 text-red-400" />
+          <span className="hidden md:inline">PORTAL</span>
+        </button>
+
+        <button
+          type="button"
           onClick={() => window.dispatchEvent(new CustomEvent('gaia:open-listening'))}
           className="px-2 py-0.5 rounded-lg border border-emerald-500/30 bg-emerald-950/30 text-emerald-300 hover:bg-emerald-900/40 hover:border-emerald-400 text-[10px] font-semibold transition cursor-pointer flex items-center gap-1"
           title="Open Dynamic Acoustic Listening & Shazam Trivia Game"
@@ -235,6 +260,36 @@ export const SystemDockBar: React.FC<SystemDockBarProps> = ({
         >
           <Video className="w-3 h-3" />
           <span className="hidden md:inline">MEET</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new CustomEvent('gaia:toggle-voice-live'))}
+          className="px-2 py-0.5 rounded-lg border border-emerald-500/30 bg-emerald-950/30 text-emerald-300 hover:bg-emerald-900/40 hover:border-emerald-400 text-[10px] font-semibold transition cursor-pointer flex items-center gap-1"
+          title="Open Gemini Voice Live Real-Time Enclave"
+        >
+          <Sparkles className="w-3 h-3 text-emerald-400" />
+          <span className="hidden md:inline">VOICE</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new CustomEvent('gaia:toggle-transcription'))}
+          className="px-2 py-0.5 rounded-lg border border-cyan-500/30 bg-cyan-950/30 text-cyan-300 hover:bg-cyan-900/40 hover:border-cyan-400 text-[10px] font-semibold transition cursor-pointer flex items-center gap-1"
+          title="Open Audio Transcription Substrate"
+        >
+          <FileText className="w-3 h-3 text-cyan-400" />
+          <span className="hidden md:inline">TRANSCR</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new CustomEvent('gaia:toggle-entropy-panel'))}
+          className="px-2 py-0.5 rounded-lg border border-rose-500/30 bg-rose-950/30 text-rose-300 hover:bg-rose-900/40 hover:border-rose-400 text-[10px] font-semibold transition cursor-pointer flex items-center gap-1"
+          title="Open Quantum Entropy Metrics Panel"
+        >
+          <Zap className="w-3 h-3 text-rose-400" />
+          <span className="hidden md:inline">ENTROPY</span>
         </button>
 
         <button
@@ -360,6 +415,21 @@ export const SystemDockBar: React.FC<SystemDockBarProps> = ({
         >
           <Eye className="w-3 h-3" />
           <span>{isCanvasMode ? 'RESTORE' : 'CANVAS'}</span>
+        </button>
+
+        {/* Drone View Toggle */}
+        <button
+          type="button"
+          onClick={() => setEnvState((prev) => ({ ...prev, droneViewActive: !prev.droneViewActive }))}
+          className={`px-2 py-0.5 rounded-lg text-[10px] font-semibold border transition cursor-pointer flex items-center gap-1 ${
+            envState.droneViewActive
+              ? 'bg-purple-500/20 text-purple-300 border-purple-400/60 shadow-[0_0_8px_rgba(168,85,247,0.3)]'
+              : 'bg-black/40 text-slate-400 border-slate-800 hover:text-white'
+          }`}
+          title="Toggle Auto-Orbiting Drone View Camera"
+        >
+          <Video className="w-3 h-3 text-purple-400" />
+          <span>{envState.droneViewActive ? 'DRONE' : 'FIXED'}</span>
         </button>
 
         {/* Quick Spotlight Shortcut */}

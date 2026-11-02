@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { CreditCard, DollarSign, QrCode, CheckCircle2, ShieldCheck, ArrowRight, X, ExternalLink, Receipt, Sparkles } from 'lucide-react';
+import { CreditCard, DollarSign, QrCode, CheckCircle2, ShieldCheck, ArrowRight, X, ExternalLink, Receipt, Sparkles, TrendingUp } from 'lucide-react';
 import { financeService, FINANCE_CATALOG, PaymentItem, TransactionReceipt } from '../services/financeService';
+import { PortfolioTracker } from './PortfolioTracker';
+import { auth } from '../lib/firebase';
 
 interface FinanceHubModalProps {
   isOpen: boolean;
@@ -8,7 +10,7 @@ interface FinanceHubModalProps {
 }
 
 export const FinanceHubModal: React.FC<FinanceHubModalProps> = ({ isOpen, onClose }) => {
-  const [activeTab, setActiveTab] = useState<'GPAY' | 'STRIPE' | 'CASHAPP' | 'RECEIPTS'>('GPAY');
+  const [activeTab, setActiveTab] = useState<'GPAY' | 'STRIPE' | 'CASHAPP' | 'RECEIPTS' | 'PORTFOLIO'>('GPAY');
   const [selectedPlan, setSelectedPlan] = useState<PaymentItem>(FINANCE_CATALOG[0]);
   const [receipts, setReceipts] = useState<TransactionReceipt[]>([]);
   const [processing, setProcessing] = useState(false);
@@ -154,6 +156,17 @@ export const FinanceHubModal: React.FC<FinanceHubModalProps> = ({ isOpen, onClos
           >
             <Receipt className="w-3.5 h-3.5 text-amber-400" />
             Receipts Ledger ({receipts.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('PORTFOLIO')}
+            className={`px-4 py-2 text-xs font-semibold rounded-t-lg transition-colors flex items-center gap-2 ${
+              activeTab === 'PORTFOLIO'
+                ? 'bg-emerald-950/80 text-emerald-300 border-t border-l border-r border-emerald-500/50'
+                : 'text-zinc-400 hover:text-white'
+            }`}
+          >
+            <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />
+            Portfolio
           </button>
         </div>
 
@@ -371,6 +384,11 @@ export const FinanceHubModal: React.FC<FinanceHubModalProps> = ({ isOpen, onClos
                 ))}
               </div>
             </div>
+          )}
+
+          {/* TAB 5: PORTFOLIO */}
+          {activeTab === 'PORTFOLIO' && (
+            <PortfolioTracker userId={auth.currentUser?.uid || 'guest'} />
           )}
         </div>
 

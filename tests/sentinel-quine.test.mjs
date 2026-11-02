@@ -93,6 +93,26 @@ test('🚀 AutopoieticOrchestrator Dynamic Learning Rate Scaling Suite', async (
     assert.ok(acceleratedAudit.learningRate >= initialAudit.learningRate * 1.15);
     assert.ok(acceleratedAudit.adaptivePingIntervalMs <= 1000);
   });
+
+  await t.test('Verifies zero upper ceiling limits (Uncapped Growth) over extended duration', () => {
+    // Current learning rate might be elevated from previous test, that's fine.
+    const startAudit = AutopoieticOrchestrator.getTelemetryAudit();
+    
+    // Run 200 more cycles to see extreme growth
+    for (let i = 0; i < 200; i++) {
+      AutopoieticOrchestrator.processAutopoieticHeartbeat(60.0);
+    }
+    
+    const finalAudit = AutopoieticOrchestrator.getTelemetryAudit();
+    
+    // 1.05^200 is ~17,292. So 0.01 * 17292 is ~172. 
+    // Even if we started higher, it should definitely be > 10.0 if uncapped.
+    // If it were capped at 1.0, it would fail this test.
+    assert.ok(finalAudit.learningRate > 10.0, `Learning rate ${finalAudit.learningRate} should have grown past 10.0 if uncapped`);
+    
+    // Ping interval should be pinned at minimum floor (0.5ms)
+    assert.strictEqual(finalAudit.adaptivePingIntervalMs, 0.5);
+  });
 });
 
 test('The Hamiltonian Test', async (t) => {

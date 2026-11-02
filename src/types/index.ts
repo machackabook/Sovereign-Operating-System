@@ -104,6 +104,9 @@ export interface EnvironmentState {
     accuracy: number;
     timestamp: number;
   };
+  droneViewActive: boolean;
+  droneOrbitSpeed: number;
+  droneViewpoint: 'default' | 'top-down' | 'macro' | 'full';
 }
 
 export type YouTubeCategory = 'lofi' | 'synthwave' | 'ambient' | 'cyberpunk' | 'space' | 'solfeggio' | 'classical' | 'custom';

@@ -12,15 +12,22 @@ import {
   instanceIndex,
   positionLocal,
   varying,
-  Discard,
   modelViewMatrix,
-  cameraProjectionMatrix
+  cameraProjectionMatrix,
+  uint,
+  bitAnd,
+  bitXor,
+  mod,
+  abs,
+  step
 } from 'three/tsl';
 import { BackgroundEvolutionEngine } from './backgroundEvolutionEngine';
 import { AutopoieticOrchestrator } from './autopoieticOrchestrator';
 
 export class BathymetricPicFaceEngine {
-  private static particleCount: number = 65536; // 256x256 high-density grid matrix
+  // Scaling to 1024x1024 = 1,048,576 particles for maximum manifold resolution
+  private static side: number = 1024;
+  private static particleCount: number = BathymetricPicFaceEngine.side * BathymetricPicFaceEngine.side;
   
   private static geometry: THREE.BufferGeometry;
   private static material: any; // NodeMaterial
@@ -36,6 +43,7 @@ export class BathymetricPicFaceEngine {
   private static uLearningRate = uniform(0.01);
   private static uEvolutionVelocity = uniform(1.0);
   private static uActiveMultiplier = uniform(1.0);
+  private static uResolution = uniform(BathymetricPicFaceEngine.side);
 
   /**
    * Initializes the Particle-In-Cell (PIC) Bathymetric manifold via WebGPU Compute
@@ -46,8 +54,8 @@ export class BathymetricPicFaceEngine {
     const positions = new Float32Array(this.particleCount * 3);
     const wavefieldData = new Float32Array(this.particleCount * 2); // [Velocity, Displacement]
 
+    const side = this.side;
     let idx = 0;
-    const side = Math.sqrt(this.particleCount);
 
     for (let i = 0; i < side; i++) {
       for (let j = 0; j < side; j++) {
@@ -72,7 +80,7 @@ export class BathymetricPicFaceEngine {
     this.waveDataAttribute = new THREE.StorageBufferAttribute(wavefieldData, 2);
     this.geometry.setAttribute('waveData', this.waveDataAttribute);
 
-    // 1. Define Compute Node (FDTD Wave Solver)
+    // 1. Define Compute Node (FDTD Wave Solver + Bitwise Logic)
     const waveDataStorage = storage(this.waveDataAttribute, 'vec2', this.particleCount);
 
     this.computeNode = compute(Fn(() => {
@@ -82,13 +90,27 @@ export class BathymetricPicFaceEngine {
       const vel = wave.x;
       const disp = wave.y;
       
+      // Calculate 2D grid coordinates from 1D index
+      const ix = uint(k).mod(uint(this.side));
+      const iy = uint(k).div(uint(this.side));
+
+      // Bitwise Intersection Logic: Targeted to non-rounded edges and perpendicular alignments
+      // Use time-shifted bitwise mask to simulate "moving intersections"
+      const timeShift = uint(this.uTime.mul(4.0));
+      const bitmask = bitAnd(ix.add(timeShift), iy.sub(timeShift));
+      const isIntersection = bitXor(bitmask, uint(0)).greaterThan(uint(0));
+      const bitFactor = mix(float(1.0), float(3.0), float(isIntersection));
+
       // Localized kinetic feedback loop from audio telemetry anchors
-      const forceInput = sin(float(k).mul(0.04).add(this.uTime)).mul(this.uAudioResonance.mul(0.25));
+      // High-intensity "bitwise sparks" at grid intersections
+      const forceInput = sin(float(k).mul(0.04).add(this.uTime)).mul(this.uAudioResonance.mul(0.25)).mul(bitFactor);
       
-      // Conservative multi-body system equations (Symplectic Integration)
+      // FDTD (Finite-Difference Time-Domain) Wave Simulation kernel
+      // Symplectic Integration with bitwise harmonic modulation
+      const dampening = float(0.93).sub(this.uLearningRate.mul(0.1));
       const nextVel = vel.add(forceInput.sub(disp.mul(0.16)).mul(this.uActiveMultiplier));
       const nextDisp = disp.add(nextVel.mul(0.82));
-      const finalVel = nextVel.mul(0.93); // Systemic dampening
+      const finalVel = nextVel.mul(dampening); 
       
       wave.assign(vec2(finalVel, nextDisp));
     })(), this.particleCount);
@@ -97,6 +119,18 @@ export class BathymetricPicFaceEngine {
     const vertexNode = Fn(() => {
       const pos = positionLocal.toVar();
       const waveData = attribute('waveData', 'vec2');
+      const k = instanceIndex;
+      
+      // Calculate 2D grid coordinates for bitwise edge attribution
+      const ix = uint(k).mod(uint(this.side));
+      const iy = uint(k).div(uint(this.side));
+      
+      // Detect perpendicular alignments (grid lines)
+      const isPerpLine = bitAnd(ix, uint(15)).equal(uint(0)).or(bitAnd(iy, uint(15)).equal(uint(0)));
+      
+      // Dynamic intersection logic for vertex attribution
+      const timeShift = uint(this.uTime.mul(4.0));
+      const isIntersection = bitAnd(ix.add(timeShift), iy.sub(timeShift)).greaterThan(uint(0));
       
       // Compute Anthropomorphic Mathematical Geometry
       const headBoundary = exp(float(-1.2).mul(pos.x.mul(pos.x).add(pos.y.mul(pos.y))));
@@ -113,12 +147,19 @@ export class BathymetricPicFaceEngine {
       
       const faceTopology = headBoundary.mul(0.6).sub(eyeLeft.mul(0.3)).sub(eyeRight.mul(0.3)).add(mouthField.mul(talkModulation)).add(treyarchField.mul(this.uAudioResonance));
       
-      // Apply FDTD results to Z-depth
-      pos.z.addAssign(faceTopology.add(waveData.y.mul(0.08)).mul(float(1.0).add(this.uAudioResonance.mul(0.5))));
-      pos.x.addAssign(sin(pos.y.mul(3.0).add(this.uTime)).mul(0.02).mul(this.uAudioResonance));
+      // Apply FDTD results and bitwise displacement
+      const displacement = waveData.y.mul(0.08).add(faceTopology);
+      const bitwiseSpike = mix(float(0.0), float(0.08).mul(this.uAudioResonance), float(isPerpLine).add(float(isIntersection)));
+      
+      pos.z.addAssign(displacement.add(bitwiseSpike).mul(float(1.0).add(this.uAudioResonance.mul(0.5))));
+      
+      // Movement-based intersection attribution
+      const jitter = sin(pos.y.mul(3.0).add(this.uTime)).mul(0.02).mul(this.uAudioResonance);
+      pos.x.addAssign(jitter);
 
-      const vDepth = varying(pos.z, 'vDepth');
-      const vColor = varying(vec3(0.0, float(0.90).add(this.uAudioResonance.mul(0.10)), float(0.6).add(pos.z.mul(0.4))), 'vColor');
+      varying(pos.z, 'vDepth');
+      varying(float(isPerpLine).add(float(isIntersection)), 'vIsEdge');
+      varying(vec3(0.0, float(0.90).add(this.uAudioResonance.mul(0.10)), float(0.6).add(pos.z.mul(0.4))), 'vColor');
 
       return cameraProjectionMatrix.mul(modelViewMatrix).mul(vec3(pos));
     });
@@ -126,9 +167,15 @@ export class BathymetricPicFaceEngine {
     const fragmentNode = Fn(() => {
       const vColor = varying(vec3(), 'vColor');
       const vDepth = varying(float(), 'vDepth');
+      const vIsEdge = varying(float(), 'vIsEdge');
       
       // Transition from emerald neon to deep binary cyan
-      const finalColor = mix(vColor, vec3(0.0, 0.95, 1.0), clamp(vDepth.mul(1.5), 0.0, 1.0));
+      let finalColor = mix(vColor, vec3(0.0, 0.95, 1.0), clamp(vDepth.mul(1.5), 0.0, 1.0));
+      
+      // Highlight "Bitwise" intersections and perpendicular lines
+      // Intense cyan sparks at bitwise intersections
+      const edgeHighlight = vec3(0.0, 1.0, 0.9).mul(this.uAudioResonance.mul(3.0));
+      finalColor = mix(finalColor, edgeHighlight, clamp(vIsEdge.mul(this.uAudioResonance), 0.0, 1.0));
       
       return vec3(finalColor);
     });
@@ -168,3 +215,4 @@ export class BathymetricPicFaceEngine {
     }
   }
 }
+

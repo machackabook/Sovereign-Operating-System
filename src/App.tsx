@@ -35,61 +35,76 @@ import { SystemSelfTest } from './components/SystemSelfTest';
 import { SystemLogViewer } from './components/SystemLogViewer';
 import { DEFAULT_RGB_LED_CONFIG } from './services/colorProfileService';
 import { DEFAULT_YOUTUBE_STATE } from './services/youtubeService';
+import { GeminiLiveInterface } from './components/GeminiLiveInterface';
+import { AudioTranscriptionTool } from './components/AudioTranscriptionTool';
+import { QuantumEntropyPanel } from './components/QuantumEntropyPanel';
+import { BiometricGateway } from './components/BiometricGateway';
+import { YouTubePortal } from './components/YouTubePortal';
+import { NexusRemoteHub } from './components/NexusRemoteHub';
+
 
 const DEFAULT_ENV_STATE: EnvironmentState = {
-  topology: 'torus',
-  sentiment: 'creative',
-  primaryColor: '#c084fc',
-  secondaryColor: '#00f2ff',
-  speed: 1.05,
-  gravity: 1.2,
-  turbulence: 0.5,
+  topology: 'singularity',
+  sentiment: 'cyberpunk',
+  primaryColor: '#00f2ff',
+  secondaryColor: '#ff007f',
+  speed: 1.25,
+  gravity: 1.5,
+  turbulence: 0.8,
   cameraDistance: 140,
-  floatingGlyph: '✨',
-  activeSpeechText: 'HyperPolyglot visual and terminal interface ready. Live AI depends on an authenticated provider.',
+  floatingGlyph: '🛸',
+  activeSpeechText: 'HyperPolyglot Ultra-High Fidelity System Active. All subsystems initialized to performance baseline.',
   activeSpeechWord: '',
-  activeSpeechTone: 'Harmonic & Adaptive',
+  activeSpeechTone: 'Sovereign & Resonant',
   neuralityAuto: true,
   voiceActive: true,
-  voicePitch: 1.15,
-  voiceRate: 1.02,
+  voicePitch: 1.1,
+  voiceRate: 1.0,
   voiceName: '',
   voiceProfile: 'gemini_female',
   solfeggio963: false,
-  wireframe: true,
-  bloomIntensity: 1.2,
-  audioReactiveLevel: 1.0,
-  terminalOpacity: 0.85,
+  wireframe: false,
+  bloomIntensity: 2.2,
+  audioReactiveLevel: 1.2,
+  terminalOpacity: 0.9,
   terminalDock: 'center',
   highContrast: false,
   chromeVoxEnabled: false,
   ambientSoundscape: false,
-  ambientVolume: 0.35,
-  harmonicResonance: '432',
+  ambientVolume: 0.1,
+  harmonicResonance: '963',
   mountedDevices: [],
   rgbLed: DEFAULT_RGB_LED_CONFIG,
-  youtube: DEFAULT_YOUTUBE_STATE,
+  youtube: {
+    ...DEFAULT_YOUTUBE_STATE,
+    active: true,
+    blendWith3D: true,
+    displayMode: 'background'
+  },
   macros: {},
   d3Stream: {
-    active: false,
+    active: true,
     shape: 'force',
-    title: 'Orbital Mesh Telemetry Stream',
-    packetRate: 0,
-    throughputMbps: 0,
-    nodeCount: 0,
-    linkTension: 0.7,
-    jitterMs: 0,
+    title: 'High-Fidelity Telemetry Stream',
+    packetRate: 120,
+    throughputMbps: 850,
+    nodeCount: 1024,
+    linkTension: 0.75,
+    jitterMs: 1.2,
     packetLossPct: 0,
     palette: 'cyan',
-    geminiTelemetrySummary: 'No verified network telemetry source is connected.',
-    showPanel: false,
-    lastCommand: 'idle',
-    intensity: 1.0,
+    geminiTelemetrySummary: 'Performance baseline verified. All neural links operational.',
+    showPanel: true,
+    lastCommand: 'sys_init',
+    intensity: 1.2,
   },
+  droneViewActive: true,
+  droneOrbitSpeed: 1.4,
+  droneViewpoint: 'default',
 };
 
 export function App() {
-  const STORAGE_KEY = 'hyperterminal_env_state_v1';
+  const STORAGE_KEY = 'hyperterminal_env_state_v2_performance';
 
   // Global Environment State governing the 100% Background Visual Renderer & Terminal
   const [envState, setEnvState] = useState<EnvironmentState>(() => {
@@ -133,6 +148,13 @@ export function App() {
   const [isEuComplianceOpen, setIsEuComplianceOpen] = useState(false);
   const [isSlurmOpen, setIsSlurmOpen] = useState(false);
   const [isMerkleZkOpen, setIsMerkleZkOpen] = useState(false);
+  const [isVoiceLiveOpen, setIsVoiceLiveOpen] = useState(false);
+  const [isTranscriptionOpen, setIsTranscriptionOpen] = useState(false);
+  const [isEntropyPanelOpen, setIsEntropyPanelOpen] = useState(false);
+  const [isYouTubePortalOpen, setIsYouTubePortalOpen] = useState(false);
+  const [isRemoteHubOpen, setIsRemoteHubOpen] = useState(false);
+  const [isLocked, setIsLocked] = useState(false);
+
 
   // Sync canvas mode toggle with HyperTerminal
   const handleToggleCanvas = useCallback(() => {
@@ -210,7 +232,13 @@ export function App() {
     const handleOpenEuCompliance = () => setIsEuComplianceOpen(true);
     const handleOpenSlurm = () => setIsSlurmOpen(true);
     const handleOpenMerkleZk = () => setIsMerkleZkOpen(true);
+    const handleToggleVoiceLive = () => setIsVoiceLiveOpen(prev => !prev);
+    const handleToggleTranscription = () => setIsTranscriptionOpen(prev => !prev);
+    const handleToggleEntropyPanel = () => setIsEntropyPanelOpen(prev => !prev);
+    const handleToggleYouTubePortal = () => setIsYouTubePortalOpen(prev => !prev);
+    const handleToggleRemoteHub = () => setIsRemoteHubOpen(prev => !prev);
     const handleUnlockAllPaths = () => voiceAuthGateService.unlockAllPaths(true);
+
 
     window.addEventListener('gaia:toggle-meet', handleToggleMeet);
     window.addEventListener('gaia:toggle-atc', handleToggleAtc);
@@ -232,7 +260,13 @@ export function App() {
     window.addEventListener('gaia:open-eu-compliance', handleOpenEuCompliance);
     window.addEventListener('gaia:open-slurm', handleOpenSlurm);
     window.addEventListener('gaia:open-merkle-zk', handleOpenMerkleZk);
+    window.addEventListener('gaia:toggle-voice-live', handleToggleVoiceLive);
+    window.addEventListener('gaia:toggle-transcription', handleToggleTranscription);
+    window.addEventListener('gaia:toggle-entropy-panel', handleToggleEntropyPanel);
+    window.addEventListener('gaia:open-youtube-portal', handleToggleYouTubePortal);
+    window.addEventListener('gaia:open-remote-hub', handleToggleRemoteHub);
     window.addEventListener('gaia:unlock-all-paths', handleUnlockAllPaths);
+
 
     window.addEventListener('keydown', handleKeyDown);
     return () => {
@@ -254,6 +288,11 @@ export function App() {
       window.removeEventListener('gaia:open-finance', handleOpenFinance);
       window.removeEventListener('gaia:toggle-identity', handleToggleIdentity);
       window.removeEventListener('gaia:open-identity', handleOpenIdentity);
+      window.removeEventListener('gaia:toggle-voice-live', handleToggleVoiceLive);
+      window.removeEventListener('gaia:toggle-transcription', handleToggleTranscription);
+      window.removeEventListener('gaia:toggle-entropy-panel', handleToggleEntropyPanel);
+      window.removeEventListener('gaia:open-youtube-portal', handleToggleYouTubePortal);
+      window.removeEventListener('gaia:open-remote-hub', handleToggleRemoteHub);
       window.removeEventListener('gaia:unlock-all-paths', handleUnlockAllPaths);
     };
   }, [handleToggleCanvas]);
@@ -271,6 +310,8 @@ export function App() {
             onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
             onOpenLogs={() => setIsLogViewerOpen(true)}
             healthState={health}
+            isLocked={isLocked}
+            onToggleLock={() => setIsLocked(!isLocked)}
           />
 
         {/* Dynamic YouTube Background Video Player & Content Transition Layer */}
@@ -401,7 +442,46 @@ export function App() {
           isOpen={isMerkleZkOpen}
           onClose={() => setIsMerkleZkOpen(false)}
         />
+
+        {/* Biometric Gateway Overlay */}
+        {isLocked && (
+          <BiometricGateway onUnlock={() => setIsLocked(false)} />
+        )}
+
+        {/* Quantum Entropy Metrics Panel */}
+        <QuantumEntropyPanel
+          isOpen={isEntropyPanelOpen}
+          onClose={() => setIsEntropyPanelOpen(false)}
+          envState={envState}
+        />
+
+        {/* Real-Time Gemini Voice Live Enclave */}
+        {isVoiceLiveOpen && (
+          <div className="fixed bottom-24 right-6 w-96 h-[500px] z-[130] animate-in slide-in-from-right-10 duration-300">
+            <GeminiLiveInterface onClose={() => setIsVoiceLiveOpen(false)} />
+          </div>
+        )}
+
+        {/* Audio Transcription Substrate */}
+        {isTranscriptionOpen && (
+          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[600px] z-[140] animate-in zoom-in-95 duration-200">
+            <AudioTranscriptionTool onClose={() => setIsTranscriptionOpen(false)} />
+          </div>
+        )}
+
+        {/* Interactive YouTube Claunch Portal */}
+        <YouTubePortal
+          isOpen={isYouTubePortalOpen}
+          onClose={() => setIsYouTubePortalOpen(false)}
+        />
+
+        {/* Nexus Remote Connectivity Hub */}
+        <NexusRemoteHub
+          isOpen={isRemoteHubOpen}
+          onClose={() => setIsRemoteHubOpen(false)}
+        />
       </div>
+
       )}
     </SystemSelfTest>
   );

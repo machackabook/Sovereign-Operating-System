@@ -8,11 +8,27 @@ import { geoNexusService, GeoTelemetry } from '../services/geoNexusService';
 import { EarthNasaOverlay } from './EarthNasaOverlay';
 import { computeRgbLedState } from '../services/colorProfileService';
 import { causalCore } from '../services/causalCore.mjs';
-import { fragmentShader, vertexShader, librationMarkers, shaderPulseFromMetrics } from '../services/nexusCauldronscope.mjs';
+import { DroneCameraController } from './DroneCameraController';
+import { librationMarkers, shaderPulseFromMetrics } from '../services/nexusCauldronscope.mjs';
 import { pllmSensorAgent } from '../services/pllmSensorAgent.mjs';
 import { axsResourceGovernor, octaveTrace } from '../services/axsResourceGovernor.mjs';
 import { advancedMathEngine } from '../services/advancedMathEngine';
 import { alphaFoldService, ProteinModel } from '../services/alphaFoldService';
+import { 
+  uniform, 
+  Fn, 
+  float, 
+  vec3, 
+  vec4, 
+  sin, 
+  cos, 
+  max, 
+  clamp,
+  uv, 
+  positionLocal, 
+  cameraProjectionMatrix, 
+  modelViewMatrix 
+} from 'three/tsl';
 import { BackgroundEvolutionEngine } from '../services/backgroundEvolutionEngine';
 import { BathymetricPicFaceEngine } from '../services/bathymetricPicFaceEngine';
 
@@ -176,6 +192,9 @@ export const VisualRenderer3D: React.FC<VisualRenderer3DProps> = ({ envState, on
   useEffect(() => {
     return geoNexusService.onTelemetryChange(setGeoTelemetry);
   }, []);
+
+  const [droneObjects, setDroneObjects] = useState<{ camera: THREE.PerspectiveCamera, domElement: HTMLElement } | null>(null);
+
   const telemetryHistory = useRef<{
     packets: number[];
     throughput: number[];
@@ -194,6 +213,8 @@ export const VisualRenderer3D: React.FC<VisualRenderer3DProps> = ({ envState, on
   useEffect(() => {
     const container = mountRef.current;
     if (!container) return;
+
+    let isDisposed = false;
 
     let width = container.clientWidth || window.innerWidth;
     let height = container.clientHeight || window.innerHeight;
@@ -219,6 +240,7 @@ export const VisualRenderer3D: React.FC<VisualRenderer3DProps> = ({ envState, on
     renderer.toneMappingExposure = 1.2;
 
     container.appendChild(renderer.domElement);
+    setDroneObjects({ camera, domElement: renderer.domElement });
 
     // 2. Lighting Rig
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
@@ -250,18 +272,31 @@ export const VisualRenderer3D: React.FC<VisualRenderer3DProps> = ({ envState, on
 
     // The Cauldronscope is a real GPU shader, not a fabricated telemetry layer.
     // Pulse can be steered by an actual local SQE phase and opt-in frame samples.
+    const uCauldronTime = uniform(0);
+    const uCauldronPulse = uniform(0);
+    const uCauldronAccent = uniform(new THREE.Color(0x00e5ff));
+
     const cauldronGeometry=new THREE.PlaneGeometry(85,85,12,12);
-    const cauldronMaterial=new THREE.ShaderMaterial({
-      vertexShader,fragmentShader,
-      uniforms:{
-        u_time:{value:0},
-        u_tensorPulse:{value:0},
-        u_accentColor:{value:new THREE.Color(0x00e5ff)}
-      },
-      transparent:true,depthWrite:false,
-      blending:THREE.AdditiveBlending,
-      side:THREE.DoubleSide
-    });
+    const cauldronMaterial=new THREE.MeshBasicNodeMaterial();
+    
+    cauldronMaterial.positionNode = Fn(() => {
+      const pos = positionLocal.toVar();
+      pos.z.addAssign(sin(pos.y.mul(4.0).add(uCauldronTime)).mul(uCauldronPulse).mul(1.8));
+      return pos;
+    })();
+
+    cauldronMaterial.colorNode = Fn(() => {
+      const vUv = uv();
+      const wave = sin(vUv.x.mul(10.0).add(uCauldronTime)).mul(cos(vUv.y.mul(10.0).add(uCauldronTime)));
+      const color = clamp(uCauldronAccent.add(wave.mul(0.14).mul(uCauldronPulse)), 0.0, 1.0);
+      return vec4(color, float(0.20).add(uCauldronPulse.mul(0.45)));
+    })();
+
+    cauldronMaterial.transparent = true;
+    cauldronMaterial.depthWrite = false;
+    cauldronMaterial.blending = THREE.AdditiveBlending;
+    cauldronMaterial.side = THREE.DoubleSide;
+
     const cauldronPlane=new THREE.Mesh(cauldronGeometry,cauldronMaterial);
     cauldronPlane.position.z=-48;
     topologiesGroup.add(cauldronPlane);
@@ -1484,11 +1519,22 @@ export const VisualRenderer3D: React.FC<VisualRenderer3DProps> = ({ envState, on
       }
 
       // Smooth camera and group orientation
-      if (currentEnv.topology === 'galaxy_vfs') {
+      if (currentEnv.droneViewActive && currentEnv.topology !== 'galaxy_vfs') {
+        // Drone View is handled by DroneCameraController component
+        // but we ensure the object rotation is reset/stable
+        topologiesGroup.rotation.y += (0 - topologiesGroup.rotation.y) * 0.05;
+        topologiesGroup.rotation.x += (0 - topologiesGroup.rotation.x) * 0.05;
+      } else if (currentEnv.topology === 'galaxy_vfs') {
         // In galaxy mode, drag rotates the camera look direction
         camera.rotation.y = dragRotY + targetRotY * 0.2;
         camera.rotation.x = -dragRotX + targetRotX * 0.2;
       } else {
+        // Standard View: Restore camera to home position
+        camera.position.x += (0 - camera.position.x) * 0.05;
+        camera.position.y += (0 - camera.position.y) * 0.05;
+        camera.position.z += (140 - camera.position.z) * 0.05;
+        camera.lookAt(0, 0, 0);
+
         // In object modes, drag rotates the topology group
         topologiesGroup.rotation.y += (dragRotY + targetRotY - topologiesGroup.rotation.y) * 0.05;
         topologiesGroup.rotation.x += (dragRotX + targetRotX - topologiesGroup.rotation.x) * 0.05;
@@ -1654,9 +1700,9 @@ export const VisualRenderer3D: React.FC<VisualRenderer3DProps> = ({ envState, on
       const observed = samples.length ? shaderPulseFromMetrics(samples[samples.length-1]) : 0;
       const phasePulse = Math.min(1,Math.abs(sqePhase.p)/2);
       const pulse = Math.max(observed,phasePulse);
-      cauldronMaterial.uniforms.u_time.value=t;
-      cauldronMaterial.uniforms.u_tensorPulse.value=pulse;
-      cauldronMaterial.uniforms.u_accentColor.value.copy(targetCol);
+      uCauldronTime.value = t;
+      uCauldronPulse.value = pulse;
+      uCauldronAccent.value.copy(targetCol);
       cauldronPlane.visible=currentEnv.topology==='torus';
       const markers=librationMarkers(t*0.4,Math.max(0,Math.min(15,Math.round(pulse*15))));
       marker4.visible=cauldronPlane.visible;
@@ -1954,7 +2000,7 @@ export const VisualRenderer3D: React.FC<VisualRenderer3DProps> = ({ envState, on
       }
 
       // Render 2D Stratum 0 HUD Overlay
-      renderHudCanvas(now, currentEnv, combinedFreq, camera, vfsNodes, hoveredNodeId, ledState);
+      renderHudCanvas(now, currentEnv, combinedFreq, camera, vfsNodes, hoveredNodeId, ledState, currentEnv.droneViewActive);
 
       renderer.render(scene, camera);
       const actualRenderWorkMs=performance.now()-frameStart;
@@ -1972,9 +2018,13 @@ export const VisualRenderer3D: React.FC<VisualRenderer3DProps> = ({ envState, on
       }
     };
 
-    animId = requestAnimationFrame(render);
+    renderer.init().then(() => {
+      if (isDisposed) return;
+      animId = requestAnimationFrame(render);
+    });
 
     return () => {
+      isDisposed = true;
       cancelAnimationFrame(animId);
       window.removeEventListener('mousemove', onPointerMove);
       window.removeEventListener('mousedown', onMouseDown);
@@ -2053,7 +2103,8 @@ export const VisualRenderer3D: React.FC<VisualRenderer3DProps> = ({ envState, on
     camera: THREE.Camera,
     vfsNodes: VfsStarNode[],
     hoveredNodeId: string | null,
-    ledState: ReturnType<typeof computeRgbLedState> | null
+    ledState: ReturnType<typeof computeRgbLedState> | null,
+    droneActive: boolean
   ) => {
     const canvas = hudCanvasRef.current;
     if (!canvas) return;
@@ -2368,6 +2419,59 @@ export const VisualRenderer3D: React.FC<VisualRenderer3DProps> = ({ envState, on
       ctx.fillStyle = '#fef08a';
       ctx.fillText(`α-Helix: ${afModel.secondaryComposition.helixPct}% | β-Sheet: ${afModel.secondaryComposition.sheetPct}% | Loop: ${afModel.secondaryComposition.loopPct}%`, afX + 10, afY + 58);
     }
+
+    // Upcoming Enhancement & Feature Roadmap Overlay (Center Left)
+    const roadmapW = 240;
+    const roadmapH = 160;
+    const rx = 24;
+    const ry = cy - roadmapH / 2;
+
+    ctx.fillStyle = 'rgba(2, 6, 18, 0.85)';
+    ctx.strokeStyle = `${activePrimary}44`;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(rx, ry, roadmapW, roadmapH, 10);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.font = 'bold 10px "Orbitron", sans-serif';
+    ctx.fillStyle = activePrimary;
+    ctx.fillText('UPCOMING CORE ENHANCEMENTS', rx + 12, ry + 20);
+
+    const features = [
+      '• DRONE VIEW AUTO-ORBIT (ACTIVE)',
+      '• YOUTUBE CLAUNCH PORTAL (ACTIVE)',
+      '• MULTI-OPERATOR SYNC OVER QUINE-BRIDGE',
+      '• QUANTUM ENTROPY GAUGE SUITE',
+      '• BIOMETRIC WEBAUTHN GATEWAY',
+      '• VOID-RESONANCE HAPTIC FEEDBACK',
+      '• SELF-HEALING KERNEL QUINES'
+    ];
+
+    ctx.font = '9px "JetBrains Mono", monospace';
+    features.forEach((feature, i) => {
+      ctx.fillStyle = i < 3 ? activeSecondary : '#64748b';
+      ctx.fillText(feature, rx + 12, ry + 42 + i * 16);
+      if (i < 3) {
+        ctx.fillStyle = `${activeSecondary}33`;
+        ctx.fillRect(rx + roadmapW - 45, ry + 34 + i * 16, 35, 10);
+        ctx.fillStyle = activeSecondary;
+        ctx.font = 'bold 7px "Orbitron", sans-serif';
+        ctx.fillText('UPCOMING', rx + roadmapW - 42, ry + 41 + i * 16);
+        ctx.font = '9px "JetBrains Mono", monospace';
+      }
+    });
+
+    if (droneActive) {
+      ctx.fillStyle = activePrimary;
+      ctx.font = 'bold 11px "Orbitron", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('DRONE VIEW AUTO-ORBIT ACTIVE', cx, 45);
+      ctx.beginPath();
+      ctx.arc(cx - 110, 41, 3, 0, Math.PI * 2);
+      ctx.fillStyle = now % 1000 < 500 ? activePrimary : 'transparent';
+      ctx.fill();
+    }
   };
 
   const isVideoBackground = envState.youtube?.active && envState.youtube?.displayMode === 'background';
@@ -2398,6 +2502,19 @@ export const VisualRenderer3D: React.FC<VisualRenderer3DProps> = ({ envState, on
 
       {/* Photorealistic 3D Earth Overlay (Google Maps Platform) */}
       <EarthNasaOverlay active={envState.topology === 'earth_nasa'} />
+
+      {/* Drone Camera Controller Logic */}
+      {droneObjects && (
+        <DroneCameraController 
+          camera={droneObjects.camera}
+          domElement={droneObjects.domElement}
+          active={envState.droneViewActive && envState.topology !== 'galaxy_vfs'}
+          speed={envState.droneOrbitSpeed}
+          targetPosition={new THREE.Vector3(0, 0, -40)}
+          viewpoint={envState.droneViewpoint}
+          soundEnabled={envState.ambientSoundscape}
+        />
+      )}
 
       {/* Scanline CRT texture */}
       <div

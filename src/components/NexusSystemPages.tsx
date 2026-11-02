@@ -10,6 +10,7 @@ import {
  SYSTEM_PAGES,routeFromHash,openSystemPage,systemPageURL,nexusSystemPageMesh,
  isPageTerminalCommand
 } from '../services/nexusSystemRouter.mjs';
+import { SpectrumAnalyzer } from './SpectrumAnalyzer';
 
 const BTN='rounded-md border border-cyan-400/40 bg-slate-900/80 px-2 py-1.5 text-xs text-cyan-100 hover:bg-slate-800 disabled:opacity-40';
 type Page = typeof SYSTEM_PAGES[number];
@@ -215,14 +216,19 @@ export function NexusSystemPages(){
             {page.slug==='voip'&&<button className={BTN} onClick={()=>window.dispatchEvent(new Event('gaia:open-x-card'))}>
                Open call card
             </button>}
+            {page.slug==='spectrum'&&<button className={BTN} onClick={()=>window.dispatchEvent(new Event('gaia:open-visual-spectrum'))}>
+               Toggle spectrum live
+            </button>}
           </div>
         </div>
         <p className="mb-2 text-[11px] text-slate-500">
           {lastUpdate?'Latest source read: '+lastUpdate:'No source read'} · {working?'reading…':'idle'}
         </p>
         {issue&&<p role="alert" className="mb-2 text-xs text-rose-300">{issue}</p>}
-        <pre className="max-h-72 overflow-auto rounded-lg bg-black/40 p-3 text-[11px] leading-relaxed text-emerald-200"
-         aria-live="polite">{JSON.stringify(live??{source:'not-yet-read',state:'unavailable'},null,2)}</pre>
+        {page.slug==='spectrum' ? <SpectrumAnalyzer /> : (
+          <pre className="max-h-72 overflow-auto rounded-lg bg-black/40 p-3 text-[11px] leading-relaxed text-emerald-200"
+          aria-live="polite">{JSON.stringify(live??{source:'not-yet-read',state:'unavailable'},null,2)}</pre>
+        )}
       </section>
       {linkNotice&&<p role="status" className="mt-3 break-all text-xs text-cyan-300">{linkNotice}</p>}
       <p className="mt-3 text-[11px] text-slate-500">

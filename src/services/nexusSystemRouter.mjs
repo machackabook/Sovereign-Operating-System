@@ -22,6 +22,7 @@ export const SYSTEM_PAGES=Object.freeze([
  {slug:'mcp',node:'nexus.mcp',title:'Native MCP',command:'mcp list',group:'Connectivity'},
  {slug:'ollama',node:'nexus.localai',title:'Local Ollama AI',command:'ollama status',group:'AI'},
  {slug:'sensor',node:'nexus.sensor',title:'PLLM Sensor',command:'core status',group:'Monitoring'},
+ {slug:'spectrum',node:'nexus.spectrum',title:'Spectrum Analyzer',command:'spectrum status',group:'Monitoring'},
  {slug:'neutronality',node:'nexus.neutronality',title:'Neutronality V15',command:'memory status',group:'Memory'},
  {slug:'voip',node:'nexus.voip',title:'Cryptic VoIP',command:'voip status',group:'Connectivity'},
  {slug:'invite',node:'nexus.invite',title:'GAIA Invite Card',command:'xcard open',group:'Connectivity'},

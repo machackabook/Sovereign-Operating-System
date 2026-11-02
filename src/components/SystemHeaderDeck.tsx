@@ -46,6 +46,8 @@ interface SystemHeaderDeckProps {
   healthState: HealthState;
   isCanvasMode: boolean;
   onToggleCanvas: () => void;
+  isLocked: boolean;
+  onToggleLock: () => void;
 }
 
 const TOPOLOGIES: { id: TopologyType; label: string }[] = [
@@ -67,6 +69,8 @@ export const SystemHeaderDeck: React.FC<SystemHeaderDeckProps> = ({
   healthState,
   isCanvasMode,
   onToggleCanvas,
+  isLocked,
+  onToggleLock,
 }) => {
   const [showTopoDropdown, setShowTopoDropdown] = useState(false);
   const [isKeyMgmtOpen, setIsKeyMgmtOpen] = useState(false);
@@ -276,6 +280,41 @@ export const SystemHeaderDeck: React.FC<SystemHeaderDeckProps> = ({
 
       {/* Right: Quick Controls, Topology Switcher & Search */}
       <div className="flex items-center gap-2 shrink-0">
+        {/* Drone Speed Controller & Viewpoints */}
+        {envState.droneViewActive && (
+          <div className="hidden lg:flex items-center gap-2 px-2.5 py-1 rounded-xl bg-black/60 border border-slate-800 text-[10px] text-slate-400">
+            <span className="font-bold text-[9px] text-purple-400 uppercase tracking-tighter shrink-0">Drone:</span>
+            <input 
+              type="range" 
+              min="0.1" 
+              max="5.0" 
+              step="0.1" 
+              value={envState.droneOrbitSpeed}
+              onChange={(e) => setEnvState(prev => ({ ...prev, droneOrbitSpeed: parseFloat(e.target.value) }))}
+              className="w-16 h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-purple-500"
+            />
+            <span className="w-6 text-center text-white font-mono shrink-0">{envState.droneOrbitSpeed.toFixed(1)}x</span>
+            
+            <div className="h-4 w-[1px] bg-slate-800 mx-1 shrink-0" />
+            
+            <div className="flex items-center gap-1 shrink-0">
+              {(['default', 'top-down', 'macro', 'full'] as const).map((vp) => (
+                <button
+                  key={vp}
+                  onClick={() => setEnvState(prev => ({ ...prev, droneViewpoint: vp }))}
+                  className={`px-1.5 py-0.5 rounded uppercase text-[8px] font-bold transition ${
+                    envState.droneViewpoint === vp
+                      ? 'bg-purple-500 text-white shadow-[0_0_8px_rgba(168,85,247,0.4)]'
+                      : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800'
+                  }`}
+                >
+                  {vp.replace('-', '')}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Topology Selector */}
         <div className="relative">
           <button
@@ -521,6 +560,19 @@ export const SystemHeaderDeck: React.FC<SystemHeaderDeckProps> = ({
           title="Perform Encrypted Local State Backup (Commit Hash Receipt to Ledger)"
         >
           <Lock className="w-3.5 h-3.5" />
+        </button>
+
+        {/* Biometric Gateway Toggle (Session Lock) */}
+        <button
+          onClick={onToggleLock}
+          className={`p-1.5 rounded-xl border transition cursor-pointer ${
+            isLocked
+              ? 'bg-rose-950/60 border-rose-500/50 text-rose-300'
+              : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-cyan-300 hover:border-cyan-500/40'
+          }`}
+          title={isLocked ? "Terminal Locked - Authenticate to Unlock" : "Lock Sensitive Terminal Sessions"}
+        >
+          {isLocked ? <Lock className="w-3.5 h-3.5" /> : <Fingerprint className="w-3.5 h-3.5" />}
         </button>
       </div>
 

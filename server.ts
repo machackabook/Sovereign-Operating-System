@@ -8,6 +8,8 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { WebSocketServer } from 'ws';
+import { Client as SSHClient } from 'ssh2';
+import SMB2 from 'smb2';
 
 dotenv.config();
 
@@ -1529,6 +1531,93 @@ Provide an authoritative, high-density response synthesizing model weights, medi
     });
   });
 
+  // =========================================================================
+  // REMOTE CONNECTIVITY HUB (SSH, SFTP, SMB)
+  // Ensures device-independent remote management and mounting
+  // =========================================================================
+  const smbConnections = new Map<string, any>();
+
+  app.post('/api/remote/smb/connect', (req, res) => {
+    const { id, host, username, password, share } = req.body;
+    try {
+      const smbClient = new SMB2({
+        host,
+        username,
+        password,
+        share: `\\\\${host}\\${share}`,
+      });
+      smbConnections.set(id, smbClient);
+      return res.json({ success: true, message: 'SMB Connection Established' });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post('/api/remote/smb/list', (req, res) => {
+    const { id, path = '' } = req.body;
+    const client = smbConnections.get(id);
+    if (!client) return res.status(404).json({ error: 'Connection not found' });
+
+    client.readdir(path, (err: any, files: string[]) => {
+      if (err) return res.status(500).json({ error: err.message });
+      return res.json({ files });
+    });
+  });
+
+  app.post('/api/remote/ssh/exec', (req, res) => {
+    const { host, username, password, command } = req.body;
+    const conn = new SSHClient();
+    conn.on('ready', () => {
+      conn.exec(command, (err, stream) => {
+        if (err) return res.status(500).json({ error: err.message });
+        let output = '';
+        stream.on('close', (code: number) => {
+          conn.end();
+          return res.json({ output, exitCode: code });
+        }).on('data', (data: Buffer) => {
+          output += data.toString();
+        }).stderr.on('data', (data: Buffer) => {
+          output += data.toString();
+        });
+      });
+    }).on('error', (err) => {
+      res.status(500).json({ error: err.message });
+    }).connect({ host, port: 22, username, password });
+  });
+
+  const sshSessions = new Map<string, any>();
+  const sshWss = new WebSocketServer({ noServer: true });
+
+  sshWss.on('connection', (ws, request) => {
+    let conn: SSHClient | null = null;
+    ws.on('message', (message: string) => {
+      const data = JSON.parse(message.toString());
+      if (data.type === 'connect') {
+        const { host, username, password } = data;
+        conn = new SSHClient();
+        conn.on('ready', () => {
+          ws.send(JSON.stringify({ type: 'status', message: 'SSH_CONNECTED' }));
+          conn!.shell((err, stream) => {
+            if (err) return ws.send(JSON.stringify({ type: 'error', message: err.message }));
+            ws.on('message', (msg: any) => {
+              const cmd = JSON.parse(msg.toString());
+              if (cmd.type === 'input') stream.write(cmd.data);
+              if (cmd.type === 'resize') stream.setWindow(cmd.rows, cmd.cols, 0, 0);
+            });
+            stream.on('data', (d: Buffer) => ws.send(JSON.stringify({ type: 'output', data: d.toString() })));
+            stream.on('close', () => ws.close());
+          });
+        }).on('error', (err) => {
+          ws.send(JSON.stringify({ type: 'error', message: err.message }));
+          ws.close();
+        }).connect({ host, port: 22, username, password });
+      }
+    });
+    ws.on('close', () => {
+      if (conn) conn.end();
+    });
+  });
+
   // Serve static assets or mount Vite in development
   if (!isProduction) {
     const vite = await createViteServer({
@@ -1569,9 +1658,14 @@ Provide an authoritative, high-density response synthesizing model weights, medi
   const wss = new WebSocketServer({ noServer: true });
   const devClientWss = new WebSocketServer({ noServer: true });
   server.on('upgrade', (request, socket, head) => {
-    if (request.url === '/live') {
+    const { pathname } = new URL(request.url || '', `http://${request.headers.host}`);
+    if (pathname === '/live') {
       wss.handleUpgrade(request, socket, head, (ws) => {
         wss.emit('connection', ws, request);
+      });
+    } else if (pathname === '/ssh') {
+      sshWss.handleUpgrade(request, socket, head, (ws) => {
+        sshWss.emit('connection', ws, request);
       });
     } else {
       // Dev proxy, Vite client probe, or external WebSocket checks: accept and manage cleanly
@@ -1612,6 +1706,55 @@ Provide an authoritative, high-density response synthesizing model weights, medi
     clientWs.on("close", () => {
         session.close();
     });
+  });
+
+  // API endpoint: /api/gemini/transcribe
+  // Transcribes pre-recorded or uploaded audio using gemini-3.5-transcribe
+  app.post('/api/gemini/transcribe', async (req, res) => {
+    const { audioData, mimeType = 'audio/mp3' } = req.body;
+
+    if (!audioData) {
+      return res.status(400).json({ error: 'Missing audioData' });
+    }
+
+    if (apiKeyPool.hasKeys()) {
+      try {
+        const { result: response } = await apiKeyPool.executeWithFallback(async (aiClient) => {
+          return await aiClient.models.generateContent({
+            model: 'gemini-3.5-transcribe',
+            contents: {
+              parts: [
+                { inlineData: { mimeType, data: audioData } },
+                { text: 'Transcribe this audio exactly.' }
+              ]
+            }
+          });
+        });
+
+        return res.json({ transcript: response.text });
+      } catch (err: any) {
+        console.error('Transcription Gemini error:', err?.message);
+        return res.status(500).json({ error: 'Transcription failed' });
+      }
+    }
+
+    return res.status(503).json({ error: 'Gemini service unavailable' });
+  });
+
+  // API endpoint: /api/finance/crypto/prices
+  // Proxies to CoinGecko for real-time crypto prices
+  app.get('/api/finance/crypto/prices', async (req, res) => {
+    try {
+      const ids = 'bitcoin,ethereum,solana,cardano,ripple';
+      const url = `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd`;
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`Price API returned ${response.status}`);
+      const data = await response.json();
+      res.json(data);
+    } catch (err: any) {
+      console.error('[Crypto API Proxy Error]:', err.message);
+      res.status(500).json({ error: err.message });
+    }
   });
 
   server.on('error', (err: any) => {
