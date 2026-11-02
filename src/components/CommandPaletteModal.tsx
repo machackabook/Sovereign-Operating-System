@@ -30,6 +30,7 @@ import {
   DollarSign,
   CreditCard,
   Cloud,
+  Wifi,
 } from 'lucide-react';
 import { EnvironmentState, TopologyType, SentimentType } from '../types';
 import { audioVoiceService } from '../services/audioVoiceService';
@@ -49,7 +50,7 @@ interface CommandPaletteModalProps {
 
 interface PaletteAction {
   id: string;
-  category: 'NAVIGATION' | 'TOPOLOGY' | 'SENTIMENT' | 'VOICE' | 'OPTIMIZATION' | 'SECURITY';
+  category: 'NAVIGATION' | 'TOPOLOGY' | 'SENTIMENT' | 'VOICE' | 'OPTIMIZATION' | 'SECURITY' | 'HARDWARE';
   title: string;
   description: string;
   icon: React.ReactNode;
@@ -505,6 +506,46 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
       },
     },
     {
+      id: 'sec-grant-all-permissions',
+      category: 'SECURITY',
+      title: '⚡ Grant All Permissions (Microphone, Camera, Notifications, WakeLock, GPS, MIDI)',
+      description: 'Universal permission prompt sequencer to authorize all device, media, and sovereign hardware interfaces',
+      icon: <Sparkles className="w-4 h-4 text-emerald-400" />,
+      shortcut: 'Alt+P',
+      action: () => {
+        if (onExecuteTerminalCommand) {
+          onExecuteTerminalCommand('perm grant');
+        }
+        onClose();
+      },
+    },
+    {
+      id: 'sec-device-permissions-modal',
+      category: 'SECURITY',
+      title: 'Device Permissions & Hardware Telemetry Matrix',
+      description: 'Inspect live status for WebUSB, WebSerial, WebBluetooth, WebHID, Microphone, Camera & Fullscreen',
+      icon: <ShieldCheck className="w-4 h-4 text-cyan-400" />,
+      action: () => {
+        if (onExecuteTerminalCommand) {
+          onExecuteTerminalCommand('perm gui');
+        }
+        onClose();
+      },
+    },
+    {
+      id: 'sec-permission-recommendations',
+      category: 'SECURITY',
+      title: 'Sovereign Permission Recommendations & Flag Audit',
+      description: 'Audit Chromium flags, PWA standalone configuration, and driverless hardware access recommendations',
+      icon: <Compass className="w-4 h-4 text-amber-400" />,
+      action: () => {
+        if (onExecuteTerminalCommand) {
+          onExecuteTerminalCommand('perm recommendations');
+        }
+        onClose();
+      },
+    },
+    {
       id: 'sec-unlock-all-paths',
       category: 'SECURITY',
       title: 'Unlock All Paths & Sovereign Documentation',
@@ -637,6 +678,39 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
       icon: <Activity className="w-4 h-4 text-cyan-400" />,
       action: () => {
         window.dispatchEvent(new CustomEvent('gaia:open-resonance'));
+        onClose();
+      },
+    },
+    {
+      id: 'sdr-radio-tuner',
+      category: 'HARDWARE',
+      title: 'SDR FM Demodulator & Sovereign Tuner',
+      description: 'Polar discriminator wideband FM receiver, 75µs de-emphasis, 48kHz AudioWorklet, and Web Serial/USB tuner',
+      icon: <Radio className="w-4 h-4 text-cyan-400" />,
+      action: () => {
+        window.dispatchEvent(new CustomEvent('gaia:open-device-permissions'));
+        onClose();
+      },
+    },
+    {
+      id: 'wireless-ble-catalog',
+      category: 'HARDWARE',
+      title: 'Wireless Beacon & Bluetooth Peripheral Catalog',
+      description: 'FCC Part 15 BLE discovery, 802.11 multiplexed beacon synthesis, and multi-AP Wi-Fi bonding',
+      icon: <Wifi className="w-4 h-4 text-emerald-400" />,
+      action: () => {
+        window.dispatchEvent(new CustomEvent('gaia:open-device-permissions'));
+        onClose();
+      },
+    },
+    {
+      id: 'adb-bus-hub',
+      category: 'HARDWARE',
+      title: 'ADB Bus & Hardware Hub Bridge',
+      description: 'Bidirectional WebUSB Android Debug Bridge, USB endpoint hierarchy, and reverse port routing',
+      icon: <Cpu className="w-4 h-4 text-amber-400" />,
+      action: () => {
+        window.dispatchEvent(new CustomEvent('gaia:open-device-permissions'));
         onClose();
       },
     },

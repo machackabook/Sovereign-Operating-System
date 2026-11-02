@@ -284,6 +284,16 @@ export const SystemDockBar: React.FC<SystemDockBarProps> = ({
 
         <button
           type="button"
+          onClick={() => window.dispatchEvent(new CustomEvent('gaia:open-device-permissions'))}
+          className="px-2 py-0.5 rounded-lg border border-cyan-500/40 bg-cyan-950/40 text-cyan-300 hover:bg-cyan-900/50 hover:border-cyan-400 text-[10px] font-bold transition cursor-pointer flex items-center gap-1 shadow-[0_0_10px_rgba(6,182,212,0.25)]"
+          title="Open Device Permissions, Hardware Subsystem & Access Recommendations"
+        >
+          <ShieldCheck className="w-3 h-3 text-cyan-400" />
+          <span className="hidden sm:inline">PERMS</span>
+        </button>
+
+        <button
+          type="button"
           onClick={() => window.dispatchEvent(new CustomEvent('gaia:toggle-entropy-panel'))}
           className="px-2 py-0.5 rounded-lg border border-rose-500/30 bg-rose-950/30 text-rose-300 hover:bg-rose-900/40 hover:border-rose-400 text-[10px] font-semibold transition cursor-pointer flex items-center gap-1"
           title="Open Quantum Entropy Metrics Panel"

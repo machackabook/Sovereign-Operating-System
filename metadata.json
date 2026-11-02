@@ -5,7 +5,18 @@
     "camera",
     "microphone",
     "geolocation",
-    "bluetooth"
+    "bluetooth",
+    "usb",
+    "serial",
+    "hid",
+    "midi",
+    "display-capture",
+    "clipboard-read",
+    "clipboard-write",
+    "screen-wake-lock",
+    "accelerometer",
+    "gyroscope",
+    "magnetometer"
   ],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API",

@@ -14,6 +14,9 @@ import { pllmSensorAgent } from '../services/pllmSensorAgent.mjs';
 import { axsResourceGovernor, octaveTrace } from '../services/axsResourceGovernor.mjs';
 import { advancedMathEngine } from '../services/advancedMathEngine';
 import { alphaFoldService, ProteinModel } from '../services/alphaFoldService';
+import { VariableDepthLeapfrog } from '../services/resonanceEngine.mjs';
+import { sqe } from '../services/symplecticEngine';
+import { polyglotEngine } from '../services/polyglotEngine';
 import { 
   uniform, 
   Fn, 
@@ -31,6 +34,7 @@ import {
 } from 'three/tsl';
 import { BackgroundEvolutionEngine } from '../services/backgroundEvolutionEngine';
 import { BathymetricPicFaceEngine } from '../services/bathymetricPicFaceEngine';
+import { bluetoothDeviceManager, BleDeviceRecord } from '../services/bluetoothDeviceManager';
 
 export interface SentimentPaletteConfig {
   primary: THREE.Color;
@@ -254,9 +258,120 @@ export const VisualRenderer3D: React.FC<VisualRenderer3DProps> = ({ envState, on
     rimLight.position.set(-60, -40, -50);
     scene.add(rimLight);
 
+    // Initialize Resonance Engine for field oscillation
+    const resonanceEngine = new VariableDepthLeapfrog({ nx: 64, ny: 48 });
+
     // 3. Procedural Topologies Group
     const topologiesGroup = new THREE.Group();
     scene.add(topologiesGroup);
+
+    // 3b. Bluetooth Low Energy (BLE) Device Presence Swarm
+    const bleDevicesGroup = new THREE.Group();
+    scene.add(bleDevicesGroup);
+
+    interface Ble3DNode {
+      group: THREE.Group;
+      coreMesh: THREE.Mesh;
+      coreMat: THREE.MeshPhongMaterial;
+      radarRing: THREE.Mesh;
+      radarMat: THREE.MeshBasicMaterial;
+      tetherLine: THREE.Line;
+      tetherGeo: THREE.BufferGeometry;
+    }
+    const bleVisualNodes = new Map<string, Ble3DNode>();
+
+    const syncBleNodes = (devices: BleDeviceRecord[]) => {
+      const currentIds = new Set(devices.map(d => d.id));
+
+      // Remove disconnected / purged nodes
+      for (const [id, node] of bleVisualNodes.entries()) {
+        if (!currentIds.has(id)) {
+          bleDevicesGroup.remove(node.group);
+          bleDevicesGroup.remove(node.tetherLine);
+          node.coreMesh.geometry.dispose();
+          node.coreMat.dispose();
+          node.radarRing.geometry.dispose();
+          node.radarMat.dispose();
+          node.tetherGeo.dispose();
+          (node.tetherLine.material as THREE.Material).dispose();
+          bleVisualNodes.delete(id);
+        }
+      }
+
+      // Add or update nodes
+      devices.forEach((dev) => {
+        let node = bleVisualNodes.get(dev.id);
+        const isConnected = dev.connectionState === 'connected';
+        const isConnecting = dev.connectionState === 'connecting';
+        const col = isConnected ? 0x00f2ff : isConnecting ? 0xf59e0b : 0x64748b;
+        const emissive = isConnected ? 0x00f2ff : isConnecting ? 0xf59e0b : 0x334155;
+        const intensity = isConnected ? 0.95 : isConnecting ? 0.8 : 0.25;
+
+        if (!node) {
+          const group = new THREE.Group();
+
+          // Core Beacon Node: Faceted Octahedron
+          const coreGeo = new THREE.OctahedronGeometry(2.4, 0);
+          const coreMat = new THREE.MeshPhongMaterial({
+            color: col,
+            emissive: emissive,
+            emissiveIntensity: intensity,
+            shininess: 90,
+            transparent: true,
+            opacity: 0.95,
+          });
+          const coreMesh = new THREE.Mesh(coreGeo, coreMat);
+          group.add(coreMesh);
+
+          // Concentric Radar Beacon Ping Ring (horizontal)
+          const ringGeo = new THREE.TorusGeometry(3.6, 0.16, 8, 32);
+          const radarMat = new THREE.MeshBasicMaterial({
+            color: col,
+            transparent: true,
+            opacity: isConnected ? 0.6 : 0.2,
+            blending: THREE.AdditiveBlending,
+          });
+          const radarRing = new THREE.Mesh(ringGeo, radarMat);
+          radarRing.rotation.x = Math.PI / 2;
+          group.add(radarRing);
+
+          // Cybernetic Tether Line connecting to origin / manifold
+          const tetherPositions = new Float32Array(6);
+          const tetherGeo = new THREE.BufferGeometry();
+          tetherGeo.setAttribute('position', new THREE.BufferAttribute(tetherPositions, 3));
+          const tetherMat = new THREE.LineBasicMaterial({
+            color: col,
+            transparent: true,
+            opacity: isConnected ? 0.45 : 0.15,
+            blending: THREE.AdditiveBlending,
+          });
+          const tetherLine = new THREE.Line(tetherGeo, tetherMat);
+
+          bleDevicesGroup.add(group);
+          bleDevicesGroup.add(tetherLine);
+
+          node = {
+            group,
+            coreMesh,
+            coreMat,
+            radarRing,
+            radarMat,
+            tetherLine,
+            tetherGeo,
+          };
+          bleVisualNodes.set(dev.id, node);
+        } else {
+          // Update material properties on state change
+          node.coreMat.color.setHex(col);
+          node.coreMat.emissive.setHex(emissive);
+          node.coreMat.emissiveIntensity = intensity;
+          node.radarMat.color.setHex(col);
+          (node.tetherLine.material as THREE.LineBasicMaterial).color.setHex(col);
+        }
+      });
+    };
+
+    const offBleManager = bluetoothDeviceManager.subscribe(syncBleNodes);
 
     // Topology A: Torus Knot (Neuti-ba Knot)
     const torusGeo = new THREE.TorusKnotGeometry(32, 6.8, 240, 32, 3, 5);
@@ -1696,6 +1811,32 @@ export const VisualRenderer3D: React.FC<VisualRenderer3DProps> = ({ envState, on
       }
       trailAttr.needsUpdate = true;
 
+      // Update Bluetooth Low Energy 3D Beacon Swarm Presence
+      const bleDevs = bluetoothDeviceManager.getDevices();
+      bleDevs.forEach((dev) => {
+        const node = bleVisualNodes.get(dev.id);
+        if (!node) return;
+
+        const pos = dev.spatialPosition;
+        node.group.position.set(pos.x, pos.y, pos.z);
+
+        // Continuous beacon rotation
+        node.coreMesh.rotation.y += 0.025;
+        node.coreMesh.rotation.x += 0.015;
+
+        // Animate radar ping expansion and pulse
+        const pingPulse = (Math.sin(t * 4.0 + pos.orbitAngle) + 1) * 0.5;
+        const scaleVal = 1.0 + pingPulse * 0.7;
+        node.radarRing.scale.set(scaleVal, scaleVal, scaleVal);
+        node.radarMat.opacity = dev.connectionState === 'connected' ? (0.65 - pingPulse * 0.45) : 0.12;
+
+        // Update tether line endpoints from (0,0,0) to beacon position
+        const tPos = node.tetherGeo.attributes.position as THREE.BufferAttribute;
+        tPos.setXYZ(0, 0, 0, 0);
+        tPos.setXYZ(1, pos.x, pos.y, pos.z);
+        tPos.needsUpdate = true;
+      });
+
       const samples = pllmSensorAgent.summary().recent;
       const observed = samples.length ? shaderPulseFromMetrics(samples[samples.length-1]) : 0;
       const phasePulse = Math.min(1,Math.abs(sqePhase.p)/2);
@@ -1864,7 +2005,13 @@ export const VisualRenderer3D: React.FC<VisualRenderer3DProps> = ({ envState, on
       // =========================================================================
       // ANIMATE 3D VOID FREQUENCY WAVEFORM MATRIX & AUDIO SPECTRUM HORIZON
       // =========================================================================
-      const reactiveLevel = currentEnv.audioReactiveLevel || 1.0;
+      // ENGINE INTEGRATION
+      const resonance = resonanceEngine.step();
+      const sqeState = sqe.getState();
+      const cryptoKey = "nexus_seed_77446C2E";
+      const encoded = polyglotEngine.polyglotCryptography("VOID_FIELD", cryptoKey, 'encode');
+      
+      const reactiveLevel = (currentEnv.audioReactiveLevel || 1.0) * (resonance[0] || 1.0);
       voidWaveformGroup.rotation.y = t * 0.18;
 
       // 1. Modulate 3D Cylindrical Wave Ribbon vertices with real-time frequency bins
@@ -1928,9 +2075,9 @@ export const VisualRenderer3D: React.FC<VisualRenderer3DProps> = ({ envState, on
         }
       });
 
-      // Key and Rim lights pulse in real-time with audio volume
-      keyLight.intensity = (1.8 + smoothedAudio * 2.4) * bloom;
-      rimLight.intensity = (1.4 + smoothedAudio * 1.8) * bloom;
+      // Key and Rim lights pulse in real-time with audio volume and resonant field
+      keyLight.intensity = (1.8 + smoothedAudio * 2.4 + sqeState.hamiltonian * 0.1) * bloom;
+      rimLight.intensity = (1.4 + smoothedAudio * 1.8 + resonance[100] * 2.0) * bloom;
 
       // Animate Particles with Gravity & Audio reactivity
       const pPosArr = particleField.geometry.attributes.position.array as Float32Array;
@@ -2026,6 +2173,19 @@ export const VisualRenderer3D: React.FC<VisualRenderer3DProps> = ({ envState, on
     return () => {
       isDisposed = true;
       cancelAnimationFrame(animId);
+      offBleManager();
+      for (const node of bleVisualNodes.values()) {
+        bleDevicesGroup.remove(node.group);
+        bleDevicesGroup.remove(node.tetherLine);
+        node.coreMesh.geometry.dispose();
+        node.coreMat.dispose();
+        node.radarRing.geometry.dispose();
+        node.radarMat.dispose();
+        node.tetherGeo.dispose();
+        (node.tetherLine.material as THREE.Material).dispose();
+      }
+      bleVisualNodes.clear();
+      scene.remove(bleDevicesGroup);
       window.removeEventListener('mousemove', onPointerMove);
       window.removeEventListener('mousedown', onMouseDown);
       window.removeEventListener('mouseup', onMouseUp);
@@ -2357,10 +2517,13 @@ export const VisualRenderer3D: React.FC<VisualRenderer3DProps> = ({ envState, on
     ctx.fillText(`SENTIMENT: ${env.sentiment.toUpperCase()} // ${curSentCfg.label}`, w - 24, 42);
     ctx.fillStyle = '#38bdf8cc';
     ctx.fillText(`HARMONIC BAND: ${curSentCfg.harmonicBand}`, w - 24, 56);
+    const bleStatus = bluetoothDeviceManager.getStatus();
+    ctx.fillStyle = bleStatus.connectedCount > 0 ? '#10b981dd' : '#94a3b8dd';
+    ctx.fillText(`BLE BEACONS // ${bleStatus.connectedCount} CONNECTED (${bleStatus.deviceCount} IN ROSTER)`, w - 24, 70);
     ctx.fillStyle = '#a7f3d0cc';
-    ctx.fillText('QUADRATIC ROOTS (4x²-5x-12=0): x₁≈2.47, x₂≈-1.22', w - 24, 70);
+    ctx.fillText('QUADRATIC ROOTS (4x²-5x-12=0): x₁≈2.47, x₂≈-1.22', w - 24, 84);
     ctx.fillStyle = '#64748b';
-    ctx.fillText(`16K SUPERSAMPLING ACTIVE | G: ${env.gravity.toFixed(2)} | V: ${env.speed.toFixed(2)}x`, w - 24, 84);
+    ctx.fillText(`16K SUPERSAMPLING ACTIVE | G: ${env.gravity.toFixed(2)} | V: ${env.speed.toFixed(2)}x`, w - 24, 98);
     if (env.voiceProfile || env.activeSpeechTone) {
       ctx.fillStyle = '#f472b6cc';
       ctx.fillText(`VOICE SYNTHESIS: ${(env.voiceProfile || 'DEFAULT').toUpperCase()} [${(env.activeSpeechTone || 'NORMAL').toUpperCase()}]`, w - 24, 98);

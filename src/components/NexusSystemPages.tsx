@@ -1,16 +1,18 @@
 import React, {useCallback,useEffect,useState} from 'react';
-import { X, Link2, Network, RefreshCcw, Terminal, LockKeyhole, ExternalLink } from 'lucide-react';
+import { X, Link2, Network, RefreshCcw, Terminal, LockKeyhole, ExternalLink, Bluetooth } from 'lucide-react';
 import { quineMeshService } from '../services/quineMeshService.mjs';
 import { gaiaMeshV4 } from '../services/gaiaMeshSyncV4.mjs';
 import { pllmSensorAgent } from '../services/pllmSensorAgent.mjs';
 import { geoNexusService } from '../services/geoNexusService';
 import { gaiaCommsState } from '../services/gaiaCommsState.mjs';
 import { causalCore } from '../services/causalCore.mjs';
+import { bluetoothDeviceManager, BleDeviceRecord } from '../services/bluetoothDeviceManager';
 import {
  SYSTEM_PAGES,routeFromHash,openSystemPage,systemPageURL,nexusSystemPageMesh,
  isPageTerminalCommand
 } from '../services/nexusSystemRouter.mjs';
 import { SpectrumAnalyzer } from './SpectrumAnalyzer';
+import { SystemDiagnostics } from './SystemDiagnostics';
 
 const BTN='rounded-md border border-cyan-400/40 bg-slate-900/80 px-2 py-1.5 text-xs text-cyan-100 hover:bg-slate-800 disabled:opacity-40';
 type Page = typeof SYSTEM_PAGES[number];
@@ -29,6 +31,7 @@ export function NexusSystemPages(){
  const [pair,setPair]=useState<any>(quineMeshService.status());
  const [view,setView]=useState<any>(null);
  const [live,setLive]=useState<any>(null);
+ const [bleDevices,setBleDevices]=useState<BleDeviceRecord[]>(bluetoothDeviceManager.getDevices());
  const [working,setWorking]=useState(false);
  const [issue,setIssue]=useState('');
  const [meshRev,setMeshRev]=useState(gaiaMeshV4.snapshot().revision);
@@ -38,7 +41,22 @@ export function NexusSystemPages(){
  const readPage=useCallback(async (slug:string)=>{
    // Local services only. Never fetch arbitrary target URLs from a system page.
    const host=quineMeshService.status();
-   if(['terrasphere','sensor','canvas','singularity','voip','invite'].includes(slug)){
+   if(['terrasphere','sensor','canvas','singularity','voip','invite','bluetooth'].includes(slug)){
+     if(slug==='bluetooth')return {
+       source: 'web-bluetooth-device-manager',
+       status: bluetoothDeviceManager.getStatus(),
+       devices: bluetoothDeviceManager.getDevices().map(d => ({
+         id: d.id,
+         name: d.name,
+         connectionState: d.connectionState,
+         rssi: d.rssi,
+         estimatedDistanceMeters: d.estimatedDistanceMeters,
+         batteryLevel: d.batteryLevel,
+         isSimulated: d.isSimulated,
+         servicesCount: d.serviceUuids.length,
+         spatialOrbitRadius: Math.round(d.spatialPosition.orbitRadius)
+       }))
+     };
      if(slug==='terrasphere')return {source:'browser-geolocation',state:geoNexusService.getTelemetry(),
         verifiedDeviceIdentity:false};
      if(slug==='sensor')return pllmSensorAgent.summary();
@@ -109,12 +127,16 @@ export function NexusSystemPages(){
    });
    const offComms=gaiaCommsState.subscribe(()=>setMeshRev((x:number)=>x+1));
    const offGeo=geoNexusService.onTelemetryChange(()=>setMeshRev((x:number)=>x+1));
+   const offBle=bluetoothDeviceManager.subscribe((devs)=>{
+     setBleDevices([...devs]);
+     setMeshRev((x:number)=>x+1);
+   });
    nexusSystemPageMesh.pair(quineMeshService.status());
    return()=>{
      window.removeEventListener('hashchange',observeRoute);
      window.removeEventListener('nexus:open-system-page',onOpen);
      window.removeEventListener('nexus:terminal-instance',onInstance);
-     offScope();offPair();offGraph();offComms();offGeo();
+     offScope();offPair();offGraph();offComms();offGeo();offBle();
    };
  },[]);
  useEffect(()=>{
@@ -219,13 +241,141 @@ export function NexusSystemPages(){
             {page.slug==='spectrum'&&<button className={BTN} onClick={()=>window.dispatchEvent(new Event('gaia:open-visual-spectrum'))}>
                Toggle spectrum live
             </button>}
+            {page.slug==='bluetooth'&&<button className={BTN} onClick={async ()=>{
+               const res=await bluetoothDeviceManager.discoverAndPairDevice();
+               if(!res.success)setIssue(res.message);
+               else void refresh('bluetooth');
+            }}>
+               <Bluetooth size={13} className="inline mr-1"/> Discover BLE Device
+            </button>}
           </div>
         </div>
         <p className="mb-2 text-[11px] text-slate-500">
           {lastUpdate?'Latest source read: '+lastUpdate:'No source read'} · {working?'reading…':'idle'}
         </p>
         {issue&&<p role="alert" className="mb-2 text-xs text-rose-300">{issue}</p>}
-        {page.slug==='spectrum' ? <SpectrumAnalyzer /> : (
+        {page.slug==='spectrum' ? (
+          <SpectrumAnalyzer />
+        ) : page.slug==='diagnostics' ? (
+          <SystemDiagnostics />
+        ) : page.slug==='bluetooth' ? (
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 p-3 bg-slate-900/90 border border-cyan-500/30 rounded-xl">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Bluetooth className="w-4 h-4 text-cyan-400" />
+                  <span className="text-xs font-bold text-cyan-200">WEB BLUETOOTH ROSTER &amp; GATT ORCHESTRATION</span>
+                </div>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  Live connection states, signal attenuation proximity, and 3D VisualRenderer presence.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  className="rounded-lg bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold px-3 py-1.5 text-xs transition shadow-md shadow-cyan-500/20 flex items-center gap-1.5 cursor-pointer"
+                  onClick={async () => {
+                    const res = await bluetoothDeviceManager.discoverAndPairDevice();
+                    if (!res.success) setIssue(res.message);
+                    else void refresh('bluetooth');
+                  }}
+                >
+                  <Bluetooth size={14} />
+                  <span>Discover &amp; Pair BLE Device</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Device Roster Table */}
+            <div className="overflow-hidden rounded-xl border border-white/10 bg-black/40">
+              <table className="w-full text-left text-xs font-mono text-slate-300">
+                <thead className="border-b border-slate-800 bg-slate-950/80 text-[10px] uppercase text-slate-400">
+                  <tr>
+                    <th className="p-2.5">Peripheral Name</th>
+                    <th className="p-2.5">Device ID</th>
+                    <th className="p-2.5">Connection State</th>
+                    <th className="p-2.5">RSSI / Est. Distance</th>
+                    <th className="p-2.5">Battery</th>
+                    <th className="p-2.5">3D Spatial Position</th>
+                    <th className="p-2.5 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60">
+                  {bleDevices.map((dev) => (
+                    <tr key={dev.id} className="hover:bg-cyan-950/20 transition">
+                      <td className="p-2.5 font-bold text-cyan-300 flex items-center gap-2">
+                        <Bluetooth className={`w-3.5 h-3.5 ${dev.connectionState === 'connected' ? 'text-emerald-400' : 'text-slate-500'}`} />
+                        <span>{dev.name}</span>
+                        {dev.isSimulated && (
+                          <span className="px-1.5 py-0.2 rounded text-[9px] bg-purple-950 text-purple-300 border border-purple-800">SIM</span>
+                        )}
+                      </td>
+                      <td className="p-2.5 text-[10.5px] text-slate-400 max-w-[130px] truncate">{dev.id}</td>
+                      <td className="p-2.5">
+                        <span
+                          className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                            dev.connectionState === 'connected'
+                              ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/40'
+                              : dev.connectionState === 'connecting'
+                              ? 'bg-amber-950 text-amber-300 border border-amber-500/40 animate-pulse'
+                              : 'bg-slate-800 text-slate-400'
+                          }`}
+                        >
+                          {dev.connectionState}
+                        </span>
+                      </td>
+                      <td className="p-2.5">
+                        <div className="flex items-center gap-2">
+                          <span className={`font-bold ${dev.rssi > -60 ? 'text-emerald-400' : dev.rssi > -75 ? 'text-amber-400' : 'text-rose-400'}`}>
+                            {dev.rssi} dBm
+                          </span>
+                          <span className="text-[10px] text-slate-500">
+                            (~{dev.estimatedDistanceMeters}m)
+                          </span>
+                        </div>
+                      </td>
+                      <td className="p-2.5">
+                        {dev.batteryLevel !== undefined ? (
+                          <span className="text-emerald-300 font-bold">{dev.batteryLevel}%</span>
+                        ) : (
+                          <span className="text-slate-600">—</span>
+                        )}
+                      </td>
+                      <td className="p-2.5 text-[10px] text-cyan-300">
+                        R:{Math.round(dev.spatialPosition.orbitRadius)} | ({dev.spatialPosition.x.toFixed(1)}, {dev.spatialPosition.y.toFixed(1)}, {dev.spatialPosition.z.toFixed(1)})
+                      </td>
+                      <td className="p-2.5 text-right">
+                        {dev.connectionState === 'connected' ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              bluetoothDeviceManager.disconnectDevice(dev.id);
+                              void refresh('bluetooth');
+                            }}
+                            className="px-2 py-1 text-[10px] font-bold text-rose-300 bg-rose-950/60 hover:bg-rose-900 border border-rose-800 rounded transition cursor-pointer"
+                          >
+                            Disconnect
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              await bluetoothDeviceManager.connectDevice(dev.id);
+                              void refresh('bluetooth');
+                            }}
+                            className="px-2 py-1 text-[10px] font-bold text-emerald-300 bg-emerald-950/60 hover:bg-emerald-900 border border-emerald-800 rounded transition cursor-pointer"
+                          >
+                            Connect GATT
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : (
           <pre className="max-h-72 overflow-auto rounded-lg bg-black/40 p-3 text-[11px] leading-relaxed text-emerald-200"
           aria-live="polite">{JSON.stringify(live??{source:'not-yet-read',state:'unavailable'},null,2)}</pre>
         )}

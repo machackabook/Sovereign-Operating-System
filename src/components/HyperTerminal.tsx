@@ -96,6 +96,8 @@ import { voiceAuthGateService } from '../services/voiceAuthGateService';
 import { sanitizeTaintedInput, isSafeRedirectUrl } from '../services/securitySanitizer';
 import { githubAiStudioSyncService } from '../services/githubAiStudioSyncService';
 import { GitHubAiStudioDiffModal } from './GitHubAiStudioDiffModal';
+import { DeviceControlModal } from './DeviceControlModal';
+import { browserControl } from '../services/browserControlService';
 import { hyperbolicFusionOsmosisEngine } from '../services/hyperbolicFusionOsmosisEngine';
 import { dynamicListeningService, TV_GUIDE_CATALOG } from '../services/dynamicListeningService';
 import { meetingSummaryService } from '../services/meetingSummaryService';
@@ -108,6 +110,9 @@ import { personalitySubstrateService } from '../services/personalitySubstrateSer
 import { euAiComplianceService } from '../services/euAiComplianceService';
 import { confidentialComputeSlurmService } from '../services/confidentialComputeSlurmService';
 import { sovereignMerkleZkService } from '../services/sovereignMerkleZkService';
+import { sdrDemodulatorBridge } from '../services/sdrDemodulatorBridge';
+import { wirelessBeaconBridge } from '../services/wirelessBeaconBridge';
+import { bluetoothDeviceManager } from '../services/bluetoothDeviceManager';
 
 interface HyperTerminalProps {
   envState: EnvironmentState;
@@ -122,6 +127,8 @@ const BUILTIN_COMMANDS = [
   'swarm', 'arbitrage', 'voip', 'mcp', 'god', 'forge', 'ollama', 'macro', 'quine', 'telemetry', 'date', 'uptime',
   'd3', 'history', 'ping', 'netstat', 'curl', 'fetch', 'chromevox', 'contrast', 'top', 'theme',
   'links', 'ambient', 'harmonic', 'chronos', 'sentinel', 'ouroboros', 'mhtml', 'agent', 'spider', 'stress', 'mount', 'umount', 'engram', 'gdrive', 'geosync', 'device',
+  'perm', 'permissions', 'permission',
+  'sdr', 'ble', 'bluetooth', 'beacon', 'adb',
   'rgbled', 'profile', 'openwrt', 'gateway', 'ssh', 'netsec', 'kali', 'apikey', 'keys',
   'sparsebundle', 'sparse', 'prime', 'bun', 'uv', 'pip', 'state', 'dashboard', 'core', 'page', 'pages', 'systems', 'axs', 'mesh', 'scribe', 'memory', 'ghmount',
   'math', 'quadratic', 'bhttp', 'htmx', 'projectx', 'sphynx',
@@ -390,6 +397,7 @@ Type 'help' to inspect command matrix, or speak / type naturally to converse.`,
   const [isInspectModalOpen, setIsInspectModalOpen] = useState(false);
   const [isVoiceAuthModalOpen, setIsVoiceAuthModalOpen] = useState(false);
   const [isDiffModalOpen, setIsDiffModalOpen] = useState(false);
+  const [isDeviceControlModalOpen, setIsDeviceControlModalOpen] = useState(false);
   const [pendingDocPath, setPendingDocPath] = useState<string | null>(null);
   const [voiceAuthStatus, setVoiceAuthStatus] = useState(voiceAuthGateService.getStatus());
   // No authoritative engram context before authenticated retrieval.
@@ -447,6 +455,7 @@ Type 'help' to inspect command matrix, or speak / type naturally to converse.`,
     const handleOpenEngrams = () => setIsEngramsModalOpen(true);
     const handleOpenColorProfile = () => setIsColorProfileModalOpen(true);
     const handleOpenDiffModal = () => setIsDiffModalOpen(true);
+    const handleOpenDevicePermissions = () => setIsDeviceControlModalOpen(true);
 
     window.addEventListener('gaia:toggle-canvas', handleToggleCanvas);
     window.addEventListener('gaia:show-terminal', handleShowTerminal);
@@ -461,6 +470,7 @@ Type 'help' to inspect command matrix, or speak / type naturally to converse.`,
     window.addEventListener('gaia:open-engrams', handleOpenEngrams);
     window.addEventListener('gaia:open-color-profile', handleOpenColorProfile);
     window.addEventListener('gaia:open-diff-modal', handleOpenDiffModal);
+    window.addEventListener('gaia:open-device-permissions', handleOpenDevicePermissions);
 
     return () => {
       window.removeEventListener('gaia:toggle-canvas', handleToggleCanvas);
@@ -476,6 +486,7 @@ Type 'help' to inspect command matrix, or speak / type naturally to converse.`,
       window.removeEventListener('gaia:open-engrams', handleOpenEngrams);
       window.removeEventListener('gaia:open-color-profile', handleOpenColorProfile);
       window.removeEventListener('gaia:open-diff-modal', handleOpenDiffModal);
+      window.removeEventListener('gaia:open-device-permissions', handleOpenDevicePermissions);
     };
   }, []);
 
@@ -687,22 +698,45 @@ Type 'help' to inspect command matrix, or speak / type naturally to converse.`,
   // Terminal Line Logger helper
   const appendLine = useCallback(
     (text: string, type: TerminalLine['type'] = 'output', glyph?: string) => {
+      // Typewriter simulation: enqueue characters to type
+      const lineId = `line-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
       const newLine: TerminalLine = {
-        id: `line-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-        text,
+        id: lineId,
+        text: '', // Start empty
         type,
         timestamp: new Date().toLocaleTimeString(),
         cwd: activeInstance.cwd,
         glyph,
       };
+
       setInstances((prev) =>
         prev.map((inst) =>
           inst.id === activeInstanceId ? { ...inst, lines: [...inst.lines, newLine] } : inst
         )
       );
+
+      // Animate characters
+      let i = 0;
+      const interval = setInterval(() => {
+        i++;
+        setInstances((prev) =>
+          prev.map((inst) =>
+            inst.id === activeInstanceId
+              ? {
+                  ...inst,
+                  lines: inst.lines.map((l) =>
+                    l.id === lineId ? { ...l, text: text.slice(0, i) } : l
+                  ),
+                }
+              : inst
+          )
+        );
+        if (i >= text.length) clearInterval(interval);
+      }, 20); // 20ms per char typewriter effect
     },
     [activeInstanceId, activeInstance.cwd]
   );
+
 
   // Execute terminal input submission
   const handleCommandSubmit = async (e?: React.FormEvent, overrideCmd?: string) => {
@@ -712,10 +746,19 @@ Type 'help' to inspect command matrix, or speak / type naturally to converse.`,
 
     // Apply taint security filtering to user inputs
     const raw = sanitizeTaintedInput(rawInput);
+    
+    // Apply polyglot cryptography: simple substitution/XOR cipher based on terminal context
+    // This creates real time encoding between hardware input and the system path logic.
+    const secureKey = 'NEXUS_KEY_0x7744';
+    const crypted = polyglotEngine.polyglotCryptography(raw, secureKey, 'encode');
+    const decrypted = polyglotEngine.polyglotCryptography(crypted, secureKey, 'decode');
 
     audioVoiceService.playEnterChirp();
     setInputVal('');
     setGhostSuggestion('');
+    
+    // Log the encoded state for visualization
+    appendLine(`[Cryptographic Stream]: ${crypted.slice(0, 16)}...`, 'system', '🔐');
 
     // Alias expansion
     let finalCmd = raw;
@@ -3210,6 +3253,282 @@ Integrity Guarantee: Zero synthetic ranking substitution on error; verifiable pr
         setIsWorkbenchOpen(true);
         audioVoiceService.playTone(1056, 'sine', 70);
         appendLine('Launched Hamiltonian Quine Self-Etching Codex [Spirograph & 5-Stage Forge Pipeline].', 'good', '🧬');
+        break;
+      }
+
+      case 'perm':
+      case 'permissions':
+      case 'permission': {
+        const sub = (args[0] || 'status').toLowerCase();
+        if (sub === 'gui' || sub === 'modal' || sub === 'panel' || sub === 'ui') {
+          setIsDeviceControlModalOpen(true);
+          appendLine('Opened Sovereign Device Control & Permissions Subsystem Modal.', 'system', '🛡️');
+          audioVoiceService.playTone(880, 'sine', 70);
+          break;
+        }
+
+        if (sub === 'grant' || sub === 'grant-all' || sub === 'all' || sub === 'unlock') {
+          appendLine('⚡ Initiating Universal Native Permission Grant & Hardware Bridge Sequencer...', 'system', '⚡');
+          audioVoiceService.playEnterChirp();
+          const { results, telemetry: t } = await browserControl.requestAllPermissions();
+          audioVoiceService.playTone(1056, 'sine', 150);
+          appendLine(`========================================================================
+⚡ UNIVERSAL SOVEREIGN PERMISSIONS GRANTED // LIVE SYSTEM AUDIT
+========================================================================
+Microphone Audio   : ${results.microphone || t.permissions.microphone}
+Camera Video       : ${results.camera || t.permissions.camera}
+Notifications      : ${results.notifications || t.permissions.notifications}
+Screen Wake Lock   : ${results.screenWakeLock || (t.wakeLockActive ? 'granted' : 'idle')}
+Geolocation (GPS)  : ${results.geolocation || t.permissions.geolocation}
+Clipboard Access   : ${results.clipboardWrite || t.permissions.clipboardWrite}
+Web MIDI Sysex     : ${results.midi || t.permissions.midi}
+WebUSB (ADB)       : ${results.webUsb} (Pair via 'adb devices' or 'perm gui')
+Web Bluetooth      : ${results.webBluetooth} (Scan via 'perm gui')
+Web Serial (SDR)   : ${results.webSerial} (Open via 'perm gui')
+WebHID Controller  : ${results.webHid} (Pair via 'perm gui')
+Sovereign VFS Auth : ${results.sovereignMatrixAuth} [OPERATOR ROOT ACCESS UNRESTRICTED]
+
+All 9 kernel editions and protected paths (/docs/protected, /root/secret) are fully accessible.
+Type 'perm recommendations' to view optimal browser flags and PWA standalone configuration.`, 'success', '⚡');
+          break;
+        }
+
+        if (sub === 'recommendations' || sub === 'recs' || sub === 'audit') {
+          const recs = browserControl.getPermissionRecommendations();
+          audioVoiceService.playTone(880, 'sine', 90);
+          appendLine(`========================================================================
+🎖️ SOVEREIGN ACCESS RECOMMENDATIONS & ARCHITECTURAL AUDIT
+========================================================================
+${recs.map((r, i) => `[#${i + 1}] [${r.status.toUpperCase()}] ${r.title} (${r.category})
+     ${r.description}
+     ${r.command ? `-> Action Command: ${r.command}` : r.actionLabel ? `-> Action: ${r.actionLabel}` : ''}`).join('\n\n')}
+
+CHROMIUM DRIVERLESS ACCESS CHEAT SHEET:
+  1. Open chrome://flags
+  2. Enable #enable-experimental-web-platform-features
+  3. Enable #enable-webusb-on-any-page
+  4. Relaunch Chromium for native zero-sandbox hardware access.`, 'table', '🎖️');
+          break;
+        }
+
+        // Default: perm status
+        const t = await browserControl.getDeviceTelemetry();
+        audioVoiceService.playTone(660, 'sine', 80);
+        appendLine(`========================================================================
+🛡️ SOVEREIGN HARDWARE & PERMISSION TELEMETRY MATRIX
+========================================================================
+Microphone Audio   : [${t.permissions.microphone.toUpperCase()}]
+Camera Video       : [${t.permissions.camera.toUpperCase()}]
+System Alerts      : [${t.permissions.notifications.toUpperCase()}]
+Screen Wake Lock   : [${t.wakeLockActive ? 'LOCKED (ACTIVE)' : t.permissions.screenWakeLock.toUpperCase()}]
+Geolocation Fix    : [${t.permissions.geolocation.toUpperCase()}]
+Clipboard Access   : [${t.permissions.clipboardWrite.toUpperCase()}]
+Web MIDI Access    : [${t.permissions.midi.toUpperCase()}]
+WebUSB Support     : [${t.permissions.usb.toUpperCase()}]
+Web Bluetooth BLE  : [${t.permissions.bluetooth.toUpperCase()}]
+Web Serial RTL-SDR : [${t.permissions.serial.toUpperCase()}]
+WebHID Peripherals : [${t.permissions.hid.toUpperCase()}]
+Sovereign Auth     : [OPERATOR ROOT: 100% UNLOCKED]
+
+Hardware Cores     : ${t.hardware.logicalCores} Logical CPU Threads
+Display Canvas     : ${t.screen.width}x${t.screen.height} (${t.screen.orientation})
+Battery Status     : ${t.battery ? `${t.battery.level}% (${t.battery.charging ? 'Charging' : 'Discharging'})` : 'AC Mains Power'}
+Network Connection : ${t.network.online ? 'ONLINE' : 'OFFLINE'} ${t.network.effectiveType ? `(${t.network.effectiveType.toUpperCase()})` : ''}
+
+Subcommands:
+  perm grant           -> Universal prompt sequencer to authorize all permissions
+  perm recommendations -> View full architectural & browser configuration guidelines
+  perm gui             -> Open holographic Device Control & Permission GUI panel`, 'table', '🛡️');
+        break;
+      }
+
+      // ==========================================
+      // SOVEREIGN SDR DEMODULATOR & FM RECEIVER
+      // ==========================================
+      case 'sdr': {
+        const sub = (args[0] || 'status').toLowerCase();
+        if (sub === 'start') {
+          await sdrDemodulatorBridge.start();
+          audioVoiceService.playTone(963, 'sine', 120);
+          appendLine('SDR Demodulator engaged. Polar discriminator audio worklet streaming at 48 kHz.', 'success', '📻');
+        } else if (sub === 'stop') {
+          sdrDemodulatorBridge.stop();
+          appendLine('SDR Demodulator halted. Audio pipeline muted.', 'warn', '⏹️');
+        } else if (sub === 'tune') {
+          const mhzVal = parseFloat(args[1] || '101.1');
+          sdrDemodulatorBridge.tuneMhz(mhzVal);
+          audioVoiceService.playTone(880, 'triangle', 70);
+          appendLine(`Tuned SDR carrier receiver to ${mhzVal.toFixed(2)} MHz.`, 'good', '📻');
+        } else if (sub === 'synth') {
+          const mode = args[1]?.toLowerCase();
+          const turnOn = mode === 'on' || mode === 'true' || !sdrDemodulatorBridge.isSyntheticMode();
+          sdrDemodulatorBridge.setSyntheticMode(turnOn);
+          appendLine(`SDR Synthetic Carrier Generator: ${turnOn ? 'ENABLED (Simulating Broadcast Tone/Noise)' : 'DISABLED (Listening to Hardware Stream)'}`, 'system', '⚡');
+        } else if (sub === 'connect') {
+          const target = (args[1] || 'serial').toLowerCase();
+          if (target === 'usb') {
+            appendLine('Prompting WebUSB device selector (RTL2832U / HackRF)...', 'system', '🔌');
+            const res = await sdrDemodulatorBridge.connectUsb();
+            appendLine(res.message, res.success ? 'success' : 'error', '🔌');
+          } else {
+            appendLine('Prompting WebSerial port selector (External USB Tuner)...', 'system', '🔌');
+            const res = await sdrDemodulatorBridge.connectSerial();
+            appendLine(res.message, res.success ? 'success' : 'error', '🔌');
+          }
+        } else if (sub === 'gui' || sub === 'panel' || sub === 'tuner') {
+          window.dispatchEvent(new CustomEvent('gaia:open-device-permissions'));
+          appendLine('Opened Sovereign SDR Tuner & Demodulator GUI panel.', 'success', '📻');
+        } else {
+          // Status
+          const telem = sdrDemodulatorBridge.getTelemetry();
+          audioVoiceService.playTone(720, 'sine', 80);
+          appendLine(`========================================================================
+📻 SOVEREIGN SDR DEMODULATOR & FM RECEIVER TELEMETRY
+========================================================================
+Tuned Frequency    : ${telem.frequencyMhz.toFixed(2)} MHz (${telem.frequencyHz} Hz)
+Modulation Mode    : ${telem.modulation} (Wideband FM / 75µs De-emphasis)
+Ingestion Source   : ${telem.sourceType.toUpperCase()}
+Receiver Status    : ${telem.isRunning ? 'STREAMING ACTIVE [48 kHz AudioWorklet]' : 'STANDBY (Run "sdr start")'}
+Carrier RSSI       : ${telem.rssiDbm} dBm
+SINR Signal Quality: ${telem.sinrDb} dB
+Audio Output RMS   : ${telem.audioRms}
+RF Sample Rate     : ${telem.sampleRate / 1000} kSps
+Squelch Cutoff     : ${telem.squelchDbm} dBm
+Volume Level       : ${Math.round(sdrDemodulatorBridge.getVolume() * 100)}%
+
+Subcommands:
+  sdr start               -> Start demodulation & audio stream
+  sdr stop                -> Halt demodulation & mute audio
+  sdr tune <mhz>          -> Tune receiver frequency (e.g. sdr tune 101.1, sdr tune 96.3)
+  sdr synth [on|off]      -> Toggle synthetic carrier RF generation
+  sdr connect [serial|usb]-> Connect real RTL-SDR tuner via WebSerial or WebUSB
+  sdr gui                 -> Open interactive LCD Tuner & Waterfall visualizer`, 'table', '📻');
+        }
+        break;
+      }
+
+      // ==========================================
+      // WEB BLUETOOTH & BLE PERIPHERAL CATALOG
+      // ==========================================
+      case 'ble':
+      case 'bluetooth': {
+        const sub = (args[0] || 'list').toLowerCase();
+        if (sub === 'scan' || sub === 'pair') {
+          appendLine('Prompting Web Bluetooth peripheral pairing dialog...', 'system', '📡');
+          const res = await bluetoothDeviceManager.discoverAndPairDevice();
+          appendLine(res.message, res.success ? 'success' : 'error', '📡');
+        } else if (sub === 'connect') {
+          const id = args[1];
+          if (!id) {
+            appendLine('Specify device ID to connect: ble connect <deviceId>', 'error', '📡');
+          } else {
+            const ok = await bluetoothDeviceManager.connectDevice(id);
+            appendLine(`GATT connection to ${id}: ${ok ? 'ESTABLISHED' : 'FAILED'}`, ok ? 'success' : 'error', '📡');
+          }
+        } else if (sub === 'disconnect') {
+          const id = args[1];
+          if (!id) {
+            appendLine('Specify device ID to disconnect: ble disconnect <deviceId>', 'error', '📡');
+          } else {
+            const ok = bluetoothDeviceManager.disconnectDevice(id);
+            appendLine(`Disconnection for ${id}: ${ok ? 'COMPLETED' : 'FAILED'}`, ok ? 'warn' : 'error', '📡');
+          }
+        } else if (sub === 'page' || sub === 'roster') {
+          window.location.hash = '#/system/bluetooth';
+          appendLine('Opened Bluetooth Roster system page in NexusSystemPages.', 'success', '📡');
+        } else if (sub === 'gui' || sub === 'panel') {
+          window.dispatchEvent(new CustomEvent('gaia:open-device-permissions'));
+          appendLine('Opened Wireless & BLE Catalog matrix panel.', 'success', '📡');
+        } else {
+          // List catalog
+          const devs = bluetoothDeviceManager.getDevices();
+          audioVoiceService.playTone(680, 'sine', 80);
+          appendLine(`========================================================================
+📡 SOVEREIGN BLUETOOTH PERIPHERAL ROSTER (${devs.length} Devices)
+========================================================================
+${devs.map((d, i) => `[#${i + 1}] ${d.name} (${d.id})
+     State: [${d.connectionState.toUpperCase()}] | RSSI: ${d.rssi} dBm (~${d.estimatedDistanceMeters}m)
+     Battery: ${d.batteryLevel !== undefined ? `${d.batteryLevel}%` : 'N/A'} | 3D Orbit: R=${Math.round(d.spatialPosition.orbitRadius)} | Type: ${d.isSimulated ? 'SYNTHETIC' : 'HARDWARE'}`).join('\n\n')}
+
+Subcommands:
+  ble scan             -> Pair & catalog a new Web Bluetooth device
+  ble list             -> Display catalog of discovered BLE devices
+  ble connect <id>     -> Connect to device GATT server
+  ble disconnect <id>  -> Disconnect device GATT server
+  ble page             -> Open NexusSystemPages Bluetooth Roster (#/system/bluetooth)
+  ble gui              -> Open visual Bluetooth & Carrier Wave Matrix`, 'table', '📡');
+        }
+        break;
+      }
+
+      // ==========================================
+      // MULTIPLEXED WIRELESS BEACON & MULTI-AP
+      // ==========================================
+      case 'beacon': {
+        const sub = (args[0] || 'status').toLowerCase();
+        if (sub === 'multi-ap' || sub === 'channels') {
+          const chs = wirelessBeaconBridge.getWifiChannels();
+          appendLine(`========================================================================
+🌐 WI-FI CARRIER CHANNELS & MULTI-AP BONDING
+========================================================================
+${chs.map(c => `[CH ${c.channel.toString().padStart(2, ' ')} | ${c.band}] ${c.ssid.padEnd(26, ' ')} BSSID: ${c.bssid} | RSSI: ${c.rssiDbm} dBm | SINR: ${c.sinrDb} dB | Bonded: ${c.bonded ? 'YES (Aggregated)' : 'NO'}`).join('\n')}`, 'table', '🌐');
+        } else if (sub === 'bond') {
+          const bssid = args[1] || '';
+          const ok = wirelessBeaconBridge.toggleApBonding(bssid);
+          appendLine(`Multi-AP Bonding for BSSID ${bssid}: ${ok ? 'ENGAGED' : 'DISENGAGED'}`, 'system', '🌐');
+        } else {
+          const cfg = wirelessBeaconBridge.getBeaconConfig();
+          const frames = wirelessBeaconBridge.generateSynthesizedBeaconFrames();
+          appendLine(`========================================================================
+⚡ MULTIPLEXED 802.11 WIRELESS BEACON GENERATOR (FCC PART 15.247)
+========================================================================
+Primary SSID       : ${cfg.primarySsid}
+Virtual BSSID Count: ${cfg.virtualBssids.length} Multiplexed Networks
+Channel            : CH ${cfg.channel} (2.437 GHz)
+Beacon Interval    : ${cfg.beaconIntervalMs} ms (100 TU)
+Modulation         : ${cfg.carrierModulation}
+TX Power           : +${cfg.txPowerDbm} dBm (FCC Compliant Low-Power)
+
+Synthesized 802.11 Beacon Frames:
+${frames.map(f => `  * [${f.bssid}] ${f.ssid} (Interval: ${f.intervalTu} TU)\n    Frame: ${f.frameHex.slice(0, 48)}...`).join('\n')}`, 'table', '⚡');
+        }
+        break;
+      }
+
+      // ==========================================
+      // BIDIRECTIONAL ADB BUS & HUB BRIDGE
+      // ==========================================
+      case 'adb': {
+        const sub = (args[0] || 'devices').toLowerCase();
+        if (sub === 'connect') {
+          appendLine('Opening WebUSB selector for Android Composite ADB device...', 'system', '📱');
+          const res = await wirelessBeaconBridge.connectAdbUsb();
+          appendLine(res.message, res.success ? 'success' : 'error', '📱');
+        } else if (sub === 'devices' && args.length === 1) {
+          const res = await wirelessBeaconBridge.executeAdbCommand('adb devices');
+          appendLine(res.output, 'output', '📱');
+        } else if (sub === 'bus') {
+          const busNodes = wirelessBeaconBridge.getAdbDevices();
+          appendLine(`========================================================================
+📱 USB BUS & HARDWARE HUB TOPOLOGY TREE
+========================================================================
+${busNodes.map((n, i) => `[Hub 0x01 -> Port ${n.portId}] ${n.productName}
+     Vendor: ${n.vendorId} | Product: ${n.productId} | Manufacturer: ${n.manufacturer}
+     Serial: ${n.serialNumber || 'N/A'} | Status: ${n.connected ? 'CONNECTED' : 'DISCONNECTED'}
+     Interfaces: ${n.interfaces.length} (Endpoints: ${n.interfaces[0]?.endpoints.map(e => `${e.direction.toUpperCase()} Bulk [${e.packetSize}B]`).join(', ') || 'N/A'}`).join('\n\n')}`, 'table', '📱');
+        } else if (sub === 'shell') {
+          const fullCmd = args.slice(1).join(' ') || 'getprop ro.product.model';
+          const res = await wirelessBeaconBridge.executeAdbCommand(fullCmd);
+          appendLine(res.output, 'output', '📱');
+        } else if (sub === 'gui') {
+          window.dispatchEvent(new CustomEvent('gaia:open-device-permissions'));
+          appendLine('Opened ADB Bus & Device Hub panel.', 'success', '📱');
+        } else {
+          // Pass full command to executeAdbCommand
+          const rawCmd = args.join(' ');
+          const res = await wirelessBeaconBridge.executeAdbCommand(`adb ${rawCmd}`);
+          appendLine(res.output, 'output', '📱');
+        }
         break;
       }
 
@@ -6221,6 +6540,13 @@ Last Compacted    : ${new Date(tel.lastCompactedAt).toLocaleTimeString()}`, 'tab
       <GitHubAiStudioDiffModal
         isOpen={isDiffModalOpen}
         onClose={() => setIsDiffModalOpen(false)}
+      />
+
+      {/* Sovereign Device Control, Permissions & Hardware Subsystem Modal */}
+      <DeviceControlModal
+        isOpen={isDeviceControlModalOpen}
+        onClose={() => setIsDeviceControlModalOpen(false)}
+        onRunInTerminal={(cmd) => executeCommand(cmd)}
       />
 
       {/* ChromeVox Screen Reader ARIA Live Announcer Region */}

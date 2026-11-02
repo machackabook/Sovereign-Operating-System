@@ -26,6 +26,17 @@ import {
   Keyboard,
   Bell,
   RefreshCw,
+  Camera,
+  Mic,
+  Bluetooth,
+  Usb,
+  Radio,
+  Compass,
+  HelpCircle,
+  CheckCircle2,
+  AlertCircle,
+  HardDrive,
+  Award,
 } from 'lucide-react';
 import {
   DeviceCapabilityTelemetry,
@@ -35,6 +46,15 @@ import {
 } from '../types';
 import { browserControl } from '../services/browserControlService';
 import { audioVoiceService } from '../services/audioVoiceService';
+import { voiceAuthGateService } from '../services/voiceAuthGateService';
+import { SdrDemodulatorBridge } from './SdrDemodulatorBridge';
+import {
+  wirelessBeaconBridge,
+  BleCatalogEntry,
+  WifiCarrierChannel,
+  AdbDeviceBusNode,
+  AdbShellExecutionResult,
+} from '../services/wirelessBeaconBridge';
 
 interface DeviceControlModalProps {
   isOpen: boolean;
@@ -42,7 +62,16 @@ interface DeviceControlModalProps {
   onRunInTerminal?: (cmd: string) => void;
 }
 
-type TabType = 'permissions' | 'fragment' | 'execution' | 'a11y' | 'gemini-assist';
+type TabType =
+  | 'permissions'
+  | 'recommendations'
+  | 'sdr'
+  | 'wireless'
+  | 'adb'
+  | 'fragment'
+  | 'execution'
+  | 'a11y'
+  | 'gemini-assist';
 
 export const DeviceControlModal: React.FC<DeviceControlModalProps> = ({
   isOpen,
@@ -74,6 +103,19 @@ export const DeviceControlModal: React.FC<DeviceControlModalProps> = ({
   const [assistOutput, setAssistOutput] = useState<string | null>(null);
   const [isProcessingAssist, setIsProcessingAssist] = useState(false);
 
+  // Wireless & BLE Catalog State
+  const [bleCatalog, setBleCatalog] = useState<BleCatalogEntry[]>([]);
+  const [wifiChannels, setWifiChannels] = useState<WifiCarrierChannel[]>([]);
+  const [isBleScanning, setIsBleScanning] = useState(false);
+  const [blePairMsg, setBlePairMsg] = useState('');
+
+  // ADB Bus State
+  const [adbDevices, setAdbDevices] = useState<AdbDeviceBusNode[]>([]);
+  const [adbCmdInput, setAdbCmdInput] = useState('adb devices');
+  const [adbLog, setAdbLog] = useState<AdbShellExecutionResult[]>([]);
+  const [isAdbRunning, setIsAdbRunning] = useState(false);
+  const [adbStatusMsg, setAdbStatusMsg] = useState('');
+
   // Refresh Telemetry
   const refreshTelemetry = async () => {
     setIsLoadingTelemetry(true);
@@ -89,10 +131,70 @@ export const DeviceControlModal: React.FC<DeviceControlModalProps> = ({
     if (isOpen) {
       refreshTelemetry();
       audioVoiceService.playTone(960, 'sine', 70);
+
+      const unsubBle = wirelessBeaconBridge.subscribeBleCatalog(setBleCatalog);
+      const unsubWifi = wirelessBeaconBridge.subscribeWifiChannels(setWifiChannels);
+      const unsubAdb = wirelessBeaconBridge.subscribeAdbDevices(setAdbDevices);
+      setAdbLog(wirelessBeaconBridge.getAdbHistory());
+
+      return () => {
+        unsubBle();
+        unsubWifi();
+        unsubAdb();
+      };
     }
   }, [isOpen]);
 
+  const [isGrantingAll, setIsGrantingAll] = useState(false);
+  const [grantSummary, setGrantSummary] = useState<string | null>(null);
+
   if (!isOpen) return null;
+
+  // Universal Grant All Permissions Handler
+  const handleGrantAllPermissions = async () => {
+    setIsGrantingAll(true);
+    setGrantSummary('Requesting native browser permissions for Microphone, Camera, Notifications, Geolocation, WakeLock, MIDI...');
+    audioVoiceService.playEnterChirp();
+    try {
+      const { results, telemetry: updatedTelemetry } = await browserControl.requestAllPermissions();
+      setTelemetry(updatedTelemetry);
+      audioVoiceService.playTone(880, 'sine', 150);
+      setGrantSummary(`Permissions processed! Mic: ${results.microphone || 'ok'}, Cam: ${results.camera || 'ok'}, Notifications: ${results.notifications || 'ok'}, Geo: ${results.geolocation || 'ok'}, WakeLock: ${results.screenWakeLock || 'ok'}, Sovereign Matrix: ${results.sovereignMatrixAuth || 'unlocked'}.`);
+    } catch (err: any) {
+      setGrantSummary(`Permission request encounter: ${err?.message || err}`);
+    } finally {
+      setIsGrantingAll(false);
+      await refreshTelemetry();
+    }
+  };
+
+  const handlePairUsb = async () => {
+    audioVoiceService.playTone(660, 'sine', 60);
+    const res = await browserControl.requestUsbDevice();
+    alert(res.message);
+    await refreshTelemetry();
+  };
+
+  const handleScanBluetooth = async () => {
+    audioVoiceService.playTone(740, 'sine', 60);
+    const res = await browserControl.requestBluetoothDevice();
+    alert(res.message);
+    await refreshTelemetry();
+  };
+
+  const handleOpenSerial = async () => {
+    audioVoiceService.playTone(820, 'sine', 60);
+    const res = await browserControl.requestSerialPort();
+    alert(res.message);
+    await refreshTelemetry();
+  };
+
+  const handlePairHid = async () => {
+    audioVoiceService.playTone(550, 'sine', 60);
+    const res = await browserControl.requestHidDevice();
+    alert(res.message);
+    await refreshTelemetry();
+  };
 
   // Handlers for Wake Lock
   const handleToggleWakeLock = async () => {
@@ -347,6 +449,69 @@ export const DeviceControlModal: React.FC<DeviceControlModalProps> = ({
 
           <button
             onClick={() => {
+              setActiveTab('recommendations');
+              audioVoiceService.playTone(520, 'sine', 30);
+            }}
+            className={`px-3 py-2 text-xs font-semibold rounded-t-lg transition-all flex items-center gap-2 border-t border-x cursor-pointer ${
+              activeTab === 'recommendations'
+                ? 'bg-[#050b14] border-cyan-500/50 text-cyan-300 shadow-[0_-4px_12px_rgba(6,182,212,0.2)]'
+                : 'border-transparent text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Award className="w-3.5 h-3.5 text-amber-400" />
+            <span>Recommendations &amp; Audit</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setActiveTab('sdr');
+              audioVoiceService.playTone(530, 'sine', 30);
+            }}
+            className={`px-3 py-2 text-xs font-semibold rounded-t-lg transition-all flex items-center gap-2 border-t border-x cursor-pointer ${
+              activeTab === 'sdr'
+                ? 'bg-[#050b14] border-cyan-500/50 text-cyan-300 shadow-[0_-4px_12px_rgba(6,182,212,0.2)]'
+                : 'border-transparent text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Radio className="w-3.5 h-3.5 text-cyan-400" />
+            <span>SDR FM Tuner</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setActiveTab('wireless');
+              audioVoiceService.playTone(540, 'sine', 30);
+            }}
+            className={`px-3 py-2 text-xs font-semibold rounded-t-lg transition-all flex items-center gap-2 border-t border-x cursor-pointer ${
+              activeTab === 'wireless'
+                ? 'bg-[#050b14] border-cyan-500/50 text-cyan-300 shadow-[0_-4px_12px_rgba(6,182,212,0.2)]'
+                : 'border-transparent text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Wifi className="w-3.5 h-3.5 text-cyan-400" />
+            <span>Wireless &amp; BLE Matrix</span>
+            <span className="px-1.5 py-0.2 text-[9px] bg-cyan-900 text-cyan-200 rounded-full font-bold">
+              {bleCatalog.length}
+            </span>
+          </button>
+
+          <button
+            onClick={() => {
+              setActiveTab('adb');
+              audioVoiceService.playTone(550, 'sine', 30);
+            }}
+            className={`px-3 py-2 text-xs font-semibold rounded-t-lg transition-all flex items-center gap-2 border-t border-x cursor-pointer ${
+              activeTab === 'adb'
+                ? 'bg-[#050b14] border-cyan-500/50 text-cyan-300 shadow-[0_-4px_12px_rgba(6,182,212,0.2)]'
+                : 'border-transparent text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Usb className="w-3.5 h-3.5 text-cyan-400" />
+            <span>ADB Bus &amp; Hub</span>
+          </button>
+
+          <button
+            onClick={() => {
               setActiveTab('fragment');
               audioVoiceService.playTone(550, 'sine', 30);
             }}
@@ -416,16 +581,25 @@ export const DeviceControlModal: React.FC<DeviceControlModalProps> = ({
           {/* TAB 1: PERMISSIONS & HARDWARE */}
           {activeTab === 'permissions' && (
             <div className="space-y-4 animate-in fade-in">
-              <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-2 border-b border-slate-800 gap-2">
                 <div>
                   <h3 className="text-xs font-bold text-cyan-300 tracking-wider">
                     AUTHORIZED DEVICE PERMISSIONS &amp; HARDWARE CONTROL
                   </h3>
                   <p className="text-[11px] text-slate-400">
-                    Direct access to native user device APIs authorized in modern Chromium / ChromeVox runtimes.
+                    Direct access to native user device APIs, hardware bridges, and sovereign authorization gates.
                   </p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleGrantAllPermissions}
+                    disabled={isGrantingAll}
+                    className="px-3 py-1.5 text-xs font-bold rounded-lg border flex items-center gap-1.5 transition-all cursor-pointer bg-gradient-to-r from-cyan-500 to-emerald-500 hover:from-cyan-400 hover:to-emerald-400 text-slate-950 shadow-[0_0_15px_rgba(6,182,212,0.4)] disabled:opacity-50"
+                  >
+                    <Zap className={`w-3.5 h-3.5 ${isGrantingAll ? 'animate-spin' : ''}`} />
+                    <span>{isGrantingAll ? 'GRANTING PERMISSIONS...' : '⚡ GRANT ALL PERMISSIONS'}</span>
+                  </button>
+
                   <button
                     onClick={handleToggleWakeLock}
                     className={`px-3 py-1.5 text-xs font-bold rounded-lg border flex items-center gap-1.5 transition-all cursor-pointer ${
@@ -449,12 +623,25 @@ export const DeviceControlModal: React.FC<DeviceControlModalProps> = ({
                 </div>
               </div>
 
+              {grantSummary && (
+                <div className="p-2.5 rounded-lg bg-cyan-950/60 border border-cyan-500/40 text-cyan-200 text-xs flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-cyan-400 shrink-0 animate-pulse" />
+                  <span className="flex-1">{grantSummary}</span>
+                  <button onClick={() => setGrantSummary(null)} className="text-cyan-400 hover:text-white">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+
               {telemetry && (
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   {/* Permission: Microphone */}
                   <div className="p-3 bg-slate-900/60 border border-slate-800 rounded-xl space-y-1">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-300">Microphone Audio</span>
+                      <div className="flex items-center gap-1.5">
+                        <Mic className="w-3.5 h-3.5 text-cyan-400" />
+                        <span className="text-xs font-bold text-slate-300">Microphone Audio</span>
+                      </div>
                       <span
                         className={`px-2 py-0.5 text-[9px] font-bold rounded uppercase ${
                           telemetry.permissions.microphone === 'granted'
@@ -470,29 +657,35 @@ export const DeviceControlModal: React.FC<DeviceControlModalProps> = ({
                     </p>
                   </div>
 
-                  {/* Permission: Clipboard */}
+                  {/* Permission: Camera */}
                   <div className="p-3 bg-slate-900/60 border border-slate-800 rounded-xl space-y-1">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-300">Clipboard Read/Write</span>
+                      <div className="flex items-center gap-1.5">
+                        <Camera className="w-3.5 h-3.5 text-cyan-400" />
+                        <span className="text-xs font-bold text-slate-300">Camera Video</span>
+                      </div>
                       <span
                         className={`px-2 py-0.5 text-[9px] font-bold rounded uppercase ${
-                          telemetry.permissions.clipboardWrite === 'granted'
+                          telemetry.permissions.camera === 'granted'
                             ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/40'
                             : 'bg-slate-800 text-slate-400'
                         }`}
                       >
-                        {telemetry.permissions.clipboardWrite}
+                        {telemetry.permissions.camera}
                       </span>
                     </div>
                     <p className="text-[10px] text-slate-400">
-                      Enables copying text fragments, quine standalone HTML, and logs to system clipboard.
+                      Biometric optical verification, QR parsing, and edge camera feed ingestion.
                     </p>
                   </div>
 
                   {/* Permission: Notifications */}
                   <div className="p-3 bg-slate-900/60 border border-slate-800 rounded-xl space-y-1">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-300">System Notifications</span>
+                      <div className="flex items-center gap-1.5">
+                        <Bell className="w-3.5 h-3.5 text-amber-400" />
+                        <span className="text-xs font-bold text-slate-300">System Notifications</span>
+                      </div>
                       <span
                         className={`px-2 py-0.5 text-[9px] font-bold rounded uppercase ${
                           telemetry.permissions.notifications === 'granted'
@@ -508,10 +701,13 @@ export const DeviceControlModal: React.FC<DeviceControlModalProps> = ({
                     </p>
                   </div>
 
-                  {/* Permission: Wake Lock */}
+                  {/* Permission: Screen Wake Lock */}
                   <div className="p-3 bg-slate-900/60 border border-slate-800 rounded-xl space-y-1">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-300">Screen Wake Lock</span>
+                      <div className="flex items-center gap-1.5">
+                        <Lock className="w-3.5 h-3.5 text-amber-400" />
+                        <span className="text-xs font-bold text-slate-300">Screen Wake Lock</span>
+                      </div>
                       <span
                         className={`px-2 py-0.5 text-[9px] font-bold rounded uppercase ${
                           telemetry.wakeLockActive
@@ -527,35 +723,175 @@ export const DeviceControlModal: React.FC<DeviceControlModalProps> = ({
                     </p>
                   </div>
 
-                  {/* Hardware Haptics */}
+                  {/* Permission: Geolocation */}
                   <div className="p-3 bg-slate-900/60 border border-slate-800 rounded-xl space-y-1">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-300">Haptic Vibration</span>
-                      <span className="px-2 py-0.5 text-[9px] font-bold rounded uppercase bg-emerald-950 text-emerald-300 border border-emerald-500/40">
-                        SUPPORTED
+                      <div className="flex items-center gap-1.5">
+                        <Compass className="w-3.5 h-3.5 text-emerald-400" />
+                        <span className="text-xs font-bold text-slate-300">Geolocation (TerraSphere)</span>
+                      </div>
+                      <span
+                        className={`px-2 py-0.5 text-[9px] font-bold rounded uppercase ${
+                          telemetry.permissions.geolocation === 'granted'
+                            ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/40'
+                            : 'bg-slate-800 text-slate-400'
+                        }`}
+                      >
+                        {telemetry.permissions.geolocation}
                       </span>
                     </div>
                     <p className="text-[10px] text-slate-400">
-                      Physical haptic feedback pulse on mobile/touchscreen/ChromeOS devices.
+                      Local terrestrial positioning for orbital Earth NASA camera and geosync.
                     </p>
                   </div>
 
-                  {/* Screen Fullscreen */}
+                  {/* Permission: Clipboard Read/Write */}
                   <div className="p-3 bg-slate-900/60 border border-slate-800 rounded-xl space-y-1">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-300">Native Fullscreen</span>
+                      <div className="flex items-center gap-1.5">
+                        <Copy className="w-3.5 h-3.5 text-cyan-400" />
+                        <span className="text-xs font-bold text-slate-300">Clipboard Read/Write</span>
+                      </div>
                       <span
                         className={`px-2 py-0.5 text-[9px] font-bold rounded uppercase ${
-                          telemetry.screen.fullscreen
+                          telemetry.permissions.clipboardWrite === 'granted'
+                            ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/40'
+                            : 'bg-slate-800 text-slate-400'
+                        }`}
+                      >
+                        {telemetry.permissions.clipboardWrite}
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-slate-400">
+                      Enables copying text fragments, quine standalone HTML, and logs to clipboard.
+                    </p>
+                  </div>
+
+                  {/* WebUSB / ADB Bridge */}
+                  <div className="p-3 bg-slate-900/60 border border-slate-800 rounded-xl space-y-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <Usb className="w-3.5 h-3.5 text-cyan-400" />
+                        <span className="text-xs font-bold text-slate-300">WebUSB / ADB Bridge</span>
+                      </div>
+                      <span
+                        className={`px-2 py-0.5 text-[9px] font-bold rounded uppercase ${
+                          telemetry.permissions.usb !== 'unsupported'
                             ? 'bg-cyan-950 text-cyan-300 border border-cyan-500/40'
                             : 'bg-slate-800 text-slate-400'
                         }`}
                       >
-                        {telemetry.screen.fullscreen ? 'ENGAGED' : 'WINDOWED'}
+                        {telemetry.permissions.usb}
                       </span>
                     </div>
                     <p className="text-[10px] text-slate-400">
-                      Unobstructed sovereign terminal view across full display hardware.
+                      Direct browser connection to Android ADB debug bridges, hardware dongles, &amp; FPGAs.
+                    </p>
+                  </div>
+
+                  {/* Web Bluetooth / BLE */}
+                  <div className="p-3 bg-slate-900/60 border border-slate-800 rounded-xl space-y-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <Bluetooth className="w-3.5 h-3.5 text-cyan-400" />
+                        <span className="text-xs font-bold text-slate-300">Web Bluetooth / BLE</span>
+                      </div>
+                      <span
+                        className={`px-2 py-0.5 text-[9px] font-bold rounded uppercase ${
+                          telemetry.permissions.bluetooth !== 'unsupported'
+                            ? 'bg-cyan-950 text-cyan-300 border border-cyan-500/40'
+                            : 'bg-slate-800 text-slate-400'
+                        }`}
+                      >
+                        {telemetry.permissions.bluetooth}
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-slate-400">
+                      HCI socket listening, low-energy beacon RSSI tracking, and AirCast proximity.
+                    </p>
+                  </div>
+
+                  {/* Web Serial / RTL-SDR */}
+                  <div className="p-3 bg-slate-900/60 border border-slate-800 rounded-xl space-y-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <Radio className="w-3.5 h-3.5 text-cyan-400" />
+                        <span className="text-xs font-bold text-slate-300">Web Serial / RTL-SDR</span>
+                      </div>
+                      <span
+                        className={`px-2 py-0.5 text-[9px] font-bold rounded uppercase ${
+                          telemetry.permissions.serial !== 'unsupported'
+                            ? 'bg-cyan-950 text-cyan-300 border border-cyan-500/40'
+                            : 'bg-slate-800 text-slate-400'
+                        }`}
+                      >
+                        {telemetry.permissions.serial}
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-slate-400">
+                      Direct serial streaming for SDR wideband FM (Part 15.239) and microcontroller UART.
+                    </p>
+                  </div>
+
+                  {/* WebHID Peripherals */}
+                  <div className="p-3 bg-slate-900/60 border border-slate-800 rounded-xl space-y-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <Keyboard className="w-3.5 h-3.5 text-fuchsia-400" />
+                        <span className="text-xs font-bold text-slate-300">WebHID Peripherals</span>
+                      </div>
+                      <span
+                        className={`px-2 py-0.5 text-[9px] font-bold rounded uppercase ${
+                          telemetry.permissions.hid !== 'unsupported'
+                            ? 'bg-fuchsia-950 text-fuchsia-300 border border-fuchsia-500/40'
+                            : 'bg-slate-800 text-slate-400'
+                        }`}
+                      >
+                        {telemetry.permissions.hid}
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-slate-400">
+                      Human interface device control for macro pads, game controllers, and hardware keys.
+                    </p>
+                  </div>
+
+                  {/* Web MIDI Controller */}
+                  <div className="p-3 bg-slate-900/60 border border-slate-800 rounded-xl space-y-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <Volume2 className="w-3.5 h-3.5 text-amber-400" />
+                        <span className="text-xs font-bold text-slate-300">Web MIDI Controller</span>
+                      </div>
+                      <span
+                        className={`px-2 py-0.5 text-[9px] font-bold rounded uppercase ${
+                          telemetry.permissions.midi === 'granted'
+                            ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/40'
+                            : telemetry.permissions.midi !== 'unsupported'
+                            ? 'bg-amber-950 text-amber-300 border border-amber-500/40'
+                            : 'bg-slate-800 text-slate-400'
+                        }`}
+                      >
+                        {telemetry.permissions.midi}
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-slate-400">
+                      Synthesizer control, Solfeggio 963 harmonic keyboard modulation, &amp; SysEx.
+                    </p>
+                  </div>
+
+                  {/* Sovereign Root VFS Authorization */}
+                  <div className="p-3 bg-cyan-950/30 border border-cyan-500/40 rounded-xl space-y-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <Shield className="w-3.5 h-3.5 text-cyan-300" />
+                        <span className="text-xs font-bold text-cyan-200">Sovereign Matrix Auth</span>
+                      </div>
+                      <span className="px-2 py-0.5 text-[9px] font-bold rounded uppercase bg-emerald-950 text-emerald-300 border border-emerald-500/40">
+                        OPERATOR ROOT
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-slate-400">
+                      Unrestricted access to all 9 kernel editions, /docs/protected, and hot-swap sectors.
                     </p>
                   </div>
                 </div>
@@ -563,6 +899,47 @@ export const DeviceControlModal: React.FC<DeviceControlModalProps> = ({
 
               {/* Hardware Quick Action Controls */}
               <div className="flex flex-wrap items-center gap-2 pt-2">
+                <button
+                  onClick={handleGrantAllPermissions}
+                  disabled={isGrantingAll}
+                  className="px-3 py-1.5 bg-gradient-to-r from-cyan-600 to-emerald-600 hover:from-cyan-500 hover:to-emerald-500 text-slate-950 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-[0_0_12px_rgba(6,182,212,0.3)]"
+                >
+                  <Zap className="w-3.5 h-3.5 text-slate-950" />
+                  <span>Grant All Permissions</span>
+                </button>
+
+                <button
+                  onClick={handlePairUsb}
+                  className="px-3 py-1.5 bg-slate-900 hover:bg-cyan-950 text-slate-200 hover:text-cyan-300 border border-slate-700/80 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Usb className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Pair WebUSB (ADB)</span>
+                </button>
+
+                <button
+                  onClick={handleScanBluetooth}
+                  className="px-3 py-1.5 bg-slate-900 hover:bg-cyan-950 text-slate-200 hover:text-cyan-300 border border-slate-700/80 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Bluetooth className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Scan Web Bluetooth</span>
+                </button>
+
+                <button
+                  onClick={handleOpenSerial}
+                  className="px-3 py-1.5 bg-slate-900 hover:bg-cyan-950 text-slate-200 hover:text-cyan-300 border border-slate-700/80 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Radio className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Open Web Serial (RTL-SDR)</span>
+                </button>
+
+                <button
+                  onClick={handlePairHid}
+                  className="px-3 py-1.5 bg-slate-900 hover:bg-cyan-950 text-slate-200 hover:text-cyan-300 border border-slate-700/80 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Keyboard className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Pair WebHID Device</span>
+                </button>
+
                 <button
                   onClick={handleTestNotification}
                   className="px-3 py-1.5 bg-slate-900 hover:bg-cyan-950 text-slate-200 hover:text-cyan-300 border border-slate-700/80 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer"
@@ -603,7 +980,433 @@ export const DeviceControlModal: React.FC<DeviceControlModalProps> = ({
             </div>
           )}
 
-          {/* TAB 2: TEXT FRAGMENTS (:~:text=) */}
+          {/* TAB 2: SOVEREIGN RECOMMENDATIONS & ARCHITECTURAL AUDIT */}
+          {activeTab === 'recommendations' && (
+            <div className="space-y-4 animate-in fade-in">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                <div>
+                  <h3 className="text-xs font-bold text-amber-300 tracking-wider flex items-center gap-2">
+                    <Award className="w-4 h-4 text-amber-400" />
+                    <span>SOVEREIGN RECOMMENDATIONS &amp; ACCESS AUDIT</span>
+                  </h3>
+                  <p className="text-[11px] text-slate-400">
+                    Architectural and browser-level recommendations for unrestricted device autonomy across Chromium, Android PWA, and iOS.
+                  </p>
+                </div>
+                <button
+                  onClick={handleGrantAllPermissions}
+                  disabled={isGrantingAll}
+                  className="px-3 py-1.5 text-xs font-bold rounded-lg border flex items-center gap-1.5 transition-all cursor-pointer bg-gradient-to-r from-cyan-500 to-emerald-500 hover:from-cyan-400 hover:to-emerald-400 text-slate-950 shadow-[0_0_15px_rgba(6,182,212,0.4)] disabled:opacity-50"
+                >
+                  <Zap className="w-3.5 h-3.5" />
+                  <span>Grant All</span>
+                </button>
+              </div>
+
+              {/* Recommendations Card List */}
+              <div className="space-y-3">
+                {browserControl.getPermissionRecommendations().map((rec, idx) => (
+                  <div
+                    key={idx}
+                    className="p-3.5 bg-slate-900/60 border border-slate-800 rounded-xl space-y-2 hover:border-cyan-500/40 transition-all"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] uppercase tracking-wider font-bold text-cyan-400 bg-cyan-950/80 px-2 py-0.5 rounded border border-cyan-500/30">
+                          {rec.category}
+                        </span>
+                        <h4 className="text-xs font-bold text-slate-200">{rec.title}</h4>
+                      </div>
+                      <span
+                        className={`self-start sm:self-auto px-2 py-0.5 text-[9px] font-bold rounded uppercase ${
+                          rec.status === 'optimal'
+                            ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/40'
+                            : rec.status === 'recommended'
+                            ? 'bg-cyan-950 text-cyan-300 border border-cyan-500/40'
+                            : rec.status === 'action_required'
+                            ? 'bg-amber-950 text-amber-300 border border-amber-500/40'
+                            : 'bg-slate-800 text-slate-400'
+                        }`}
+                      >
+                        {rec.status.replace('_', ' ')}
+                      </span>
+                    </div>
+
+                    <p className="text-[11px] text-slate-300 leading-relaxed">{rec.description}</p>
+
+                    <div className="flex items-center gap-2 pt-1">
+                      {rec.command && (
+                        <button
+                          onClick={() => {
+                            if (onRunInTerminal) onRunInTerminal(rec.command!);
+                            onClose();
+                          }}
+                          className="px-2.5 py-1 text-[10.5px] font-mono bg-cyan-950 hover:bg-cyan-900 text-cyan-300 border border-cyan-500/40 rounded transition-all flex items-center gap-1 cursor-pointer"
+                        >
+                          <Terminal className="w-3 h-3 text-cyan-400" />
+                          <span>Run '{rec.command}'</span>
+                        </button>
+                      )}
+                      {rec.actionLabel && !rec.command && (
+                        <button
+                          onClick={handleGrantAllPermissions}
+                          className="px-2.5 py-1 text-[10.5px] font-mono bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded transition-all cursor-pointer"
+                        >
+                          <span>{rec.actionLabel}</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Browser Configuration Cheat Sheet */}
+              <div className="p-3 bg-slate-950/90 border border-amber-500/30 rounded-xl space-y-2 text-xs">
+                <div className="flex items-center gap-2 text-amber-300 font-bold">
+                  <AlertCircle className="w-4 h-4 text-amber-400" />
+                  <span>CHROMIUM FLAG CONFIGURATION CHEAT SHEET</span>
+                </div>
+                <div className="space-y-1.5 text-[11px] text-slate-300 font-mono">
+                  <div className="flex items-center gap-2">
+                    <span className="text-cyan-400 font-bold">1.</span>
+                    <span>Enter <code className="text-amber-200 bg-black/40 px-1 py-0.5 rounded">chrome://flags</code> into your Chromium browser address bar.</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-cyan-400 font-bold">2.</span>
+                    <span>Search for <code className="text-cyan-200 bg-black/40 px-1 py-0.5 rounded">#enable-experimental-web-platform-features</code> and set to <strong>Enabled</strong>.</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-cyan-400 font-bold">3.</span>
+                    <span>Search for <code className="text-cyan-200 bg-black/40 px-1 py-0.5 rounded">#enable-webusb-on-any-page</code> and set to <strong>Enabled</strong>.</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-cyan-400 font-bold">4.</span>
+                    <span>Relaunch browser. All WebUSB (ADB), WebBluetooth, and WebSerial APIs will execute with zero origin isolation barriers.</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB: SDR FM DEMODULATOR & TUNER */}
+          {activeTab === 'sdr' && (
+            <div className="space-y-4 animate-in fade-in">
+              <SdrDemodulatorBridge />
+            </div>
+          )}
+
+          {/* TAB: WIRELESS BEACON & BLE CATALOG */}
+          {activeTab === 'wireless' && (
+            <div className="space-y-4 animate-in fade-in">
+              {/* Header & BLE Scan Action */}
+              <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-800">
+                <div>
+                  <h3 className="text-xs font-bold text-cyan-300 tracking-wider flex items-center gap-2">
+                    <Wifi className="w-4 h-4 text-cyan-400" />
+                    <span>SOVEREIGN WIRELESS BEACON &amp; BLUETOOTH MATRIX</span>
+                  </h3>
+                  <p className="text-[11px] text-slate-400">
+                    FCC Part 15 signal discovery, BLE peripheral cataloging, multiplexed virtual AP beacons, and multi-AP Wi-Fi bonding.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={async () => {
+                      setIsBleScanning(true);
+                      setBlePairMsg('Prompting Bluetooth pairing dialog...');
+                      audioVoiceService.playEnterChirp();
+                      const res = await wirelessBeaconBridge.scanAndConnectBluetooth();
+                      setIsBleScanning(false);
+                      setBlePairMsg(res.message);
+                    }}
+                    disabled={isBleScanning}
+                    className="px-3 py-1.5 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-lg shadow-cyan-500/20 cursor-pointer"
+                  >
+                    <Bluetooth className="w-3.5 h-3.5" />
+                    <span>{isBleScanning ? 'Scanning...' : 'Pair &amp; Catalog BLE Device'}</span>
+                  </button>
+                </div>
+              </div>
+
+              {blePairMsg && (
+                <div className="p-2.5 rounded-lg bg-slate-900 border border-cyan-800/40 text-xs text-cyan-300 font-mono">
+                  {blePairMsg}
+                </div>
+              )}
+
+              {/* Discovered BLE Peripherals Table */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-xs font-bold text-slate-300">
+                  <span>DISCOVERED &amp; CATALOGED BLE PERIPHERALS ({bleCatalog.length})</span>
+                  <span className="text-[10px] text-slate-500">Live RSSI &amp; GATT Telemetry</span>
+                </div>
+                <div className="bg-slate-900/60 border border-slate-800 rounded-xl overflow-hidden">
+                  <table className="w-full text-left text-xs text-slate-300 font-mono">
+                    <thead className="bg-slate-950/80 text-[10px] text-slate-400 uppercase border-b border-slate-800">
+                      <tr>
+                        <th className="p-2.5">Peripheral Name</th>
+                        <th className="p-2.5">Device ID</th>
+                        <th className="p-2.5">RSSI</th>
+                        <th className="p-2.5">Battery</th>
+                        <th className="p-2.5">Type</th>
+                        <th className="p-2.5 text-right">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/60">
+                      {bleCatalog.map((dev) => (
+                        <tr key={dev.id} className="hover:bg-cyan-950/20 transition">
+                          <td className="p-2.5 font-bold text-cyan-300 flex items-center gap-2">
+                            <Bluetooth className="w-3.5 h-3.5 text-cyan-400" />
+                            <span>{dev.name}</span>
+                          </td>
+                          <td className="p-2.5 text-[10.5px] text-slate-400 truncate max-w-[140px]">{dev.id}</td>
+                          <td className="p-2.5">
+                            <span className={`font-bold ${dev.rssi > -60 ? 'text-emerald-400' : dev.rssi > -75 ? 'text-amber-400' : 'text-rose-400'}`}>
+                              {dev.rssi} dBm
+                            </span>
+                          </td>
+                          <td className="p-2.5">
+                            {dev.batteryLevel !== undefined ? (
+                              <span className="text-emerald-300 font-semibold">{dev.batteryLevel}%</span>
+                            ) : (
+                              <span className="text-slate-600">—</span>
+                            )}
+                          </td>
+                          <td className="p-2.5 text-[10px]">
+                            {dev.isSimulated ? (
+                              <span className="px-1.5 py-0.5 rounded bg-purple-950 text-purple-300 border border-purple-800">SYNTHETIC</span>
+                            ) : (
+                              <span className="px-1.5 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-800">HARDWARE</span>
+                            )}
+                          </td>
+                          <td className="p-2.5 text-right">
+                            <span
+                              className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                dev.connected
+                                  ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/40'
+                                  : 'bg-slate-800 text-slate-400'
+                              }`}
+                            >
+                              {dev.connected ? 'PAIRED' : 'DISCOVERED'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Multiplexed Wireless Beacon & Multi-AP Aggregator */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                {/* Multiplexed Virtual AP Beacon Generator */}
+                <div className="p-3.5 bg-slate-900/60 border border-slate-800 rounded-xl space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-200 uppercase">802.11 MULTIPLEXED BEACON GENERATOR</span>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-500/40">
+                      ACTIVE (100 TU)
+                    </span>
+                  </div>
+                  <div className="space-y-1.5 text-xs text-slate-300">
+                    <div className="flex justify-between text-[11px]">
+                      <span className="text-slate-500">PRIMARY SSID:</span>
+                      <span className="font-bold text-cyan-300">GAIA_SOVEREIGN_MESH_AP</span>
+                    </div>
+                    <div className="flex justify-between text-[11px]">
+                      <span className="text-slate-500">CARRIER MODULATION:</span>
+                      <span className="font-bold text-amber-300">OFDM (2.4 GHz CH 6)</span>
+                    </div>
+                    <div className="flex justify-between text-[11px]">
+                      <span className="text-slate-500">TX POWER:</span>
+                      <span className="font-bold text-slate-300">+18 dBm (FCC Part 15.247)</span>
+                    </div>
+                  </div>
+                  <div className="text-[10.5px] text-slate-400 bg-slate-950 p-2 rounded-lg border border-slate-800 font-mono">
+                    <div className="text-slate-500 mb-1">Synthesized 802.11 Beacon Frame (Hex):</div>
+                    <div className="break-all text-cyan-400">
+                      80000000FFFFFFFFFFFF02005E7B060002005E7B06000000640031040016474149415F534F5645524549474E5F4D4553485F4150
+                    </div>
+                  </div>
+                </div>
+
+                {/* Multi-AP Bonding & Internet Aggregation */}
+                <div className="p-3.5 bg-slate-900/60 border border-slate-800 rounded-xl space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-200 uppercase">MULTI-AP WI-FI BONDING ENGINE</span>
+                    <span className="text-[10px] text-cyan-400 font-bold">CARRIER AGGREGATION</span>
+                  </div>
+                  <p className="text-[11px] text-slate-400">
+                    Accept multiple wireless access points and tethered devices into a unified bonded sovereign data pipe.
+                  </p>
+                  <div className="space-y-2">
+                    {wifiChannels.slice(0, 3).map((ch) => (
+                      <div
+                        key={ch.bssid}
+                        className="flex items-center justify-between p-2 rounded-lg bg-slate-950 border border-slate-800 text-xs"
+                      >
+                        <div>
+                          <div className="font-bold text-slate-200">{ch.ssid}</div>
+                          <div className="text-[10px] text-slate-500">
+                            CH {ch.channel} ({ch.band}) • {ch.rssiDbm} dBm • SINR {ch.sinrDb} dB
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => wirelessBeaconBridge.toggleApBonding(ch.bssid)}
+                          className={`px-2.5 py-1 rounded text-[10.5px] font-bold transition ${
+                            ch.bonded
+                              ? 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/20'
+                              : 'bg-slate-800 text-slate-400 hover:text-slate-200'
+                          }`}
+                        >
+                          {ch.bonded ? 'BONDED' : 'BOND AP'}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB: ADB BUS & DEVICE HUB */}
+          {activeTab === 'adb' && (
+            <div className="space-y-4 animate-in fade-in">
+              <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-800">
+                <div>
+                  <h3 className="text-xs font-bold text-cyan-300 tracking-wider flex items-center gap-2">
+                    <Usb className="w-4 h-4 text-cyan-400" />
+                    <span>BIDIRECTIONAL ADB BUS &amp; HARDWARE HUB BRIDGE</span>
+                  </h3>
+                  <p className="text-[11px] text-slate-400">
+                    Direct WebUSB Android Debug Bridge connection, USB endpoint topology tree, and reverse socket forwarding.
+                  </p>
+                </div>
+                <button
+                  onClick={async () => {
+                    setAdbStatusMsg('Opening WebUSB device selector for Android device...');
+                    audioVoiceService.playEnterChirp();
+                    const res = await wirelessBeaconBridge.connectAdbUsb();
+                    setAdbStatusMsg(res.message);
+                  }}
+                  className="px-3 py-1.5 bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-slate-950 font-bold rounded-lg text-xs transition flex items-center gap-1.5 shadow-lg shadow-emerald-500/20 cursor-pointer"
+                >
+                  <Usb className="w-3.5 h-3.5 text-slate-950" />
+                  <span>Connect WebUSB ADB Device</span>
+                </button>
+              </div>
+
+              {adbStatusMsg && (
+                <div className="p-2.5 rounded-lg bg-slate-900 border border-emerald-800/40 text-xs text-emerald-300 font-mono">
+                  {adbStatusMsg}
+                </div>
+              )}
+
+              {/* Connected ADB Device Bus Nodes */}
+              <div className="space-y-2">
+                <span className="text-xs font-bold text-slate-300 uppercase">CONNECTED USB BUS HARDWARE TOPOLOGY</span>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {adbDevices.map((dev, idx) => (
+                    <div key={idx} className="p-3 bg-slate-900/60 border border-slate-800 rounded-xl space-y-2 font-mono text-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-cyan-300">{dev.productName}</span>
+                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-800">
+                          BUS {dev.busId} : PORT {dev.portId}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-1 text-[11px] text-slate-400">
+                        <div>Vendor ID: <span className="text-slate-200">{dev.vendorId}</span></div>
+                        <div>Product ID: <span className="text-slate-200">{dev.productId}</span></div>
+                        <div>Manufacturer: <span className="text-slate-200">{dev.manufacturer}</span></div>
+                        <div>Serial: <span className="text-slate-200">{dev.serialNumber || 'N/A'}</span></div>
+                      </div>
+                      <div className="text-[10px] text-slate-500 border-t border-slate-800/80 pt-1.5 flex items-center justify-between">
+                        <span>Endpoints: {dev.interfaces[0]?.endpoints.length || 2} Bulk Bi-dir</span>
+                        <span className="text-cyan-400">REVERSE TETHER READY</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Quick ADB Shell Runner */}
+              <div className="p-3.5 bg-slate-900/70 border border-slate-800 rounded-xl space-y-3">
+                <span className="text-xs font-bold text-slate-200 uppercase">BIDIRECTIONAL ADB COMMAND RUNNER</span>
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1 font-mono">
+                    <Terminal className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                    <input
+                      type="text"
+                      value={adbCmdInput}
+                      onChange={(e) => setAdbCmdInput(e.target.value)}
+                      onKeyDown={async (e) => {
+                        if (e.key === 'Enter') {
+                          setIsAdbRunning(true);
+                          audioVoiceService.playTone(740, 'triangle', 40);
+                          const res = await wirelessBeaconBridge.executeAdbCommand(adbCmdInput);
+                          setAdbLog((prev) => [res, ...prev.slice(0, 20)]);
+                          setIsAdbRunning(false);
+                        }
+                      }}
+                      placeholder="e.g. adb devices, adb shell ip a, adb reverse tcp:8080 tcp:8080..."
+                      className="w-full pl-9 pr-3 py-2 bg-slate-950 border border-cyan-500/40 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
+                    />
+                  </div>
+                  <button
+                    onClick={async () => {
+                      setIsAdbRunning(true);
+                      audioVoiceService.playTone(740, 'triangle', 40);
+                      const res = await wirelessBeaconBridge.executeAdbCommand(adbCmdInput);
+                      setAdbLog((prev) => [res, ...prev.slice(0, 20)]);
+                      setIsAdbRunning(false);
+                    }}
+                    disabled={isAdbRunning}
+                    className="px-4 py-2 bg-cyan-950 hover:bg-cyan-900 text-cyan-300 border border-cyan-500/50 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-lg shadow-cyan-500/20"
+                  >
+                    <span>EXECUTE</span>
+                  </button>
+                </div>
+
+                {/* Preset Fast Actions */}
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {['adb devices', 'adb shell getprop ro.product.model', 'adb shell ip a', 'adb shell dumpsys battery', 'adb reverse tcp:8080 tcp:8080', 'adb shell logcat'].map((cmd) => (
+                    <button
+                      key={cmd}
+                      onClick={async () => {
+                        setAdbCmdInput(cmd);
+                        setIsAdbRunning(true);
+                        audioVoiceService.playTone(740, 'triangle', 40);
+                        const res = await wirelessBeaconBridge.executeAdbCommand(cmd);
+                        setAdbLog((prev) => [res, ...prev.slice(0, 20)]);
+                        setIsAdbRunning(false);
+                      }}
+                      className="px-2 py-1 bg-slate-950 hover:bg-slate-800 text-[10.5px] font-mono text-slate-300 rounded border border-slate-800 transition cursor-pointer"
+                    >
+                      {cmd}
+                    </button>
+                  ))}
+                </div>
+
+                {/* ADB Execution Output Console */}
+                <div className="mt-2 p-3 bg-black/90 border border-slate-800 rounded-xl font-mono text-xs max-h-48 overflow-y-auto space-y-2">
+                  {adbLog.length > 0 ? (
+                    adbLog.map((entry, idx) => (
+                      <div key={idx} className="border-b border-slate-800/60 pb-2 last:border-b-0 last:pb-0">
+                        <div className="text-[10px] text-cyan-400 flex items-center justify-between">
+                          <span>$ {entry.command}</span>
+                          <span className="text-slate-500">{entry.timestamp}</span>
+                        </div>
+                        <pre className="text-slate-300 whitespace-pre-wrap text-[11px] mt-1">{entry.output}</pre>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-slate-600 text-center py-4">Run an ADB command or click a preset to inspect bus output...</div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 3: TEXT FRAGMENTS (:~:text=) */}
           {activeTab === 'fragment' && (
             <div className="space-y-4 animate-in fade-in">
               <div className="pb-2 border-b border-slate-800">

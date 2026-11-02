@@ -278,11 +278,17 @@ export type DevicePermissionStatus = 'granted' | 'denied' | 'prompt' | 'unsuppor
 export interface DeviceCapabilityTelemetry {
   permissions: {
     microphone: DevicePermissionStatus;
+    camera: DevicePermissionStatus;
     clipboardRead: DevicePermissionStatus;
     clipboardWrite: DevicePermissionStatus;
     notifications: DevicePermissionStatus;
     geolocation: DevicePermissionStatus;
     screenWakeLock: DevicePermissionStatus;
+    bluetooth: DevicePermissionStatus;
+    usb: DevicePermissionStatus;
+    serial: DevicePermissionStatus;
+    hid: DevicePermissionStatus;
+    midi: DevicePermissionStatus;
   };
   battery: {
     level: number;

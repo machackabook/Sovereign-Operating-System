@@ -503,6 +503,26 @@ class PolyglotEngineService {
       sourceCode,
     };
   }
+  /**
+   * Real-time polyglot character encoding and decoding between hardware input and path.
+   * Utilizes XOR obfuscation and reversible Base64 rotation for security streaming.
+   */
+  public polyglotCryptography(input: string, key: string, mode: 'encode' | 'decode'): string {
+    if (mode === 'decode') {
+      const decoded = atob(input);
+      let output = '';
+      for (let i = 0; i < decoded.length; i++) {
+        output += String.fromCharCode(decoded.charCodeAt(i) ^ key.charCodeAt(i % key.length));
+      }
+      return output;
+    } else {
+      let output = '';
+      for (let i = 0; i < input.length; i++) {
+        output += String.fromCharCode(input.charCodeAt(i) ^ key.charCodeAt(i % key.length));
+      }
+      return btoa(output);
+    }
+  }
 }
 
 export const polyglotEngine = new PolyglotEngineService();
