@@ -26,6 +26,8 @@ import {
   Fingerprint,
   Compass,
   Camera,
+  Puzzle,
+  Database,
 } from 'lucide-react';
 import { EnvironmentState, TopologyType } from '../types';
 import { HealthState } from './SystemSelfTest';
@@ -391,6 +393,76 @@ export const SystemHeaderDeck: React.FC<SystemHeaderDeckProps> = ({
           <kbd className="hidden md:inline px-1 py-0.2 bg-black/60 border border-slate-700 text-[9px] text-slate-400 rounded">
             ⌘K
           </kbd>
+        </button>
+
+        {/* Extensions & Add-ons Manager Button */}
+        <button
+          onClick={() => {
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new CustomEvent('gaia:toggle-plugin-manager'));
+            }
+          }}
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-purple-500/15 hover:bg-purple-500/25 border border-purple-500/40 text-purple-200 text-[11px] font-bold shadow-[0_0_12px_rgba(168,85,247,0.2)] transition cursor-pointer"
+          title="Extensions & Add-ons Manager (RAM-bound VFS & Colab Drive Tunnel)"
+        >
+          <Puzzle className="w-3.5 h-3.5 text-purple-400" />
+          <span className="hidden sm:inline">ADD-ONS</span>
+        </button>
+
+        {/* All Drivers Master Matrix Button */}
+        <button
+          onClick={() => {
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new CustomEvent('gaia:toggle-all-drivers'));
+            }
+          }}
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/40 text-cyan-200 text-[11px] font-bold shadow-[0_0_12px_rgba(0,242,255,0.2)] transition cursor-pointer"
+          title="Master Driver Matrix (Hardware, RF, VFS, Cloud Tunnels & Math Drivers)"
+        >
+          <Cpu className="w-3.5 h-3.5 text-cyan-400" />
+          <span className="hidden sm:inline">ALL DRIVERS</span>
+        </button>
+
+        {/* Sovereign Registry Editor Button */}
+        <button
+          onClick={() => {
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new CustomEvent('gaia:toggle-registry'));
+            }
+          }}
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-200 text-[11px] font-bold shadow-[0_0_12px_rgba(245,158,11,0.2)] transition cursor-pointer"
+          title="Sovereign Registry Editor & BootChain Engine (HKLM, HKCU, HKCR, HKU, HKCC)"
+        >
+          <Database className="w-3.5 h-3.5 text-amber-400" />
+          <span className="hidden sm:inline">REGISTRY</span>
+        </button>
+
+        {/* VGS GiFile Explorer Button */}
+        <button
+          onClick={() => {
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new CustomEvent('gaia:toggle-vgs-explorer'));
+            }
+          }}
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-purple-500/15 hover:bg-purple-500/25 border border-purple-500/40 text-purple-200 text-[11px] font-bold shadow-[0_0_12px_rgba(168,85,247,0.2)] transition cursor-pointer"
+          title="Virtual Graphics System (VGS) GiFile Explorer & Polyglot Encoding Engine"
+        >
+          <Layers className="w-3.5 h-3.5 text-purple-400" />
+          <span className="hidden sm:inline">VGS EXPLORER</span>
+        </button>
+
+        {/* RavenEyeTE Telemetry & NextBenchUp Pulse Core Button */}
+        <button
+          onClick={() => {
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new CustomEvent('gaia:toggle-raveneyte-pulse'));
+            }
+          }}
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 text-emerald-200 text-[11px] font-bold shadow-[0_0_12px_rgba(16,185,129,0.2)] transition cursor-pointer"
+          title="RavenEyeTE Telemetry Core & NextBenchUp Pulse Engine (Planetarium Pluto Return)"
+        >
+          <Activity className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
+          <span className="hidden sm:inline">PULSE CORE</span>
         </button>
 
         {/* Manual System Snapshot Button (Versioned Artifact in Cryptographic Ledger) */}

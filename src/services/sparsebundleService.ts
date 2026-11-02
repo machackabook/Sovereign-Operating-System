@@ -51,6 +51,16 @@ class SparsebundleService {
     // Pre-initialize default system state vault
     this.createBundle('StateVault.sparsebundle', 100 * 1024 * 1024 * 1024, 64 * 1024);
     this.mountBundle('StateVault.sparsebundle', '/mnt/sparsebundles/vault');
+
+    // Register GAIA / NEXUS sparsebundle mountkit archives (read-only verification)
+    this.createBundle('ChimeraSystem.sparsebundle', 145244160, 64 * 1024);
+    this.mountBundle('ChimeraSystem.sparsebundle', '/mnt/sparsebundles/chimera');
+
+    this.createBundle('Synapse.sparsebundle', 25018368, 64 * 1024);
+    this.mountBundle('Synapse.sparsebundle', '/mnt/sparsebundles/synapse');
+
+    this.createBundle('Nexus.sparsebundle', 6856358912, 64 * 1024);
+    this.mountBundle('Nexus.sparsebundle', '/mnt/sparsebundles/nexus');
   }
 
   /**

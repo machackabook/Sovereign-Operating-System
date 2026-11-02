@@ -1,0 +1,46 @@
+{
+    "name": "Wireless Forensics Target Mapping",
+    "version": "4.5",
+    "domain": "enterprise-attack",
+    "description": "MITRE ATT&CK Mapping sorted by wireless target proximity (closest to furthest)",
+    "techniques": [
+        {
+            "techniqueID": "T1518.001",
+            "color": "#ff3333",
+            "comment": "Bluetooth Device 00:1A:7D:DA:71:11 (0.5m)",
+            "enabled": true
+        },
+        {
+            "techniqueID": "T1040",
+            "color": "#ff6666",
+            "comment": "WiFi AP Corporate_AP_01 (2.1m)",
+            "enabled": true
+        },
+        {
+            "techniqueID": "T1021.005",
+            "color": "#ff9999",
+            "comment": "Bluetooth Device 74:G3:92:11:AA:BB (4.8m)",
+            "enabled": true
+        },
+        {
+            "techniqueID": "T1557",
+            "color": "#ffcccc",
+            "comment": "WiFi AP Guest_Network (12.5m)",
+            "enabled": true
+        },
+        {
+            "techniqueID": "T1020",
+            "color": "#ffe6e6",
+            "comment": "Bluetooth Device 88:C2:55:33:00:FF (25.0m)",
+            "enabled": true
+        }
+    ],
+    "gradient": {
+        "colors": [
+            "#ff3333",
+            "#ffe6e6"
+        ],
+        "minValue": 0,
+        "maxValue": 100
+    }
+}

@@ -28,6 +28,15 @@ export const SYSTEM_PAGES=Object.freeze([
  {slug:'voip',node:'nexus.voip',title:'Cryptic VoIP',command:'voip status',group:'Connectivity'},
  {slug:'invite',node:'nexus.invite',title:'GAIA Invite Card',command:'xcard open',group:'Connectivity'},
   {slug:'diagnostics',node:'nexus.diagnostics',title:'System Diagnostics',command:'diagnostics check',group:'Monitoring'},
+  {slug:'plugins',node:'nexus.plugins',title:'Plugins & Add-ons',command:'plugin status',group:'Workspace'},
+  {slug:'packages',node:'nexus.packages',title:'VFS Packages',command:'pkg list',group:'Workspace'},
+  {slug:'colab',node:'nexus.colab',title:'Colab Drive Bridge',command:'colab status',group:'Connectivity'},
+  {slug:'triggers',node:'nexus.triggers',title:'Model Triggers',command:'trigger list',group:'AI'},
+  {slug:'drivers',node:'nexus.drivers',title:'All Drivers Matrix',command:'driver status',group:'Hardware'},
+  {slug:'raveneyte',node:'nexus.raveneyte',title:'RavenEyeTE Pulse Engine',command:'pulse status',group:'Monitoring'},
+  {slug:'registry',node:'nexus.registry',title:'Registry Editor (HKEY Hives)',command:'reg query',group:'Workspace'},
+  {slug:'bootchain',node:'nexus.bootchain',title:'FileSystem BootChain',command:'bootchain verify',group:'Compute'},
+  {slug:'vgs',node:'nexus.vgs',title:'VGS GiFile Explorer',command:'vgs list',group:'Workspace'},
 ]);
 const ROUTE=/^#\/system\/([a-z][a-z0-9-]{1,29})$/;
 const ALLOWED_COMMANDS=new Set(SYSTEM_PAGES.map(x=>x.command));

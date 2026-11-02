@@ -13,6 +13,16 @@ import {
 } from '../services/nexusSystemRouter.mjs';
 import { SpectrumAnalyzer } from './SpectrumAnalyzer';
 import { SystemDiagnostics } from './SystemDiagnostics';
+import { pluginManagerService } from '../services/pluginManagerService';
+import { vfsPackageManager } from '../services/vfsPackageManager';
+import { nexusColabDriveBridge } from '../services/nexusColabDriveBridge';
+import { modelSourceLinkRegistry } from '../services/modelSourceLinkRegistry';
+import { allDriversService } from '../services/allDriversService';
+import { ravenEyeEngineService } from '../services/raveneytePulseEngine';
+import { registryDatabaseService } from '../services/registryDatabaseService';
+import { fileSystemBootChain } from '../services/fileSystemBootChain';
+import { vgsFileExplorerService } from '../services/vgsFileExplorerService';
+import { polyglotEncodingEngine } from '../services/polyglotEncodingEngine';
 
 const BTN='rounded-md border border-cyan-400/40 bg-slate-900/80 px-2 py-1.5 text-xs text-cyan-100 hover:bg-slate-800 disabled:opacity-40';
 type Page = typeof SYSTEM_PAGES[number];
@@ -41,7 +51,16 @@ export function NexusSystemPages(){
  const readPage=useCallback(async (slug:string)=>{
    // Local services only. Never fetch arbitrary target URLs from a system page.
    const host=quineMeshService.status();
-   if(['terrasphere','sensor','canvas','singularity','voip','invite','bluetooth'].includes(slug)){
+   if(['terrasphere','sensor','canvas','singularity','voip','invite','bluetooth','plugins','packages','colab','triggers','drivers','raveneyte','registry','bootchain','vgs'].includes(slug)){
+     if(slug==='vgs') return { source: 'vgs-gifile-explorer', filesCount: vgsFileExplorerService.getGiFiles().length, polyglotArtifactsCount: polyglotEncodingEngine.getArtifacts().length, files: vgsFileExplorerService.getGiFiles() };
+     if(slug==='registry') return { source: 'registry-database-service', hives: Array.from(registryDatabaseService.getHives().keys()), hklmBuild: registryDatabaseService.getValue('HKLM\\SOFTWARE\\SovereignOS\\Version', 'BuildNumber') };
+     if(slug==='bootchain') return { source: 'file-system-bootchain', bootStatus: fileSystemBootChain.verifyAndExecuteBootChain() };
+     if(slug==='raveneyte') return { source: 'raveneyte-pulse-engine', latest: ravenEyeEngineService.getTelemetry().getLatest(), totalSnapshotEvents: ravenEyeEngineService.getTelemetry().snapshot().length };
+     if(slug==='drivers') return { source: 'all-drivers-service', count: allDriversService.getAllDrivers().length, drivers: allDriversService.getAllDrivers() };
+     if(slug==='plugins') return { source: 'plugin-manager', count: pluginManagerService.getPlugins().length, plugins: pluginManagerService.getPlugins() };
+     if(slug==='packages') return { source: 'vfs-package-manager', lockState: vfsPackageManager.getSystemLockState(), packages: vfsPackageManager.getPackages() };
+     if(slug==='colab') return { source: 'nexus-colab-drive-bridge', tunnelStatus: nexusColabDriveBridge.getTunnelStatus(), receiptsCount: nexusColabDriveBridge.getReceipts().length };
+     if(slug==='triggers') return { source: 'model-source-link-registry', count: modelSourceLinkRegistry.getTriggers().length, triggers: modelSourceLinkRegistry.getTriggers().map(t => ({ id: t.id, name: t.name, target: t.targetFunction })) };
      if(slug==='bluetooth')return {
        source: 'web-bluetooth-device-manager',
        status: bluetoothDeviceManager.getStatus(),

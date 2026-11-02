@@ -1,0 +1,254 @@
+# GAIA Receipt Protocol v2 — Engineering Audit
+
+This iteration is a meaningful architectural improvement. You've now connected integrity verification, bounded recovery search, fencing-token enforcement, telemetry, and historical ledger auditing into one service.
+
+But there is an important distinction: the code contains stronger verification structures; it does not yet establish production-grade distributed durability or fully verified mining repair.
+
+My assessment is to preserve this version as a development milestone, then correct the following issues before promoting it.
+
+## 1. Critical findings
+
+Critical
+
+1\. The recovery test confuses a valid candidate with a repaired block
+
+The test generates `targetHash` from a nonce, then passes it as `expectedHash`.
+
+The service compares `baseHash !== expectedHash`, enters recovery, and may find the nonce.
+
+However, `targetHash` is not the original authoritative block hash. It is a candidate hash created by the test. This proves candidate discovery under the test conditions, not historical block recovery.
+
+Critical
+
+2\. The fencing implementation is not atomic across distributed workers
+
+`DistributedDatabaseLockSystem` uses a process-local `Map` and counter.
+
+Separate processes or hosts have independent counters and lock maps. The singleton is not a distributed coordination service.
+
+Critical
+
+3\. Historical ledger verification is not bound to historical inputs
+
+`auditHistoricalLedger(payloadBytes)` uses one supplied payload to verify every receipt.
+
+A ledger with different block payloads needs a separate authoritative input or trusted artifact reference for every record.
+
+High
+
+4\. Receipt status and audit result can contradict
+
+The code commits a receipt even if `independentAuditPassed` is false. A `REPAIRED` receipt can also have `inputHashValid: true` despite a failed original-state comparison.
+
+High
+
+5\. The journal is not immutable or durable
+
+The journal is a mutable array. `simulateTamper()` directly replaces its content, and `clearAllStores()` erases history. These are useful test controls, not production ledger semantics.
+
+## 2. The fencing test currently has a deterministic defect
+
+This is the first test I would fix.
+
+Your simulated adversarial override changes the lock store:
+
+```
+const higherFencingToken =
+  lockSystem.simulateAdversarialOverride(targetKey);
+```
+
+But `PersistentLedgerStore.commitReceipt()` does not query the lock system's current authoritative token.
+
+Instead, it checks only:
+
+```
+const historicalWatermark =
+  this.criticalFencingWatermarks.get(blockKey) || 0n;
+
+if (fencingToken < historicalWatermark) {
+  return false;
+}
+```
+
+### Why the assertion fails
+
+On a fresh ledger:
+
+- Historical watermark = `0`
+- Initial lease token = a positive fencing token
+- Simulated adversarial token = a higher token
+- No commit has advanced the watermark
+
+Consequently, the stale commit can pass.
+
+The code also has another weakness: the watermark check and update are not atomic.
+
+Even a corrected comparison can fail under concurrent execution if two workers interleave their commits.
+
+### Correct the commit contract
+
+The persistent storage transaction needs to atomically enforce:
+
+1. The lease is currently authorized.
+2. The submitted fencing token is valid.
+3. The token is not older than the highest accepted fence.
+4. The receipt ID is unique.
+5. The receipt and watermark are committed together.
+
+For example, with a transactional SQL backend:
+
+```
+CREATE TABLE gaia_block_fences (
+    block_id TEXT PRIMARY KEY,
+    highest_fence BIGINT NOT NULL
+);
+
+CREATE TABLE gaia_receipts (
+    receipt_id TEXT PRIMARY KEY,
+    block_id TEXT NOT NULL,
+    fencing_token BIGINT NOT NULL,
+    receipt_json TEXT NOT NULL
+);
+```
+
+The commit transaction must lock or conditionally update the block's fence row, validate the authoritative lease, and insert the receipt under a unique ID.
+
+A real database adapter must implement this transaction. The schema alone does not provide these guarantees.
+
+## 3. Repair classification must change
+
+Your current branch:
+
+```
+if (testHash.startsWith(difficultyPrefix)) {
+  computedHash = testHash;
+  status = 'REPAIRED';
+  acceptedNonce = nonceTracker;
+  recoveryCandidateAccepted = true;
+  break;
+}
+```
+
+This should not authorize a repaired state.
+
+The `00` prefix represents a search condition chosen by the implementation. It does not establish that the resulting candidate restores the original chain.
+
+### Safer classification
+
+| Outcome                                | Classification                     |
+| -------------------------------------- | ---------------------------------- |
+| Authoritative digest matches           | `VALID`                            |
+| Mismatch detected                      | `MUTATED`                          |
+| Candidate found but awaiting approval  | Candidate pending                  |
+| Candidate independently reproduced     | Candidate verified                 |
+| Recovery accepted under protocol rules | `REPAIRED`                         |
+| Search exhausted                       | `FAILED` or unresolved, per policy |
+
+A useful design enhancement is to separate integrity status from recovery workflow status.
+
+For example:
+
+```
+type RecoveryStatus =
+  | 'NOT_REQUIRED'
+  | 'SEARCHING'
+  | 'CANDIDATE_FOUND'
+  | 'CANDIDATE_VERIFIED'
+  | 'ACCEPTED'
+  | 'REJECTED'
+  | 'EXHAUSTED';
+```
+
+This prevents a candidate search from implicitly authorizing a state transition.
+
+## 4. Additional defects worth correcting
+
+Input validation
+
+Validate `blockId`, `expectedHash`, payload size, and TTL. Require expected hashes to match the actual encoding specification. Reject malformed values rather than treating them as ordinary mutations.
+
+Historical record integrity
+
+The ledger audit should verify the receipt's canonical digest, parent reference, sequence, and chain linkage. Recalculating a payload hash alone cannot establish journal integrity.
+
+Telemetry separation
+
+Telemetry currently records host environment metrics, synthetic spectrum channels, and time-derived resonance. These are not verified physical measurements or authenticated BLE sensor readings.
+
+Audio recording
+
+The circular tape stores PCM bytes in memory. It does not persist them, retain block boundaries, or associate a recorded segment with a receipt ID. Also validate WAV format rather than assuming every input has a 44-byte header.
+
+BLE frame
+
+`rawPayloadHex` is currently a formatted telemetry scalar, not a complete authenticated BLE advertising packet. The generated frame should not be represented as transmitted or received telemetry.
+
+Correlation analysis
+
+The Pearson correlation calculation is appropriate for equal-length observations, but your vectors represent unrelated host metrics with different meanings. The computed scores are not meaningful evidence of physical system correlation.
+
+## 5. My recommended next iteration
+
+I would advance this into GAIA Receipt Protocol v2.1 — Evidence-Bound Integrity Engine.
+
+The next iteration should prioritize correctness over adding more subsystems.
+
+## 01
+
+Freeze the protocol
+
+Publish canonical encoding, hash rules, schema, and golden test vectors.
+
+## 02
+
+Repair transaction authority
+
+Replace simulated fencing with authoritative leases and atomic commit enforcement.
+
+## 03
+
+Separate verification from recovery
+
+A candidate is evidence; acceptance is an independently authorized transition.
+
+## 04
+
+Seal the receipt
+
+Canonical receipt hash, parent linkage, unique ID, sequence, and authenticated signer.
+
+## 05
+
+Audit historical evidence
+
+Resolve each receipt to its own original artifact and validate ancestry.
+
+## 06
+
+Prove failure recovery
+
+Test process crashes, retries, stale workers, duplicate submissions, storage failure, and lease expiration.
+
+## 6. Final acceptance decision
+
+GAIA v2 implementation
+
+Not release-ready
+
+Retain
+
+Versioned receipt structure, exact input fingerprinting, independent candidate reproduction, bounded search, explicit fencing interface, and historical audit direction.
+
+Block promotion
+
+Distributed locking, authoritative recovery claims, production immutability, and financial or settlement interoperability claims.
+
+Next milestone
+
+Demonstrate the complete receipt lifecycle against persistent transactional storage and independently verifiable original artifacts.
+
+Architectural principle to preserve: ADAM records the accepted state boundary; TDOC records the procedure and evidence; the receipt authenticates a specific event within that history.
+
+The mining subsystem may produce evidence for that process, but must not become its own authority.
+
+One last important distinction: I have reviewed the code statically here; I have not executed this particular test suite or verified a live database, BLE device, or mining environment. The fencing assertion defect above follows directly from the supplied implementation.

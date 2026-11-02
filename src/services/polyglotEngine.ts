@@ -33,6 +33,49 @@ export interface PresetSnippet {
 
 export const PRESET_SNIPPETS: PresetSnippet[] = [
   {
+    id: 'raveneyte_pulse_engine',
+    name: 'RavenEyeTE Telemetry & NextBenchUp Pulse Engine',
+    lang: 'python',
+    category: 'SWARM',
+    description: 'High-precision pulse engine, Planetarium Pluto Return orbit calculator, agent auto-enhancer, and OpenWrt gateway telemetry pipeline.',
+    tags: ['RavenEyeTE', 'NextBenchUp', 'Pluto Return', 'Telemetry'],
+    code: `# RAVENEYTE TELEMETRY CORE & NEXTBENCHUP PULSE ENGINE
+import time
+
+class RavenEyeTE:
+    def __init__(self):
+        self.stream = []
+
+    def ingest(self, data):
+        data["raveneyte_ts"] = time.time()
+        self.stream.append(data)
+        if len(self.stream) > 4096:
+            self.stream.pop(0)
+
+RAVENEYTE = RavenEyeTE()
+
+tick = 42
+subdivision = 4
+pulse = {
+    "tick": tick,
+    "cycle": tick // subdivision,
+    "phase": (tick % subdivision) / subdivision,
+    "timestamp": time.time(),
+    "gateway_data": "http://192.168.1.1/cgi-bin/luci/status (synaptic)"
+}
+
+RAVENEYTE.ingest(pulse)
+orbit_phase = (pulse["cycle"] % 248) / 248
+symbol = "●" if pulse["phase"] < 0.5 else "○"
+
+print("=== RAVENEYTE TELEMETRY CORE & NEXTBENCHUP ===")
+print(f"[PLUTO RETURN] {symbol} Orbit Phase={orbit_phase:.3f} | Cycle={pulse['cycle']} | Tick={pulse['tick']}")
+print(f"[GATEWAY] Data Stream: {pulse['gateway_data']}")
+print(f"[AGENT AUTO-ENHANCE] Recalibrating systems & predictive expansion active")
+
+pulse`
+  },
+  {
     id: 'hamiltonian_quine',
     name: 'Hamiltonian Quine — Self-Etching Codex',
     lang: 'javascript',

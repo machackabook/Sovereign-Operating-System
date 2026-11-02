@@ -1,0 +1,6 @@
+Type,SSID_MAC,RSSI,Distance_m,MITRE_Technique
+Bluetooth,00:1A:7D:DA:71:11,-30.5,0.5,T1518.001
+WiFi,Corporate_AP_01,-45.2,2.1,T1040
+Bluetooth,74:G3:92:11:AA:BB,-62.0,4.8,T1021.005
+WiFi,Guest_Network,-75.8,12.5,T1557
+Bluetooth,88:C2:55:33:00:FF,-88.1,25.0,T1020

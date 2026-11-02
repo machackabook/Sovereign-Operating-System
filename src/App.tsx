@@ -41,6 +41,13 @@ import { QuantumEntropyPanel } from './components/QuantumEntropyPanel';
 import { BiometricGateway } from './components/BiometricGateway';
 import { YouTubePortal } from './components/YouTubePortal';
 import { NexusRemoteHub } from './components/NexusRemoteHub';
+import { PluginManagerModal } from './components/PluginManagerModal';
+import { AllDriversModal } from './components/AllDriversModal';
+import { RavenEyePulsePanel } from './components/RavenEyePulsePanel';
+import { RegistryEditorModal } from './components/RegistryEditorModal';
+import { VGSGiFileExplorerModal } from './components/VGSGiFileExplorerModal';
+
+
 
 
 const DEFAULT_ENV_STATE: EnvironmentState = {
@@ -153,6 +160,11 @@ export function App() {
   const [isEntropyPanelOpen, setIsEntropyPanelOpen] = useState(false);
   const [isYouTubePortalOpen, setIsYouTubePortalOpen] = useState(false);
   const [isRemoteHubOpen, setIsRemoteHubOpen] = useState(false);
+  const [isPluginManagerOpen, setIsPluginManagerOpen] = useState(false);
+  const [isAllDriversOpen, setIsAllDriversOpen] = useState(false);
+  const [isPulsePanelOpen, setIsPulsePanelOpen] = useState(false);
+  const [isRegistryOpen, setIsRegistryOpen] = useState(false);
+  const [isVGSExplorerOpen, setIsVGSExplorerOpen] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
 
 
@@ -237,6 +249,11 @@ export function App() {
     const handleToggleEntropyPanel = () => setIsEntropyPanelOpen(prev => !prev);
     const handleToggleYouTubePortal = () => setIsYouTubePortalOpen(prev => !prev);
     const handleToggleRemoteHub = () => setIsRemoteHubOpen(prev => !prev);
+    const handleTogglePluginManager = () => setIsPluginManagerOpen(prev => !prev);
+    const handleToggleAllDrivers = () => setIsAllDriversOpen(prev => !prev);
+    const handleTogglePulsePanel = () => setIsPulsePanelOpen(prev => !prev);
+    const handleToggleRegistry = () => setIsRegistryOpen(prev => !prev);
+    const handleToggleVGSExplorer = () => setIsVGSExplorerOpen(prev => !prev);
     const handleUnlockAllPaths = () => voiceAuthGateService.unlockAllPaths(true);
 
 
@@ -265,6 +282,11 @@ export function App() {
     window.addEventListener('gaia:toggle-entropy-panel', handleToggleEntropyPanel);
     window.addEventListener('gaia:open-youtube-portal', handleToggleYouTubePortal);
     window.addEventListener('gaia:open-remote-hub', handleToggleRemoteHub);
+    window.addEventListener('gaia:toggle-plugin-manager', handleTogglePluginManager);
+    window.addEventListener('gaia:toggle-all-drivers', handleToggleAllDrivers);
+    window.addEventListener('gaia:toggle-raveneyte-pulse', handleTogglePulsePanel);
+    window.addEventListener('gaia:toggle-registry', handleToggleRegistry);
+    window.addEventListener('gaia:toggle-vgs-explorer', handleToggleVGSExplorer);
     window.addEventListener('gaia:unlock-all-paths', handleUnlockAllPaths);
 
 
@@ -479,6 +501,36 @@ export function App() {
         <NexusRemoteHub
           isOpen={isRemoteHubOpen}
           onClose={() => setIsRemoteHubOpen(false)}
+        />
+
+        {/* Extensions & Add-ons Manager Modal */}
+        <PluginManagerModal
+          isOpen={isPluginManagerOpen}
+          onClose={() => setIsPluginManagerOpen(false)}
+        />
+
+        {/* All Drivers Master Matrix Modal */}
+        <AllDriversModal
+          isOpen={isAllDriversOpen}
+          onClose={() => setIsAllDriversOpen(false)}
+        />
+
+        {/* RavenEyeTE Telemetry Core & NextBenchUp Pulse HUD Panel */}
+        <RavenEyePulsePanel
+          isOpen={isPulsePanelOpen}
+          onClose={() => setIsPulsePanelOpen(false)}
+        />
+
+        {/* Sovereign Registry Editor & FileSystem BootChain Modal */}
+        <RegistryEditorModal
+          isOpen={isRegistryOpen}
+          onClose={() => setIsRegistryOpen(false)}
+        />
+
+        {/* VGS GiFile Explorer & Polyglot Encoding Engine Modal */}
+        <VGSGiFileExplorerModal
+          isOpen={isVGSExplorerOpen}
+          onClose={() => setIsVGSExplorerOpen(false)}
         />
       </div>
 

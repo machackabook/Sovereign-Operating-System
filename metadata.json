@@ -1,6 +1,6 @@
 {
   "name": "S.O.S (SOVEREIGN OPERATING SYSTEMS)",
-  "description": "© 2026 Cryptic News. An autonomous, multimodal neural-interface OS serving as a Sovereign Operating System, featuring dynamic, database-driven personality profiles, real-time audio-reactive 3D/4D visual rendering, and sovereign terminal-integrated AI reasoning, optimized for high-performance compute and secure cryptographic auditability.",
+  "description": "© 2026 Cryptic News. An autonomous, multimodal neural-interface OS serving as a Sovereign Operating System. Features dynamic personality profiles, real-time audio-reactive 3D/4D rendering, and sovereign terminal-integrated AI reasoning. Now enhanced with IWA/PWA installation capabilities, an unbound RAM-bound VFS package management pipeline, a multi-account Google Drive/Colab tunnel bridge, and a modular extension architecture for vertical model capability integration.",
   "requestFramePermissions": [
     "camera",
     "microphone",
