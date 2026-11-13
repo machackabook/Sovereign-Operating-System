@@ -1826,10 +1826,14 @@ Duration: ${res.durationMs}ms | Cycles: ${res.cyclesCompleted}`, 'success', '✨
       }
 
       case 'unlock': {
-        voiceAuthGateService.unlockAllPaths(true);
-        audioVoiceService.playTone(880, 'sine', 150);
-        appendLine('🔓 ALL PATHS UNLOCKED. Gating deactivated across all sovereign documentation & endpoints.', 'success', '🛡️');
-        audioVoiceService.speak('All paths unlocked. Sovereign documentation access unrestricted.');
+        const result = await voiceAuthGateService.verifyIdentity();
+        if (result.verified) {
+          appendLine('[IDENTITY VERIFIED] Protected paths are available for this authenticated session.', 'success', '🔐');
+          audioVoiceService.speak('Identity verified. Protected paths are available.');
+        } else {
+          appendLine('[IDENTITY REQUIRED] ' + result.message, 'warning', '🔒');
+          setIsVoiceAuthModalOpen(true);
+        }
         break;
       }
 
