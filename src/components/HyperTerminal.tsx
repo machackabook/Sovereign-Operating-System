@@ -1639,7 +1639,7 @@ Type 'help' to inspect commands. Voice and text share the same response pipeline
         if (voiceAuthGateService.isProtectedDocument(filePath) && !voiceAuthGateService.isAuthorized()) {
           setPendingDocPath(filePath);
           setIsVoiceAuthModalOpen(true);
-          appendLine(`[ACCESS RESTRICTED]: Document "${filePath}" requires voice match authentication.`, 'warn', '🔒');
+          appendLine(`[ACCESS RESTRICTED]: Document "${filePath}" requires verified Firebase Google + Cloudflare Access identity.`, 'warn', '🔒');
           appendLine('Prompt: Verify the existing Google sign-in and Cloudflare Access session. The spoken phrase only opens this panel.', 'system');
           audioVoiceService.speak('Access restricted. Verify your Google identity and Cloudflare Access session to access protected documentation.', { profile: 'natch' });
           break;
@@ -1665,8 +1665,8 @@ Type 'help' to inspect commands. Voice and text share the same response pipeline
         if (voiceAuthGateService.isProtectedDocument(filePath) && !voiceAuthGateService.isAuthorized()) {
           setPendingDocPath(filePath);
           setIsVoiceAuthModalOpen(true);
-          appendLine(`[ACCESS RESTRICTED]: Editing "${filePath}" requires voice match authentication.`, 'warn', '🔒');
-          audioVoiceService.speak('Access restricted. Voice authentication required.', { profile: 'natch' });
+          appendLine(`[ACCESS RESTRICTED]: Editing "${filePath}" requires verified Firebase Google + Cloudflare Access identity.`, 'warn', '🔒');
+          audioVoiceService.speak('Access restricted. Verify your Google identity and Cloudflare Access session.', { profile: 'natch' });
           break;
         }
         let existingContent = '';
@@ -2081,7 +2081,7 @@ Duration: ${res.durationMs}ms | Cycles: ${res.cyclesCompleted}`, 'success', '✨
           setEnvState((prev) => ({ ...prev, voicePitch: pitch, voiceRate: rate }));
           appendLine(`Voice tuned: Pitch=${pitch}, Rate=${rate}x`, 'success');
         } else if (sub === 'test') {
-          const testMsg = 'Sovereign Neural Core vocalizing. Real-time audio waveform active across terminal overlay and pulsing into the 3D void horizon.';
+          const testMsg = 'Sovereign Neural Core voice test. Device speech output is active; word highlighting follows real browser speech-boundary events when supported.';
           appendLine(`[AI Voice Test]: "${testMsg}"`, 'speech', '🎙️');
           audioVoiceService.speak(testMsg);
         } else if (sub === 'speak') {
@@ -3350,7 +3350,7 @@ WebUSB Support     : [${t.permissions.usb.toUpperCase()}]
 Web Bluetooth BLE  : [${t.permissions.bluetooth.toUpperCase()}]
 Web Serial RTL-SDR : [${t.permissions.serial.toUpperCase()}]
 WebHID Peripherals : [${t.permissions.hid.toUpperCase()}]
-Sovereign Auth     : [OPERATOR ROOT: 100% UNLOCKED]
+Sovereign Auth     : [${voiceAuthGateService.isAuthorized() ? 'VERIFIED' : 'LOCKED'}]
 
 Hardware Cores     : ${t.hardware.logicalCores} Logical CPU Threads
 Display Canvas     : ${t.screen.width}x${t.screen.height} (${t.screen.orientation})
@@ -5815,7 +5815,7 @@ Last Compacted    : ${new Date(tel.lastCompactedAt).toLocaleTimeString()}`, 'tab
               <button
                 onClick={() => {
                   const testMsg = 'Sovereign Neural Core voice test. Device speech output is active; raw TTS waveform samples are not exposed by the browser.';
-                  appendLine(`[AI Voice Waveform Test]: "${testMsg}"`, 'speech', '🎙️');
+                  appendLine(`[AI Device Voice Test]: "${testMsg}"`, 'speech', '🎙️');
                   audioVoiceService.speak(testMsg);
                 }}
                 className="px-2 py-0.5 rounded bg-cyan-500/20 hover:bg-cyan-500/35 text-cyan-300 border border-cyan-400/50 text-[10px] font-bold transition cursor-pointer flex items-center gap-1 shadow-[0_0_10px_rgba(0,242,255,0.25)]"
@@ -6138,7 +6138,7 @@ Last Compacted    : ${new Date(tel.lastCompactedAt).toLocaleTimeString()}`, 'tab
                 }`}
                 title={
                   voiceAuthStatus.isAuthenticated
-                    ? `Logged in: ${voiceAuthStatus.username} (Voice Matched)`
+                    ? `Verified: ${voiceAuthStatus.username} (Firebase Google + Cloudflare Access)`
                     : 'Unverified. Click or speak "open sovereign matrix" to open identity verification; the phrase is not an authentication factor.'
                 }
               >
@@ -6159,7 +6159,7 @@ Last Compacted    : ${new Date(tel.lastCompactedAt).toLocaleTimeString()}`, 'tab
               >
                 <Radio className="w-3 h-3 text-purple-400 animate-pulse" />
                 <span>
-                  VOICE: {envState.voiceProfile === 'gemini_female' ? 'GEMINI ♀ 528Hz' : envState.voiceProfile.toUpperCase()}
+                  VOICE: {envState.voiceProfile === 'gemini_female' ? 'GEMINI DEVICE' : envState.voiceProfile.toUpperCase()}
                 </span>
               </button>
 
