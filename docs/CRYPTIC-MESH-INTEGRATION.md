@@ -6,9 +6,9 @@ S.O.S consumes the Cryptic mesh; it does not create a parallel gateway or hold C
 
 Set the public gateway URL in the S.O.S runtime configuration (this is an endpoint, not a secret):
 
-`VITE_CRYPTIC_MESH_URL=https://YOUR-CRYPTIC-MESH-WORKER.workers.dev`
+`VITE_CRYPTIC_MESH_URL=https://cryptic-sos-mesh.saytyarnornglorei.workers.dev`
 
-The identity adapters must use real OIDC sign-in flows:
+The S.O.S Firebase identity and Cryptic Access portal identity must be real authenticated sessions:
 - The existing S.O.S Firebase Auth Google provider returns a Firebase ID token through `auth.currentUser.getIdToken(true)`. The client service reads the current Firebase user, rejects anonymous/non-Google/unverified-email sessions, and passes the Firebase ID token to Cryptic. Cryptic verifies the Firebase project issuer/audience and `firebase.sign_in_provider === google.com`.
 - The portal adapter supplies the signed Cloudflare Access application JWT from a trusted server-side portal integration. The edge verifies the configured Access issuer, audience, RS256 signature, expiry, subject and signed email claim.
 - Cryptic verifies both signatures, issuer, audience, expiry, and verified email equality.
