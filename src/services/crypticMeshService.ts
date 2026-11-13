@@ -96,7 +96,7 @@ export function createCrypticMeshService(options: CrypticMeshOptions) {
 
   return Object.freeze({
     connect: async () => {
-      await exchange();
+      await ensureToken();
       return { connected: true, expiresAt };
     },
     dispatch: (action: string, args: Record<string, unknown> = {}, correlation_id?: string) => {
@@ -111,10 +111,18 @@ export function createCrypticMeshService(options: CrypticMeshOptions) {
     status: () => request<Record<string, unknown>>("/v1/mesh/portal/status"),
     revoke: async () => {
       if (!accessToken) return { revoked: false };
-      const result = await request<{ revoked: boolean }>("/v1/mesh/auth/revoke", { method: "POST" });
+      const token = accessToken;
       accessToken = null;
       expiresAt = 0;
-      return result;
+      const response = await fetcher(base + "/v1/mesh/auth/revoke", {
+        method: "POST",
+        credentials: "omit",
+        cache: "no-store",
+        redirect: "error",
+        headers: { authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) return { revoked: false };
+      return (await response.json()) as { revoked: boolean };
     },
   });
 }
