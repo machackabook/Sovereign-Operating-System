@@ -24,7 +24,8 @@ export const AudioTranscriptionTool: React.FC<{ onClose?: () => void }> = ({ onC
       };
 
       mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const mimeType = mediaRecorder.mimeType || audioChunksRef.current[0]?.type || 'audio/webm';
+        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
         await processAudio(audioBlob);
       };
 
@@ -60,20 +61,30 @@ export const AudioTranscriptionTool: React.FC<{ onClose?: () => void }> = ({ onC
     setIsProcessing(true);
     setError(null);
     try {
-      const reader = new FileReader();
-      reader.readAsDataURL(blob);
-      reader.onloadend = async () => {
-        const base64data = (reader.result as string).split(',')[1];
-        const response = await transcriptionService.transcribe(base64data, blob.type || 'audio/webm');
-        if (response.error) {
-          setError(response.error);
-        } else {
-          setTranscript(response.transcript);
-        }
-        setIsProcessing(false);
-      };
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onerror = () => reject(new Error('Audio file could not be read.'));
+        reader.onload = () => {
+          if (typeof reader.result !== 'string') {
+            reject(new Error('Audio file did not produce a readable data URL.'));
+            return;
+          }
+          resolve(reader.result);
+        };
+        reader.readAsDataURL(blob);
+      });
+      const separator = dataUrl.indexOf(',');
+      if (separator < 0) throw new Error('Audio data URL is malformed.');
+      const base64data = dataUrl.slice(separator + 1);
+      const response = await transcriptionService.transcribe(base64data, blob.type || 'audio/webm');
+      if (response.error) {
+        setError(response.error);
+      } else {
+        setTranscript(response.transcript);
+      }
     } catch (err: any) {
-      setError('Failed to process audio for transcription.');
+      setError(err?.message || 'Failed to process audio for transcription.');
+    } finally {
       setIsProcessing(false);
     }
   };
