@@ -56,9 +56,10 @@ test('Voice Auth Gate: phrase challenge never substitutes for signed identity', 
 
   const status = voiceAuthGateService.getStatus();
   assert.equal(status.isAuthenticated, false);
+  assert.equal(status.activationPhraseMatched, true);
   assert.equal(status.voiceMatched, true);
   assert.equal(status.accessAssertionVerified, false);
-  assert.equal(status.confidence, 0);
+  assert.equal(status.confidence, null);
   assert.equal(status.environmentalMatch, null);
 
   voiceAuthGateService.logoutUser();
