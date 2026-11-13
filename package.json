@@ -14,7 +14,8 @@
     "precommit": "npm run abda:check",
     "test:audio": "tsx --test src/services/audioVoiceService.test.ts",
     "test:mesh": "node --test tests/cryptic-mesh-portal-worker.test.mjs",
-    "test:security": "tsx --test tests/security-voice-auth.test.mjs"
+    "test:security": "tsx --test tests/security-voice-auth.test.mjs",
+    "check:html": "node scripts/check-inline-scripts.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.32.0",
