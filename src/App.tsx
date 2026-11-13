@@ -254,7 +254,7 @@ export function App() {
     const handleTogglePulsePanel = () => setIsPulsePanelOpen(prev => !prev);
     const handleToggleRegistry = () => setIsRegistryOpen(prev => !prev);
     const handleToggleVGSExplorer = () => setIsVGSExplorerOpen(prev => !prev);
-    const handleUnlockAllPaths = () => voiceAuthGateService.unlockAllPaths(true);
+    const handleUnlockAllPaths = () => window.dispatchEvent(new CustomEvent('gaia:open-voice-auth'));
 
 
     window.addEventListener('gaia:toggle-meet', handleToggleMeet);
