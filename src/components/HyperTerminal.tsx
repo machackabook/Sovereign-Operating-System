@@ -1486,9 +1486,9 @@ Type 'help' to inspect commands. Voice and text share the same response pipeline
       case 'whoami': {
         const auth = voiceAuthGateService.getStatus();
         if (auth.isAuthenticated) {
-          appendLine(`Authenticated User: ${auth.username} (Voice Matched: ${auth.voiceMatched ? 'Verified' : 'Pending'}, Profile: ${auth.activeVoiceProfile}, Confidence: ${Math.round(auth.confidence * 100)}%)`, 'success', '👤');
+          appendLine(`Authenticated User: ${auth.username} (Firebase Google + Cloudflare Access verified; Profile: ${auth.activeVoiceProfile})`, 'success', '👤');
         } else {
-          appendLine('root (Guest / Unauthenticated). Type "auth" or "login" or speak "open sovereign matrix" to authenticate.', 'warn', '👤');
+          appendLine('Guest / Unverified. Protected paths remain locked. Type "auth" to verify the existing Google + Cloudflare Access session.', 'warn', '👤');
         }
         break;
       }
@@ -1515,17 +1515,17 @@ Type 'help' to inspect commands. Voice and text share the same response pipeline
       case 'login': {
         if (voiceAuthGateService.isAuthorized()) {
           const auth = voiceAuthGateService.getStatus();
-          appendLine(`Already authenticated as ${auth.username}. Voice Match Active.`, 'success', '🛡️');
+          appendLine(`Already verified as ${auth.username} through Firebase Google + Cloudflare Access.`, 'success', '🔐');
         } else {
           setIsVoiceAuthModalOpen(true);
-          appendLine('Opening Voice Authentication Gate... Speak "open sovereign matrix" or click bypass.', 'system', '🎙️');
+          appendLine('Opening identity verification. The optional voice phrase is not an authentication factor.', 'system', '🔐');
         }
         break;
       }
 
       case 'logout': {
         voiceAuthGateService.logoutUser();
-        appendLine('Voice session terminated. Logged out to guest mode.', 'system', '🔒');
+        appendLine('Cryptic bridge session revoked. Protected paths are locked.', 'system', '🔒');
         break;
       }
 
