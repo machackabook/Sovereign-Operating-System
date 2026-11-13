@@ -18,14 +18,17 @@ export interface EnvironmentalSensorData {
 export interface VoiceAuthStatus {
   isAuthenticated: boolean;
   username: string | null;
+  /** Optional phrase challenge state; never an identity factor. */
+  activationPhraseMatched: boolean;
+  /** @deprecated Compatibility alias for activationPhraseMatched. */
   voiceMatched: boolean;
   allPathsUnlocked: boolean;
   lastVerifiedAt: number | null;
   activeVoiceProfile: string;
   /** Null means no real environmental-match measurement is available. */
   environmentalMatch: boolean | null;
-  /** Binary identity-check state, not a biometric confidence score. */
-  confidence: number;
+  /** No voice-biometric confidence is computed by this service. */
+  confidence: number | null;
   accessAssertionVerified: boolean;
 }
 
@@ -35,7 +38,7 @@ class VoiceAuthGateService {
   private authenticatedUser: string | null = null;
   private identityVerified = false;
   private accessAssertionVerified = false;
-  private voiceMatched = false;
+  private activationPhraseMatched = false;
   private allPathsUnlocked = false;
   private lastVerifiedAt: number | null = null;
   private bridgeExpiresAt: number | null = null;
@@ -74,7 +77,7 @@ class VoiceAuthGateService {
     this.authenticatedUser = null;
     this.identityVerified = false;
     this.accessAssertionVerified = false;
-    this.voiceMatched = false;
+    this.activationPhraseMatched = false;
     this.allPathsUnlocked = false;
     this.lastVerifiedAt = null;
     this.bridgeExpiresAt = null;
@@ -100,7 +103,7 @@ class VoiceAuthGateService {
   public verifyVoice(transcript: string): { verified: boolean; score: number; message: string } {
     const normalized = transcript.toLowerCase().replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
     const recognized = normalized.includes(this.activationPhrase);
-    this.voiceMatched = recognized;
+    this.activationPhraseMatched = recognized;
     this.notify();
     return {
       verified: recognized,
@@ -216,12 +219,13 @@ class VoiceAuthGateService {
     return {
       isAuthenticated: authorized,
       username: authorized ? this.authenticatedUser : null,
-      voiceMatched: this.voiceMatched,
+      activationPhraseMatched: this.activationPhraseMatched,
+      voiceMatched: this.activationPhraseMatched,
       allPathsUnlocked: authorized,
       lastVerifiedAt: authorized ? this.lastVerifiedAt : null,
       activeVoiceProfile: audioVoiceService.getCurrentProfile().name,
       environmentalMatch: null,
-      confidence: authorized ? 1 : 0,
+      confidence: null,
       accessAssertionVerified: authorized && this.accessAssertionVerified,
     };
   }
