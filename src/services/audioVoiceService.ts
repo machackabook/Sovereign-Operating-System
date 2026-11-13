@@ -1,6 +1,7 @@
 /**
- * AudioVoiceService - Real-time Web Audio, 963Hz Oscillator, Audio Analyser,
- * Microphone Stream Input & Speech Recognition for Voice Commands
+ * AudioVoiceService - Device-native speech synthesis and recognition, microphone
+ * input, accessible earcons, and optional ambient audio. TTS audio is never
+ * duplicated by a synthetic carrier oscillator.
  */
 
 export interface MicrophoneAudioData {
@@ -101,8 +102,8 @@ export class AudioVoiceService {
   private frequencyData: Uint8Array | null = null;
   private is963Active = false;
   private isVoiceEnabled = true;
-  private pitch = 1.15;
-  private rate = 1.02;
+  private pitch = 1.0;
+  private rate = 1.0;
   private selectedVoice: SpeechSynthesisVoice | null = null;
   private speechListeners: ((speaking: boolean, text: string) => void)[] = [];
   private speechLogListeners: ((text: string) => void)[] = [];
@@ -662,7 +663,7 @@ export class AudioVoiceService {
   // VOICE PROFILES & ACCESSIBILITY SUBSYSTEM
   // =========================================================================
 
-  private currentProfileId = 'gemini_female';
+  private currentProfileId = 'natch';
   private announcerListeners: ((message: string, assertive: boolean) => void)[] = [];
 
   public static readonly PROFILES: Record<string, VoiceProfile> = {
@@ -672,17 +673,17 @@ export class AudioVoiceService {
       pitch: 1.0,
       rate: 1.0,
       carrierFreq: 432,
-      description: 'Organic, grounded human conversational tone with natural acoustic cadence for system inspection',
+      description: 'Natural conversational cadence with balanced pitch and rate for system inspection',
       style: 'from-amber-400 to-emerald-400',
       oscillatorType: 'sine',
     },
     gemini_female: {
       id: 'gemini_female',
-      name: 'Gemini Neural (Female)',
+      name: 'Gemini Neural',
       pitch: 1.15,
       rate: 1.02,
       carrierFreq: 528,
-      description: 'Natural interactive female neural voice with 528Hz Solfeggio carrier, tuned for conversational flow',
+      description: 'Default conversational pitch and rate preset; the selected device voice provides the actual sound',
       style: 'from-fuchsia-400 to-cyan-400',
       oscillatorType: 'sine',
     },
@@ -692,7 +693,7 @@ export class AudioVoiceService {
       pitch: 1.02,
       rate: 0.92,
       carrierFreq: 432,
-      description: 'Organic, soothing Earth harmonic resonance tuned to 432Hz verdant frequency',
+      description: 'Slower, measured cadence preset for calm explanations',
       style: 'from-emerald-400 to-amber-300',
       oscillatorType: 'sine',
     },
@@ -702,7 +703,7 @@ export class AudioVoiceService {
       pitch: 0.82,
       rate: 1.25,
       carrierFreq: 963,
-      description: 'Accelerated high-tech vocoder cadence tuned for computational & cyberpunk analysis',
+      description: 'Faster cadence preset for concise technical status and diagnostics',
       style: 'from-cyan-400 to-fuchsia-500',
       oscillatorType: 'sawtooth',
     },
@@ -712,7 +713,7 @@ export class AudioVoiceService {
       pitch: 0.95,
       rate: 1.05,
       carrierFreq: 432,
-      description: 'Balanced, authoritative neural voice with subtle harmonic undertones',
+      description: 'Balanced pitch and cadence preset for general terminal responses',
       style: 'from-cyan-400 to-blue-500',
       oscillatorType: 'triangle',
     },
@@ -722,7 +723,7 @@ export class AudioVoiceService {
       pitch: 1.3,
       rate: 0.95,
       carrierFreq: 528,
-      description: 'Ethereal, high-frequency resonance with shimmering spatial reflections',
+      description: 'Slightly higher-pitch preset with measured pacing for exploratory explanations',
       style: 'from-purple-400 to-pink-500',
       oscillatorType: 'sine',
     },
@@ -732,7 +733,7 @@ export class AudioVoiceService {
       pitch: 0.75,
       rate: 1.25,
       carrierFreq: 963,
-      description: 'Accelerated robotic vocoder cadence engineered for high-throughput syntax',
+      description: 'Lower-pitch, faster cadence preset for dense technical output',
       style: 'from-emerald-400 to-cyan-400',
       oscillatorType: 'sawtooth',
     },
@@ -742,7 +743,7 @@ export class AudioVoiceService {
       pitch: 1.0,
       rate: 0.82,
       carrierFreq: 639,
-      description: 'Warm, meditative stasis cadence calibrated to Solfeggio heart resonance',
+      description: 'Warm, slower cadence preset for longer explanations',
       style: 'from-amber-400 to-rose-400',
       oscillatorType: 'sine',
     },
@@ -752,7 +753,7 @@ export class AudioVoiceService {
       pitch: 1.45,
       rate: 1.3,
       carrierFreq: 852,
-      description: 'Staccato, urgent alert cadence for anomalies and critical alarms',
+      description: 'Short, clear alert cadence preset for important status messages',
       style: 'from-red-500 to-amber-500',
       oscillatorType: 'square',
     },
