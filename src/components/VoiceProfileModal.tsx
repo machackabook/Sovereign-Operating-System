@@ -45,7 +45,20 @@ export const VoiceProfileModal: React.FC<VoiceProfileModalProps> = ({
   onToggleHighContrast,
 }) => {
   const [isPlayingSample, setIsPlayingSample] = useState(false);
+  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [selectedVoiceURI, setSelectedVoiceURI] = useState(audioVoiceService.getSelectedVoiceURI());
   const profiles = audioVoiceService.getVoiceProfiles();
+
+  React.useEffect(() => {
+    if (!isOpen || typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+    const refreshVoices = () => {
+      setAvailableVoices(audioVoiceService.getAvailableVoices());
+      setSelectedVoiceURI(audioVoiceService.getSelectedVoiceURI());
+    };
+    refreshVoices();
+    window.speechSynthesis.addEventListener('voiceschanged', refreshVoices);
+    return () => window.speechSynthesis.removeEventListener('voiceschanged', refreshVoices);
+  }, [isOpen]);
 
   React.useEffect(() => {
     if (!isOpen) return;
@@ -63,11 +76,13 @@ export const VoiceProfileModal: React.FC<VoiceProfileModalProps> = ({
 
   const handleTestSpeech = async (phrase?: string) => {
     setIsPlayingSample(true);
-    audioVoiceService.playEarcon('stream');
-    await audioVoiceService.speak(
-      phrase || 'Polymorphic neural voice active. Frequency alignment verified across the vector plane.'
-    );
-    setIsPlayingSample(false);
+    try {
+      await audioVoiceService.speak(
+        phrase || 'This is the selected device voice profile. Spoken output follows the terminal response.'
+      );
+    } finally {
+      setIsPlayingSample(false);
+    }
   };
 
   return (
@@ -93,7 +108,7 @@ export const VoiceProfileModal: React.FC<VoiceProfileModalProps> = ({
                 <span>NEURAL VOICE &amp; CHROMEVOX MATRIX</span>
               </h2>
               <p className="text-[11px] text-slate-400">
-                Multi-faceted AI voice profiles, carrier frequencies, and accessibility protocol
+                Device-native speech voices, saved voice profiles, and accessibility settings
               </p>
             </div>
           </div>
@@ -122,7 +137,6 @@ export const VoiceProfileModal: React.FC<VoiceProfileModalProps> = ({
                     onClick={() => {
                       onSelectProfile(p.id);
                       audioVoiceService.setVoiceProfile(p.id);
-                      audioVoiceService.playTone(p.carrierFreq, 'sine', 120, 0.03);
                     }}
                     className={`p-3 rounded-xl border transition cursor-pointer flex flex-col justify-between ${
                       isSelected
@@ -137,19 +151,51 @@ export const VoiceProfileModal: React.FC<VoiceProfileModalProps> = ({
                           ✓
                         </span>
                       ) : (
-                        <span className="text-[10px] text-slate-500 font-mono">{p.carrierFreq} Hz</span>
+                        <span className="text-[10px] text-slate-500 font-mono">PROFILE</span>
                       )}
                     </div>
                     <p className="text-[10px] text-slate-400 leading-relaxed mb-2">{p.description}</p>
                     <div className="flex items-center justify-between text-[9px] text-slate-500 pt-1.5 border-t border-slate-800/80">
                       <span>Pitch: {p.pitch.toFixed(2)}x</span>
                       <span>Rate: {p.rate.toFixed(2)}x</span>
-                      <span className="text-purple-300 font-bold">{p.carrierFreq}Hz Harmonic</span>
+                      <span className="text-purple-300 font-bold">Device TTS</span>
                     </div>
                   </div>
                 );
               })}
             </div>
+          </div>
+
+          {/* Actual browser/device speech engine selection */}
+          <div className="p-3 bg-black/60 rounded-xl border border-slate-800 space-y-2">
+            <label htmlFor="gaia-device-voice" className="text-[10px] text-slate-400 font-semibold tracking-wider uppercase block">
+              Device speech voice
+            </label>
+            <select
+              id="gaia-device-voice"
+              value={selectedVoiceURI}
+              onChange={(event) => {
+                const voiceURI = event.target.value;
+                if (voiceURI && audioVoiceService.setSystemVoice(voiceURI)) {
+                  setSelectedVoiceURI(voiceURI);
+                }
+              }}
+              className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-100"
+            >
+              {availableVoices.map((voice) => (
+                <option key={voice.voiceURI} value={voice.voiceURI}>
+                  {voice.name} · {voice.lang}{voice.default ? ' · system default' : ''}
+                </option>
+              ))}
+            </select>
+            <p className="text-[10px] text-slate-500">
+              Uses speech voices already installed on this device. The selection is saved locally and is not uploaded as a voice recording.
+            </p>
+            {!availableVoices.length && (
+              <p role="status" className="text-[10px] text-amber-300">
+                No system speech voices are currently available in this browser.
+              </p>
+            )}
           </div>
 
           {/* Sliders for Pitch and Rate Tuning */}
