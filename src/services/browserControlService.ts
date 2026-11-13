@@ -724,13 +724,11 @@ export class BrowserControlService {
       results.midi = 'prompt-or-denied';
     }
 
-    // 6. Sovereign VFS & Root Operator Authorization
-    try {
-      voiceAuthGateService.unlockAllPaths(true);
-      results.sovereignMatrixAuth = 'unlocked:operator@sovereign';
-    } catch {
-      results.sovereignMatrixAuth = 'unlocked';
-    }
+    // 6. Sovereign VFS identity state. Diagnostics must never grant access.
+    const identityState = voiceAuthGateService.getStatus();
+    results.sovereignMatrixAuth = identityState.isAuthenticated
+      ? 'verified:firebase-google+cloudflare-access'
+      : 'locked:verified-google+cloudflare-access-required';
 
     // 7. Clipboard Write
     try {
