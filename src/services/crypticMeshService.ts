@@ -1,6 +1,8 @@
+import { auth } from "./firebase";
+
 export interface CrypticMeshOptions {
   baseUrl: string;
-  getGoogleIdToken: () => Promise<string>;
+  getFirebaseIdToken: () => Promise<string>;
   getPortalIdToken: () => Promise<string>;
   fetchImpl?: typeof fetch;
 }
@@ -27,22 +29,29 @@ function jwtExpiry(token: string): number {
  * Cryptic remains the identity/policy/edge authority.
  * Bridge credentials stay in closure memory; no browser persistence is used.
  */
-export function createCrypticMeshService(options: CrypticMeshOptions) {
+export function createCrypticMeshService(options: Omit<CrypticMeshOptions, "getFirebaseIdToken">) {
   if (!/^https:\/\//.test(options.baseUrl)) throw new Error("Cryptic Mesh requires an HTTPS base URL");
   const fetcher = options.fetchImpl ?? fetch;
+  const getFirebaseIdToken = async (): Promise<string> => {
+    const user = auth.currentUser;
+    if (!user || user.isAnonymous) throw new Error("Sign in with the S.O.S Google account before connecting Cryptic");
+    if (!user.providerData.some(provider => provider.providerId === "google.com")) throw new Error("Cryptic Mesh requires the Firebase Google sign-in provider");
+    if (!user.emailVerified) throw new Error("Verify the Google account email before connecting Cryptic");
+    return user.getIdToken(true);
+  };
   const base = options.baseUrl.replace(/\/+$/, "");
   let accessToken: string | null = null;
   let expiresAt = 0;
 
   async function exchange(): Promise<void> {
-    const [google_id_token, portal_id_token] = await Promise.all([
-      options.getGoogleIdToken(),
+    const [firebase_id_token, portal_id_token] = await Promise.all([
+      getFirebaseIdToken(),
       options.getPortalIdToken(),
     ]);
     const response = await fetcher(base + "/v1/mesh/auth/exchange", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ google_id_token, portal_id_token }),
+      body: JSON.stringify({ firebase_id_token, portal_id_token }),
       cache: "no-store",
       redirect: "error",
     });
