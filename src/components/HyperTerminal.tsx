@@ -1195,12 +1195,8 @@ Type 'help' to inspect commands. Voice and text share the same response pipeline
             const result = await crypticMeshService.connect();
             appendLine(JSON.stringify({ service: 'Cryptic Mesh', ...result }, null, 2), 'success', '🔐');
           } else if (op === 'health') {
-            const response = await fetch('/api/cryptic-mesh/health', {
-              method: 'GET', cache: 'no-store', redirect: 'error',
-              headers: { accept: 'application/json' }
-            });
-            if (!response.ok) throw new Error('Portal health returned HTTP ' + response.status);
-            appendLine(JSON.stringify(await response.json(), null, 2), 'output');
+            const result = await crypticMeshService.health();
+            appendLine(JSON.stringify(result, null, 2), 'success', '🛡️');
           } else if (op === 'status') {
             appendLine(JSON.stringify(await crypticMeshService.status(), null, 2), 'output');
           } else if (op === 'dispatch') {
