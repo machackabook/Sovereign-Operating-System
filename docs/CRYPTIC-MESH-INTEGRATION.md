@@ -9,7 +9,7 @@ Set the public gateway URL in the S.O.S runtime configuration (this is an endpoi
 `VITE_CRYPTIC_MESH_URL=https://YOUR-CRYPTIC-MESH-WORKER.workers.dev`
 
 The identity adapters must use real OIDC sign-in flows:
-- Google Identity Services returns a Google ID token whose audience is the configured OAuth client ID.
+- The existing S.O.S Firebase Auth Google provider returns a Firebase ID token through `auth.currentUser.getIdToken(true)`. The client service reads the current Firebase user, rejects anonymous/non-Google/unverified-email sessions, and passes the Firebase ID token to Cryptic. Cryptic verifies the Firebase project issuer/audience and `firebase.sign_in_provider === google.com`.
 - The existing S.O.S/portal authentication adapter returns a portal OIDC ID token with a verified email claim.
 - Cryptic verifies both signatures, issuer, audience, expiry, and verified email equality.
 
