@@ -26,6 +26,8 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Validate Worker syntax
         run: node --check src/cloudflare-mesh-portal-worker.mjs && node --check src/cloudflare-public-worker.mjs
+      - name: Validate HTML startup scripts
+        run: npm run check:html
       - name: Test Access assertion forwarding
         run: npm run test:mesh
       - name: Test speech recognition helpers
