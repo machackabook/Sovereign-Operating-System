@@ -20,7 +20,7 @@
   <script>
     // Preserve existing PWA service-worker registrations and caches.
     // Cleanup is versioned and explicit; startup never unregisters all workers.
-    if ('serviceWorker' in navigator && /(^|\\.)crypticnews\\.org$/.test(location.hostname)) {
+    if ('serviceWorker' in navigator && (location.hostname === 'crypticnews.org' || location.hostname.endsWith('.crypticnews.org'))) {
       navigator.serviceWorker.getRegistrations().then(regs => {
         window.dispatchEvent(new CustomEvent('gaia:service-worker-status', {
           detail: { registrationCount: regs.length }
