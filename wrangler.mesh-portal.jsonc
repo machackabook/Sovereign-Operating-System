@@ -3,6 +3,7 @@
   "name": "cryptic-sos-portal",
   "main": "src/cloudflare-mesh-portal-worker.mjs",
   "compatibility_date": "2026-11-13",
+  "account_id": "bc67ed84864df46b05d196cff28126bb",
   "workers_dev": false,
   "routes": [
     {
@@ -13,5 +14,7 @@
   "vars": {
     "CRYPTIC_MESH_URL": "https://cryptic-sos-mesh.saytyarnornglorei.workers.dev"
   },
-  "observability": { "enabled": true }
+  "observability": {
+    "enabled": true
+  }
 }
