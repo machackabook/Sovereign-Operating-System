@@ -44,10 +44,30 @@ export default {
     const path = url.pathname;
 
     if (path === "/api/cryptic-mesh/health" && request.method === "GET") {
+      const accessAssertion = request.headers.get("Cf-Access-Jwt-Assertion");
+      if (!accessAssertion || accessAssertion.length > 12000) {
+        return json({ ok: false, access_assertion_verified: false, error: "cloudflare_access_assertion_required" }, 401);
+      }
       try {
-        return await upstream(request, env, "/health", { method: "GET" });
+        const verified = await upstream(request, env, "/v1/mesh/auth/verify-portal", {
+          method: "POST",
+          headers: { "content-type": "application/json", "accept": "application/json" },
+          body: JSON.stringify({ portal_id_token: accessAssertion })
+        });
+        if (!verified.ok) return json({ ok: false, access_assertion_verified: false, error: "access_assertion_rejected" }, verified.status);
+        const assertion = await verified.json();
+        const health = await upstream(request, env, "/health", { method: "GET" });
+        if (!health.ok) return json({ ok: false, access_assertion_verified: true, gateway: await health.json() }, health.status);
+        return json({
+          ok: true,
+          access_assertion_verified: assertion.authenticated === true,
+          identity_provider: assertion.provider,
+          subject_fingerprint: assertion.subject_fingerprint,
+          assertion_expires_at: assertion.expires_at,
+          gateway: await health.json()
+        });
       } catch {
-        return json({ ok: false, service: "sos-cryptic-mesh-proxy", error: "gateway_unavailable" }, 502);
+        return json({ ok: false, access_assertion_verified: false, error: "gateway_unavailable" }, 502);
       }
     }
 
