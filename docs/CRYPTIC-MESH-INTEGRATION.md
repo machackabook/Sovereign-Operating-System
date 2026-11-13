@@ -4,33 +4,58 @@ S.O.S consumes the Cryptic mesh; it does not create a parallel gateway or hold C
 
 ## Configure
 
-Set the public gateway URL in the S.O.S runtime configuration (this is an endpoint, not a secret):
+The production S.O.S UI is served on `https://crypticnews.org`. Its same-origin exchange path is protected by the existing Cloudflare Access application **GAIA private terminal API** (`crypticnews.org/api`). The Access application remains the authentication boundary; do not create a second sign-in flow.
+
+A dedicated portal Worker handles only `crypticnews.org/api/cryptic-mesh/*`:
+
+- `src/cloudflare-mesh-portal-worker.mjs` is the source.
+- `wrangler.mesh-portal.jsonc` deploys the isolated Worker `cryptic-sos-portal`.
+- The route is `crypticnews.org/api/cryptic-mesh/*`; it does not replace the existing public Worker or `/api/forge*` route.
+- Cloudflare Access authenticates the browser request and injects `Cf-Access-Jwt-Assertion`.
+- The portal Worker forwards that signed assertion and the Firebase ID token to Cryptic. It never reads an Access cookie or accepts a user-supplied email.
+- Cryptic validates the Access JWT signature, issuer, audience, expiry, subject and signed email, and independently validates the Firebase Google ID token.
+- The server-side Express route in `server.ts` is a fail-closed development/Node fallback. Production traffic uses the dedicated Cloudflare portal Worker.
+
+The public gateway endpoint is an ordinary non-secret configuration value:
 
 `VITE_CRYPTIC_MESH_URL=https://cryptic-sos-mesh.saytyarnornglorei.workers.dev`
 
-The S.O.S Firebase identity and Cryptic Access portal identity must be real authenticated sessions:
-- The existing S.O.S Firebase Auth Google provider returns a Firebase ID token through `auth.currentUser.getIdToken(true)`. The client service reads the current Firebase user, rejects anonymous/non-Google/unverified-email sessions, and passes the Firebase ID token to Cryptic. Cryptic verifies the Firebase project issuer/audience and `firebase.sign_in_provider === google.com`.
-- The S.O.S Express server reads the Cloudflare Access `Cf-Access-Jwt-Assertion` header server-side and forwards it to Cryptic. The edge verifies the configured Access issuer, audience, RS256 signature, expiry, subject and signed email claim. The S.O.S server must be behind the Cryptic Cloudflare Access application; the route fails closed without the header.
-- Cryptic verifies both signatures, issuer, audience, expiry, and verified email equality.
+The portal Worker uses:
 
-Do not store either token or the returned Cryptic bridge token in localStorage, sessionStorage, URL parameters, logs, analytics, or model prompts. The bridge token remains in the service closure's memory.
+`CRYPTIC_MESH_URL=https://cryptic-sos-mesh.saytyarnornglorei.workers.dev`
+
+No bridge signing secret is placed in the S.O.S application, browser, or public Worker.
 
 ## Use
 
-```ts
-import { createCrypticMeshService } from "./services/crypticMeshService";
+The S.O.S terminal exposes the integration without exposing tokens:
 
-const crypticMesh = createCrypticMeshService({
-  baseUrl: import.meta.env.VITE_CRYPTIC_MESH_URL,
-});
-
-await crypticMesh.connect();
-const accepted = await crypticMesh.dispatch("nexus.health", {});
-// accepted.status === "queued" means accepted by Cryptic, not yet completed by NEXUS.
-const jobs = await crypticMesh.jobs();
+```text
+cryptic health
+cryptic connect
+cryptic status
+cryptic dispatch nexus.health
+cryptic jobs
+cryptic revoke
 ```
 
-The Firebase Google identity is wired directly to the existing S.O.S Firebase Auth session. The S.O.S server-side exchange proxy forwards the signed Cloudflare Access assertion; do not read or trust an arbitrary browser cookie or user-supplied email. Set `CRYPTIC_MESH_URL` on the S.O.S server to the deployed workers.dev endpoint.
+`cryptic connect` uses the existing Firebase Google session and same-origin Cloudflare Access session. The browser stores the short-lived bridge token only in the service closure's memory. The access assertion is never exposed to JavaScript.
+
+## Verification
+
+Run the real checks from the repository root:
+
+```bash
+npm install --no-audit --no-fund
+npm run test:mesh
+npm run test:audio
+npm run lint
+npm run build
+```
+
+The portal Worker tests verify missing-assertion rejection, same-origin enforcement, forwarding of both signed tokens, and upstream health proxying. They do not substitute for a live Access-authenticated browser exchange. That final test must use a real signed-in session and a real Firebase Google ID token.
+
+Do not store either identity token or the returned Cryptic bridge token in localStorage, sessionStorage, URL parameters, logs, analytics, or model prompts.
 
 ## Authority and flow
 
