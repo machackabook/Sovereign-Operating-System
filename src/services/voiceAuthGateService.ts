@@ -73,6 +73,7 @@ class VoiceAuthGateService {
     this.authenticatedUser = null;
     this.identityVerified = false;
     this.accessAssertionVerified = false;
+    this.voiceMatched = false;
     this.allPathsUnlocked = false;
     this.lastVerifiedAt = null;
   }
