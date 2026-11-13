@@ -1096,7 +1096,7 @@ Type 'help' to inspect commands. Voice and text share the same response pipeline
 
       // One canonical response drives terminal text, captions, and speech.
       // This prevents data.reply and data.speechText from diverging across channels.
-      const responseText = String(data.speechText || data.reply || 'Response received.').trim();
+      const responseText = String(data.reply || data.speechText || 'Response received.').trim();
       appendLine(responseText, 'ai', data.floatingGlyph || '✨');
 
       if (envState.voiceActive && responseText) {
