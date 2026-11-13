@@ -105,7 +105,7 @@ async function startServer() {
   app.post('/api/cryptic-mesh/exchange', async (req, res) => {
     const firebase_id_token = req.body?.firebase_id_token;
     const portal_id_token = req.header('cf-access-jwt-assertion');
-    const meshBase = (process.env.CRYPTIC_MESH_URL || '').replace(/\\/+$/, '');
+    const meshBase = (process.env.CRYPTIC_MESH_URL || '').replace(/\/+$/, '');
 
     if (typeof firebase_id_token !== 'string' || !firebase_id_token) {
       return res.status(400).json({ error: 'firebase_identity_token_required' });
