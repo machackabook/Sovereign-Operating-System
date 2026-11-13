@@ -141,11 +141,30 @@ export class AudioVoiceService {
   private recognitionRestartTimer: ReturnType<typeof setTimeout> | null = null;
   private transcriptListeners: ((transcript: string, isFinal: boolean) => void)[] = [];
 
+  private static readonly PROFILE_STORAGE_KEY = 'gaia_voice_profile_v1';
+  private static readonly VOICE_STORAGE_KEY = 'gaia_system_voice_uri_v1';
+  private static readonly TUNING_STORAGE_KEY = 'gaia_voice_tuning_v1';
+
   constructor() {
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      window.speechSynthesis.onvoiceschanged = () => {
-        this.loadVoice();
-      };
+      window.speechSynthesis.addEventListener('voiceschanged', () => this.loadVoice());
+      try {
+        const savedProfile = window.localStorage.getItem(AudioVoiceService.PROFILE_STORAGE_KEY);
+        const profile = savedProfile ? AudioVoiceService.PROFILES[savedProfile] : null;
+        if (profile) {
+          this.currentProfileId = profile.id;
+          this.pitch = profile.pitch;
+          this.rate = profile.rate;
+        }
+        const tuning = window.localStorage.getItem(AudioVoiceService.TUNING_STORAGE_KEY);
+        if (tuning) {
+          const parsed = JSON.parse(tuning);
+          if (Number.isFinite(parsed.pitch)) this.pitch = Math.max(0.5, Math.min(2, parsed.pitch));
+          if (Number.isFinite(parsed.rate)) this.rate = Math.max(0.5, Math.min(2, parsed.rate));
+        }
+      } catch {
+        // Preferences are device-local and optional; defaults remain usable.
+      }
       this.loadVoice();
     }
   }
@@ -153,36 +172,31 @@ export class AudioVoiceService {
   private loadVoice(): void {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
     const voices = window.speechSynthesis.getVoices();
-    // Prioritize high-quality English female natural voices
-    const femaleVoice = voices.find(
-      (v) =>
-        v.lang.startsWith('en') &&
-        (v.name.toLowerCase().includes('female') ||
-          v.name.toLowerCase().includes('zira') ||
-          v.name.toLowerCase().includes('samantha') ||
-          v.name.toLowerCase().includes('victoria') ||
-          v.name.toLowerCase().includes('karen') ||
-          v.name.toLowerCase().includes('ava') ||
-          v.name.toLowerCase().includes('jenny') ||
-          v.name.toLowerCase().includes('sonia') ||
-          v.name.toLowerCase().includes('allison') ||
-          v.name.toLowerCase().includes('susan') ||
-          v.name.toLowerCase().includes('fiona'))
-    );
+    if (!voices.length) return;
+    let savedVoiceURI = '';
+    try { savedVoiceURI = window.localStorage.getItem(AudioVoiceService.VOICE_STORAGE_KEY) || ''; } catch {}
+    const saved = savedVoiceURI ? voices.find(v => v.voiceURI === savedVoiceURI) : undefined;
+    const locale = typeof navigator !== 'undefined' ? navigator.language.toLowerCase() : '';
+    const localeVoice = voices.find(v => v.lang.toLowerCase() === locale);
+    const languageVoice = voices.find(v => locale && v.lang.toLowerCase().startsWith(locale.split('-')[0]));
+    this.selectedVoice = saved || localeVoice || languageVoice || voices.find(v => v.default) || voices[0];
+  }
 
-    const preferred =
-      femaleVoice ||
-      voices.find(
-        (v) =>
-          v.lang.startsWith('en') &&
-          (v.name.includes('Google') || v.name.includes('Natural') || v.name.includes('Neural'))
-      ) ||
-      voices.find((v) => v.lang.startsWith('en')) ||
-      voices[0];
+  public getAvailableVoices(): SpeechSynthesisVoice[] {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return [];
+    return window.speechSynthesis.getVoices();
+  }
 
-    if (preferred) {
-      this.selectedVoice = preferred;
-    }
+  public getSelectedVoiceURI(): string {
+    return this.selectedVoice?.voiceURI || '';
+  }
+
+  public setSystemVoice(voiceURI: string): boolean {
+    const voice = this.getAvailableVoices().find(v => v.voiceURI === voiceURI);
+    if (!voice) return false;
+    this.selectedVoice = voice;
+    try { window.localStorage.setItem(AudioVoiceService.VOICE_STORAGE_KEY, voice.voiceURI); } catch {}
+    return true;
   }
 
   public initContext(): AudioContext {
@@ -766,7 +780,8 @@ export class AudioVoiceService {
       this.currentProfileId = profile.id;
       this.pitch = profile.pitch;
       this.rate = profile.rate;
-      this.playTone(profile.carrierFreq, 'sine', 150, 0.03);
+      try { window.localStorage.setItem(AudioVoiceService.PROFILE_STORAGE_KEY, profile.id); } catch {}
+      try { window.localStorage.setItem(AudioVoiceService.TUNING_STORAGE_KEY, JSON.stringify({ pitch: this.pitch, rate: this.rate })); } catch {}
       return profile;
     }
     return null;
@@ -909,9 +924,13 @@ export class AudioVoiceService {
 
       const words = cleanText.split(/\s+/).filter(Boolean);
       const utterance = new SpeechSynthesisUtterance(cleanText);
-      if (this.selectedVoice) utterance.voice = this.selectedVoice;
+      if (this.selectedVoice) {
+        utterance.voice = this.selectedVoice;
+        utterance.lang = this.selectedVoice.lang;
+      }
       utterance.pitch = activePitch;
       utterance.rate = activeRate;
+      utterance.volume = 1;
 
       let boundaryFired = false;
       utterance.onboundary = (e: any) => {
@@ -1004,9 +1023,12 @@ export class AudioVoiceService {
     this.rate = Math.max(0.5, Math.min(2.0, rate));
     if (voiceName && typeof window !== 'undefined') {
       const voices = window.speechSynthesis.getVoices();
-      const match = voices.find((v) => v.name.toLowerCase().includes(voiceName.toLowerCase()));
-      if (match) this.selectedVoice = match;
+      const match = voices.find((v) => v.name === voiceName || v.voiceURI === voiceName);
+      if (match) this.setSystemVoice(match.voiceURI);
     }
+    try {
+      window.localStorage.setItem(AudioVoiceService.TUNING_STORAGE_KEY, JSON.stringify({ pitch: this.pitch, rate: this.rate }));
+    } catch {}
   }
 
   public onSpeechChange(cb: (speaking: boolean, text: string) => void): () => void {
