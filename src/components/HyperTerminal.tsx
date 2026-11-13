@@ -3308,9 +3308,9 @@ WebUSB (ADB)       : ${results.webUsb} (Pair via 'adb devices' or 'perm gui')
 Web Bluetooth      : ${results.webBluetooth} (Scan via 'perm gui')
 Web Serial (SDR)   : ${results.webSerial} (Open via 'perm gui')
 WebHID Controller  : ${results.webHid} (Pair via 'perm gui')
-Sovereign VFS Auth : ${results.sovereignMatrixAuth} [OPERATOR ROOT ACCESS UNRESTRICTED]
+Sovereign VFS Auth : ${voiceAuthGateService.isAuthorized() ? 'VERIFIED' : 'LOCKED'}
 
-All 9 kernel editions and protected paths (/docs/protected, /root/secret) are fully accessible.
+Protected paths remain locked unless the short-lived Firebase Google + Cloudflare Access session is verified.
 Type 'perm recommendations' to view optimal browser flags and PWA standalone configuration.`, 'success', '⚡');
           break;
         }
