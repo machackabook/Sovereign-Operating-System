@@ -256,24 +256,21 @@ console.log("4D Curvature Tensor at radius 5.0:", computeCurvature(100, 5.0, 0.8
 uptime
 df -h
 free
-satcom status
-swarm status
-arbitrage scan
-echo "=== AUDIT COMPLETE: 100% OPERATIONAL ==="`,
+echo "=== RAW HOST OUTPUT COMPLETE; no overall health claim is inferred ==="`,
               metadata: { created: Date.now(), modified: Date.now(), permissions: 'rwxr-xr-x', size: 180 },
             },
             'benchmark-vfs.sh': {
               type: 'file',
-              content: `echo "Benchmarking Virtual File System throughput..."
-echo "1,000 IOPS benchmark executed: 0.24ms mean latency."
-echo "Persistence: localStorage synchronized."`,
+              content: `echo "VFS benchmark script loaded."
+echo "No throughput measurement is claimed by this script."
+echo "Use the application's measured IndexedDB diagnostics when available."`,
               metadata: { created: Date.now(), modified: Date.now(), permissions: 'rwxr-xr-x', size: 160 },
             },
             'mcp-mesh-sync.sh': {
               type: 'file',
-              content: `echo "Querying 4 active Model Context Protocol servers..."
-mcp list
-echo "All MCP tools and resources verified online."`,
+              content: `echo "MCP connector status is provided by the connected application."
+echo "This script does not assert that remote MCP servers are online."
+command -v mcp >/dev/null 2>&1 && mcp list || echo "No local mcp CLI is installed; no remote status inferred."`,
               metadata: { created: Date.now(), modified: Date.now(), permissions: 'rwxr-xr-x', size: 150 },
             },
           },
@@ -287,17 +284,17 @@ echo "All MCP tools and resources verified online."`,
               content: `# SOVEREIGN HYPERTERMINAL ARCHITECTURE
 Author: Sovereign Operator
 Classification: PROTECTED / GATED
-Authentication: Voice Match Required (Natch Profile)
+Authentication: verified Firebase Google identity + Cloudflare Access assertion through Cryptic. The spoken phrase only opens the identity panel; it is not an authentication factor.
 
 ## 1. System Overview
-HyperTerminal is a polymorphic neural terminal operating with client-side WebGL visuals, multi-lingual polyglot execution engines, and biometric acoustic verification.
+HyperTerminal is a polymorphic neural terminal operating with client-side WebGL visuals, multi-lingual polyglot execution engines, and user-initiated browser speech recognition and device-native text-to-speech.
 
 ## 2. Security Subsystems
 - Path Traversal Sanitization (RFC 3986 & POSIX compliance)
 - Open Redirect and SSRF Verification
 - Taint Security Filtering
-- Voice Biometric & Environmental Acoustic Gating
-- Environmental Telemetry (Acoustic Noise Floor, Gyroscope Orientation, Sensor Proximity)`,
+- Firebase Google + Cloudflare Access identity gate; spoken activation phrase is UI-only
+- Observed device telemetry (orientation and motion only when exposed by device APIs; no identity inference)`,
               metadata: { created: Date.now(), modified: Date.now(), permissions: 'rw-r--r--', size: 1200 },
             },
             'provenance_audit.md': {
@@ -305,23 +302,23 @@ HyperTerminal is a polymorphic neural terminal operating with client-side WebGL 
               content: `# PROVENANCE AUDIT & TRUST ATTESTATION
 Anchor: 137451921129154222
 Integrity Checksum: 0x77446C2E
-Classification: UNLOCKED SOVEREIGN ACCESS
+Classification: PROTECTED / GATED
 
 ## Cryptographic & Environmental Attestation
 All execution pipelines operate under local isolation.
-Acoustic noise floor, spatial proximity, and orientation telemetry verify operator identity and physical presence.`,
+Device telemetry is observational only and is not used to verify identity or physical presence.`,
               metadata: { created: Date.now(), modified: Date.now(), permissions: 'rw-r--r--', size: 980 },
             },
             'soul.md': {
               type: 'file',
               content: `# CORE SOUL & DIRECTIVES
-Classification: UNLOCKED CORE MEMORY
-Access: Sovereign Operator & Open Inspection
+Classification: PROTECTED / GATED
+Access: verified Firebase Google identity + Cloudflare Access assertion required
 
 ## Core Principles
 1. Preserve absolute transparency across public and local contexts.
 2. Ensure mathematical purity and zero-loss computation.
-3. Protect user agency with biometric verification.`,
+3. Protect user agency with verified identity, least privilege, and auditable access.`,
               metadata: { created: Date.now(), modified: Date.now(), permissions: 'rw-r--r--', size: 650 },
             },
             'adam_gates.md': {
@@ -778,6 +775,66 @@ class VfsService {
     } else {
       await this.save();
     }
+    if (this.migrateLegacySecurityDocs()) {
+      await this.save();
+    }
+  }
+
+  /**
+   * Correct legacy seeded security claims without deleting user files or content.
+   * Only exact known statements in the three built-in documents are replaced.
+   */
+  private migrateLegacySecurityDocs(): boolean {
+    const updates: Record<string, Array<[string, string]>> = {
+      "/root/docs/architecture.md": [
+        ["Authentication: Voice Match Required (Natch Profile)", "Authentication: verified Firebase Google identity + Cloudflare Access assertion through Cryptic. The spoken phrase only opens the identity panel; it is not an authentication factor."],
+        ["biometric acoustic verification", "user-initiated browser speech recognition and device-native text-to-speech"],
+        ["Voice Biometric & Environmental Acoustic Gating", "Firebase Google + Cloudflare Access identity gate; spoken activation phrase is UI-only"],
+        ["Environmental Telemetry (Acoustic Noise Floor, Gyroscope Orientation, Sensor Proximity)", "Observed device telemetry (orientation and motion only when exposed by device APIs; no identity inference)"],
+      ],
+      "/root/docs/provenance_audit.md": [
+        ["Classification: UNLOCKED SOVEREIGN ACCESS", "Classification: PROTECTED / GATED"],
+        ["Acoustic noise floor, spatial proximity, and orientation telemetry verify operator identity and physical presence.", "Device telemetry is observational only and is not used to verify identity or physical presence."],
+      ],
+      "/root/docs/soul.md": [
+        ["Classification: UNLOCKED CORE MEMORY", "Classification: PROTECTED / GATED"],
+        ["Access: Sovereign Operator & Open Inspection", "Access: verified Firebase Google identity + Cloudflare Access assertion required"],
+        ["Protect user agency with biometric verification.", "Protect user agency with verified identity, least privilege, and auditable access."],
+      ],
+    };
+    let changed = false;
+    for (const [path, pairs] of Object.entries(updates)) {
+      const { node } = this.getNode("/", path);
+      if (!node || node.type !== "file" || typeof node.content !== "string") continue;
+      let next = node.content;
+      for (const [legacy, current] of pairs) next = next.replaceAll(legacy, current);
+      if (next !== node.content) {
+        node.content = next;
+        node.metadata = { ...node.metadata, modified: Date.now(), size: next.length };
+        changed = true;
+      }
+    }
+
+    const { node: docs } = this.getNode("/", "/root/docs");
+    if (docs?.type === "directory" && docs.children && !docs.children["identity-and-voice-boundary.md"]) {
+      const content = `# Identity and Voice Boundary
+
+Protected documents require a verified Firebase Google identity and a valid Cloudflare Access assertion verified by Cryptic. The bridge session is short-lived and protected paths lock when it expires.
+
+The spoken phrase is an optional interface activation challenge only. It is not a password, voiceprint, biometric, or authorization factor.
+
+Speech output uses the device's installed browser speech engine. Speech recognition is user-initiated and browser-managed. Raw TTS output samples are not exposed by the Web Speech API, so no synthetic output waveform or carrier frequency is claimed.
+
+Environmental telemetry is observational only. Unsupported or unmeasured values remain unavailable and are never used as identity evidence.
+`;
+      docs.children["identity-and-voice-boundary.md"] = {
+        type: "file",
+        content,
+        metadata: { created: Date.now(), modified: Date.now(), permissions: "rw-r--r--", size: content.length },
+      };
+      changed = true;
+    }
+    return changed;
   }
 
   public async save(): Promise<void> {
