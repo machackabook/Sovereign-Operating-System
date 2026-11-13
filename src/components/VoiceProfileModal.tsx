@@ -105,7 +105,7 @@ export const VoiceProfileModal: React.FC<VoiceProfileModalProps> = ({
             </div>
             <div>
               <h2 id="voice-modal-title" className="font-bold text-white text-sm tracking-wide flex items-center gap-2">
-                <span>NEURAL VOICE &amp; CHROMEVOX MATRIX</span>
+                <span>DEVICE SPEECH &amp; CHROMEVOX MATRIX</span>
               </h2>
               <p className="text-[11px] text-slate-400">
                 Device-native speech voices, saved voice profiles, and accessibility settings
