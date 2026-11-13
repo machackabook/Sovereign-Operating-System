@@ -916,7 +916,7 @@ export class AudioVoiceService {
 
       window.speechSynthesis.cancel();
       const cleanText = text
-        .replace(/```[\\s\\S]*?```/g, 'Code block omitted.')
+        .replace(/```[\s\S]*?```/g, 'Code block omitted.')
         .replace(/`([^`]+)`/g, '$1')
         .replace(/[*_#~]/g, '')
         .trim();
@@ -928,7 +928,7 @@ export class AudioVoiceService {
         return;
       }
 
-      const words = cleanText.split(/\\s+/).filter(Boolean);
+      const words = cleanText.split(/\s+/).filter(Boolean);
       const utterance = new SpeechSynthesisUtterance(cleanText);
       if (this.selectedVoice) {
         utterance.voice = this.selectedVoice;
@@ -961,9 +961,9 @@ export class AudioVoiceService {
         if (event.name !== 'word' && !Number.isFinite(event.charIndex)) return;
         const charIndex = Math.max(0, Number(event.charIndex) || 0);
         const remaining = cleanText.substring(charIndex);
-        const match = remaining.match(/^(\\S+)/);
+        const match = remaining.match(/^(\S+)/);
         const currentWord = match ? match[1].replace(/[.,\\/#!$%\\^&\\*;:{}=\\-_\`~()]/g, '') : '';
-        const wordsBefore = cleanText.substring(0, charIndex).trim().split(/\\s+/).filter(Boolean);
+        const wordsBefore = cleanText.substring(0, charIndex).trim().split(/\s+/).filter(Boolean);
         const wordIndex = Math.min(words.length - 1, wordsBefore.length);
         this.currentActiveWord = currentWord;
         this.currentWordIndex = wordIndex;
