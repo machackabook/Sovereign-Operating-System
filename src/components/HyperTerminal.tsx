@@ -6543,7 +6543,7 @@ Last Compacted    : ${new Date(tel.lastCompactedAt).toLocaleTimeString()}`, 'tab
         onClose={() => setIsVoiceAuthModalOpen(false)}
         onSuccess={() => {
           setIsVoiceAuthModalOpen(false);
-          appendLine('Voice authentication verified. Protected documents unlocked.', 'success', '🛡️');
+          appendLine('Google identity and Cloudflare Access verified. Protected document access granted for this session.', 'success', '🔐');
           if (pendingDocPath) {
             try {
               const content = vfs.readFile(activeInstance.cwd, pendingDocPath);
