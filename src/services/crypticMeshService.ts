@@ -45,7 +45,8 @@ export function createCrypticMeshService(options: CrypticMeshOptions) {
     const firebase_id_token = await getFirebaseIdToken();
     const response = await fetcher("/api/cryptic-mesh/exchange", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      credentials: "same-origin",
+      headers: { "content-type": "application/json", accept: "application/json" },
       body: JSON.stringify({ firebase_id_token }),
       cache: "no-store",
       redirect: "error",
@@ -63,6 +64,7 @@ export function createCrypticMeshService(options: CrypticMeshOptions) {
     if (expiresAt - Math.floor(Date.now() / 1000) < 90) {
       const response = await fetcher(base + "/v1/mesh/auth/rotate", {
         method: "POST",
+        credentials: "omit",
         headers: { authorization: `Bearer ${accessToken}` },
         cache: "no-store",
         redirect: "error",
@@ -83,6 +85,7 @@ export function createCrypticMeshService(options: CrypticMeshOptions) {
     await ensureToken();
     const response = await fetcher(base + path, {
       ...init,
+      credentials: "omit",
       headers: { ...(init.headers ?? {}), authorization: `Bearer ${accessToken}` },
       cache: "no-store",
       redirect: "error",
