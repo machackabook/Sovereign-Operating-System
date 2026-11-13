@@ -548,13 +548,11 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
     {
       id: 'sec-unlock-all-paths',
       category: 'SECURITY',
-      title: 'Unlock All Paths & Sovereign Documentation',
-      description: 'Deactivate path gating across /docs/, architecture.md, soul.md, and all system endpoints',
+      title: 'Verify Identity for Protected Paths',
+      description: 'Require the existing Google identity and a valid Cloudflare Access assertion',
       icon: <Unlock className="w-4 h-4 text-emerald-400" />,
       action: () => {
-        voiceAuthGateService.unlockAllPaths(true);
-        audioVoiceService.playTone(880, 'sine', 150);
-        audioVoiceService.speak('All paths unlocked.');
+        window.dispatchEvent(new CustomEvent('gaia:open-voice-auth'));
         onClose();
       },
     },
