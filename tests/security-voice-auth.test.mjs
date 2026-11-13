@@ -40,6 +40,9 @@ test('Voice Auth Gate: phrase challenge never substitutes for signed identity', 
   voiceAuthGateService.logoutUser();
   assert.equal(voiceAuthGateService.isAuthorized(), false);
   assert.equal(voiceAuthGateService.isProtectedDocument('/docs/architecture.md'), true);
+  assert.equal(voiceAuthGateService.isProtectedDocument('docs/private-notes.md'), true);
+  assert.equal(voiceAuthGateService.isProtectedDocument('/root/architecture.md'), true);
+  assert.equal(voiceAuthGateService.isProtectedDocument('/root/soul.md'), true);
   assert.equal(voiceAuthGateService.isProtectedDocument('/root/welcome.txt'), false);
 
   const failResult = voiceAuthGateService.verifyVoice('wrong passphrase');
