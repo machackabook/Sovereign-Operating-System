@@ -331,10 +331,10 @@ export const HyperTerminal: React.FC<HyperTerminalProps> = ({ envState, setEnvSt
           {
             id: 'init-1',
             type: 'system',
-            text: `⚡ GEMINI INTERACTIVE DUPLEX OS // ACTIVE LISTENING ENGAGED
-Female Neural Voice: 528Hz Solfeggio Carrier   Continuous Mic Duplex: ACTIVE
-Direct voice and typing naturally route to Gemini — no "gemini" wake word needed.
-Type 'help' to inspect command matrix, or speak / type naturally to converse.`,
+            text: `⚡ GAIA VOX // READY
+Microphone: OFF until you press the Mic control. Speech recognition requires browser permission.
+Voice output follows the exact terminal response text. Say "Nexus" or "Terminal" after enabling the mic.
+Type 'help' to inspect commands. Voice and text share the same response pipeline.`,
             timestamp: new Date().toLocaleTimeString(),
           },
         ],
@@ -658,30 +658,8 @@ Type 'help' to inspect command matrix, or speak / type naturally to converse.`,
     ambientAudioService.updateSentiment(envState.sentiment);
   }, [envState.sentiment]);
 
-  // Auto-start Gemini Interactive listening on session load (always-listening duplex)
-  useEffect(() => {
-    let mounted = true;
-    const startInteractiveListening = async () => {
-      try {
-        const ok = await audioVoiceService.startMicrophone();
-        if (mounted && ok) {
-          setIsMicListening(true);
-          audioVoiceService.playEarcon('stream');
-          setTimeout(() => {
-            if (mounted) {
-              audioVoiceService.speak('Gemini Interactive online. I am listening.');
-            }
-          }, 850);
-        }
-      } catch {
-        // Handled gracefully in audioVoiceService
-      }
-    };
-    startInteractiveListening();
-    return () => {
-      mounted = false;
-    };
-  }, []);
+  // Microphone access is user-initiated only. Browser permission prompts must follow
+  // an explicit Mic control action; mounting the terminal never opens the microphone.
 
   // Toggle microphone input handler
   const handleToggleMic = async () => {
@@ -983,10 +961,10 @@ Type 'help' to inspect command matrix, or speak / type naturally to converse.`,
             String(r.source_ref).slice(0,180)+'\n'+r.snippet.slice(0,540)).join('\n\n');
       }
       const context=[engramsMarkdown,sourceContext].filter(Boolean).join('\n\n').slice(0,5500);
-      let pending='',received=0;
+      let pending='',completeResponse='',received=0;
       const final=await quineMeshService.localAIStream(trimmed,(event:any)=>{
         if(event.type==='delta'){
-          pending+=event.text;received+=event.text.length;
+          pending+=event.text;completeResponse+=event.text;received+=event.text.length;
           if(pending.length>=140||pending.includes('\n')){
             appendLine(pending,'ai');pending='';
           }
@@ -998,8 +976,8 @@ Type 'help' to inspect command matrix, or speak / type naturally to converse.`,
         ' · tokens evaluated='+String(final?.eval_count??'not reported')+
         ' · cloud API requests: 0', 'system');
       if (envState.voiceActive) {
-        const textToSpeak = final?.response || pending || trimmed;
-        audioVoiceService.speak(textToSpeak, {
+        const textToSpeak = completeResponse.trim();
+        if (textToSpeak) audioVoiceService.speak(textToSpeak, {
           onWord: (word) => setEnvState((prev) => ({ ...prev, activeSpeechWord: word })),
         });
       }
@@ -1111,13 +1089,13 @@ Type 'help' to inspect command matrix, or speak / type naturally to converse.`,
         },
       }));
 
-      // Render formatted response in terminal
-      appendLine(data.reply || 'Response received.', 'ai', data.floatingGlyph || '✨');
+      // One canonical response drives terminal text, captions, and speech.
+      // This prevents data.reply and data.speechText from diverging across channels.
+      const responseText = String(data.speechText || data.reply || 'Response received.').trim();
+      appendLine(responseText, 'ai', data.floatingGlyph || '✨');
 
-      // Trigger AI voice response & project floating speech into 3D visual using synthesized profile
-      if (data.speechText && envState.voiceActive) {
-        appendLine(`[AI Voice Projected into Visual]: "${data.speechText}"`, 'speech');
-        audioVoiceService.speak(data.speechText, {
+      if (envState.voiceActive && responseText) {
+        audioVoiceService.speak(responseText, {
           profile: data.voiceProfile,
           tone: data.speechTone,
           sentiment: data.sentiment,
