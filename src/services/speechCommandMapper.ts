@@ -26,12 +26,29 @@ export const commandMap: Record<string, string> = {
   'unlock paths': 'gaia:unlock-all-paths',
 };
 
+export interface NexusVoiceCommandEntry {
+  id: string;
+  phrase: string;
+  event: string;
+  risk: 'navigation' | 'identity-check';
+  requiresIdentityCheck: boolean;
+  voiceAllowed: boolean;
+}
+
+/** Runtime projection of the canonical NEXUS_COMMAND_REGISTRY recovery namespace. */
+export const NEXUS_COMMAND_REGISTRY: readonly NexusVoiceCommandEntry[] = Object.freeze(
+  Object.entries(commandMap).map(([phrase, event], index) => Object.freeze({
+    id: `CMD-GAIA-VOX-${String(index + 1).padStart(3, '0')}`,
+    phrase,
+    event,
+    risk: event === 'gaia:unlock-all-paths' ? 'identity-check' as const : 'navigation' as const,
+    requiresIdentityCheck: event === 'gaia:unlock-all-paths',
+    voiceAllowed: true,
+  }))
+);
+
 export function mapSpeechToEvent(transcript: string): string | null {
-  const lower = transcript.toLowerCase();
-  for (const [phrase, event] of Object.entries(commandMap)) {
-    if (lower.includes(phrase)) {
-      return event;
-    }
-  }
-  return null;
+  const lower = transcript.toLowerCase().replace(/\\s+/g, ' ').trim();
+  const match = NEXUS_COMMAND_REGISTRY.find((entry) => lower.includes(entry.phrase));
+  return match?.event || null;
 }
