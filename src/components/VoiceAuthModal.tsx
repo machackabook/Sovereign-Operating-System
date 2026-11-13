@@ -14,6 +14,8 @@ export const VoiceAuthModal: React.FC<VoiceAuthModalProps> = ({ isOpen, onSucces
   const [status, setStatus] = useState<'idle' | 'listening' | 'verifying' | 'failed'>('idle');
   const [message, setMessage] = useState('Verify your signed-in Google identity and Cloudflare Access session.');
   const micStartedByModal = useRef(false);
+  const onSuccessRef = useRef(onSuccess);
+  useEffect(() => { onSuccessRef.current = onSuccess; }, [onSuccess]);
   const activationPhrase = 'open sovereign matrix';
 
   useEffect(() => {
@@ -37,7 +39,7 @@ export const VoiceAuthModal: React.FC<VoiceAuthModalProps> = ({ isOpen, onSucces
       if (result.verified) {
         setStatus('idle');
         setMessage(result.message);
-        onSuccess();
+        onSuccessRef.current();
       } else {
         setStatus('failed');
         setMessage(result.message);
@@ -50,7 +52,7 @@ export const VoiceAuthModal: React.FC<VoiceAuthModalProps> = ({ isOpen, onSucces
         micStartedByModal.current = false;
       }
     };
-  }, [isOpen, onSuccess]);
+  }, [isOpen]);
 
   const startPhraseChallenge = async () => {
     const alreadyActive = audioVoiceService.isMicrophoneActive();
