@@ -115,3 +115,12 @@ export function createCrypticMeshService(options: CrypticMeshOptions) {
     },
   });
 }
+
+/** Shared in-memory bridge client used by the terminal and identity gate. */
+const configuredMeshUrl =
+  (typeof import.meta !== "undefined" && import.meta.env?.VITE_CRYPTIC_MESH_URL) ||
+  "https://cryptic-sos-mesh.saytyarnornglorei.workers.dev";
+
+export const crypticMeshService = createCrypticMeshService({
+  baseUrl: configuredMeshUrl,
+});
