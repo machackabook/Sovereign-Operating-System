@@ -771,7 +771,7 @@ Type 'help' to inspect commands. Voice and text share the same response pipeline
       const targetPath = firstArgs[0] || '';
       const normPath = vfs.normalizePath(activeInstance.cwd, targetPath);
       if (voiceAuthGateService.isProtectedDocument(normPath) && !voiceAuthGateService.isAuthorized()) {
-        appendLine(`[ACCESS RESTRICTED]: Document "${normPath}" requires voice match authentication. Say "open sovereign matrix" or type 'auth' / 'login'.`, 'error', '🔒');
+        appendLine(`[ACCESS RESTRICTED]: Document "${normPath}" requires verified Google + Cloudflare Access identity. Say "open sovereign matrix" or type 'auth' / 'login'.`, 'error', '🔒');
         setPendingDocPath(normPath);
         setIsVoiceAuthModalOpen(true);
         return;
@@ -1640,8 +1640,8 @@ Type 'help' to inspect commands. Voice and text share the same response pipeline
           setPendingDocPath(filePath);
           setIsVoiceAuthModalOpen(true);
           appendLine(`[ACCESS RESTRICTED]: Document "${filePath}" requires voice match authentication.`, 'warn', '🔒');
-          appendLine('Prompt: Say "open sovereign matrix" or click verify in the voice authentication dialog.', 'system');
-          audioVoiceService.speak('Access restricted. Voice authentication required to access sovereign documentation.', { profile: 'natch' });
+          appendLine('Prompt: Verify the existing Google sign-in and Cloudflare Access session. The spoken phrase only opens this panel.', 'system');
+          audioVoiceService.speak('Access restricted. Verify your Google identity and Cloudflare Access session to access protected documentation.', { profile: 'natch' });
           break;
         }
         try {
@@ -2082,10 +2082,10 @@ Duration: ${res.durationMs}ms | Cycles: ${res.cyclesCompleted}`, 'success', '✨
           appendLine(`Voice tuned: Pitch=${pitch}, Rate=${rate}x`, 'success');
         } else if (sub === 'test') {
           const testMsg = 'Sovereign Neural Core vocalizing. Real-time audio waveform active across terminal overlay and pulsing into the 3D void horizon.';
-          appendLine(`[AI Voice Waveform Test]: "${testMsg}"`, 'speech', '🎙️');
+          appendLine(`[AI Voice Test]: "${testMsg}"`, 'speech', '🎙️');
           audioVoiceService.speak(testMsg);
         } else if (sub === 'speak') {
-          const phrase = args.slice(1).join(' ').trim() || 'Neural audio waveform online.';
+          const phrase = args.slice(1).join(' ').trim() || 'Device speech output is ready.';
           appendLine(`[Speaking]: "${phrase}"`, 'speech', '🎙️');
           audioVoiceService.speak(phrase);
         } else if (sub === 'stop' || sub === 'mute') {
@@ -5814,15 +5814,15 @@ Last Compacted    : ${new Date(tel.lastCompactedAt).toLocaleTimeString()}`, 'tab
               {/* Voice Test Waveform Trigger */}
               <button
                 onClick={() => {
-                  const testMsg = 'Sovereign Neural Core online. Real-time audio waveform active across terminal overlay and 3D void horizon.';
+                  const testMsg = 'Sovereign Neural Core voice test. Device speech output is active; raw TTS waveform samples are not exposed by the browser.';
                   appendLine(`[AI Voice Waveform Test]: "${testMsg}"`, 'speech', '🎙️');
                   audioVoiceService.speak(testMsg);
                 }}
                 className="px-2 py-0.5 rounded bg-cyan-500/20 hover:bg-cyan-500/35 text-cyan-300 border border-cyan-400/50 text-[10px] font-bold transition cursor-pointer flex items-center gap-1 shadow-[0_0_10px_rgba(0,242,255,0.25)]"
-                title="Test AI Voice Response & Real-Time Waveform Overlay in 3D Void"
+                title="Test native device speech output and speech-state synchronization"
               >
                 <Sparkles className="w-3 h-3 text-cyan-400" />
-                <span>TEST WAVEFORM</span>
+                <span>TEST VOICE</span>
               </button>
 
               {/* Command History */}
@@ -6139,7 +6139,7 @@ Last Compacted    : ${new Date(tel.lastCompactedAt).toLocaleTimeString()}`, 'tab
                 title={
                   voiceAuthStatus.isAuthenticated
                     ? `Logged in: ${voiceAuthStatus.username} (Voice Matched)`
-                    : 'Unauthenticated. Click or speak "open sovereign matrix" to unlock protected docs.'
+                    : 'Unverified. Click or speak "open sovereign matrix" to open identity verification; the phrase is not an authentication factor.'
                 }
               >
                 {voiceAuthStatus.isAuthenticated ? (
@@ -6155,7 +6155,7 @@ Last Compacted    : ${new Date(tel.lastCompactedAt).toLocaleTimeString()}`, 'tab
                 type="button"
                 onClick={() => setIsVoiceModalOpen(true)}
                 className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-black/60 border border-purple-500/40 text-[10px] text-purple-300 font-mono hover:border-purple-400 transition cursor-pointer"
-                title="Active Female Neural Voice Profile (528Hz Solfeggio carrier). Click to customize."
+                title="Active device speech voice profile using an installed system voice. Click to customize."
               >
                 <Radio className="w-3 h-3 text-purple-400 animate-pulse" />
                 <span>
