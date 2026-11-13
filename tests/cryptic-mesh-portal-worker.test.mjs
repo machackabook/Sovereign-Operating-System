@@ -57,16 +57,31 @@ test("exchange rejects cross-origin requests", async () => {
   assert.equal(response.status, 403);
 });
 
-test("health reports the real upstream gateway response", async () => {
+test("health verifies the real Access assertion before reporting gateway health", async () => {
   const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (input) => {
-    assert.equal(String(input), "https://cryptic-sos-mesh.saytyarnornglorei.workers.dev/health");
+  const calls = [];
+  globalThis.fetch = async (input, init = {}) => {
+    calls.push({ url: String(input), body: init.body ? JSON.parse(String(init.body)) : null });
+    if (calls.length === 1) return Response.json({
+      authenticated: true,
+      provider: "cloudflare-access",
+      subject_fingerprint: "ab12cd34ef56",
+      expires_at: 1900000000
+    });
     return Response.json({ ok: true, service: "CRYPTIC-SOS-MESH" });
   };
   try {
-    const response = await worker.fetch(new Request("https://crypticnews.org/api/cryptic-mesh/health"), env);
+    const response = await worker.fetch(new Request("https://crypticnews.org/api/cryptic-mesh/health", {
+      headers: { "Cf-Access-Jwt-Assertion": "signed-access-assertion" }
+    }), env);
+    const result = await response.json();
     assert.equal(response.status, 200);
-    assert.equal((await response.json()).service, "CRYPTIC-SOS-MESH");
+    assert.equal(result.access_assertion_verified, true);
+    assert.equal(result.gateway.service, "CRYPTIC-SOS-MESH");
+    assert.equal(calls.length, 2);
+    assert.equal(calls[0].url, "https://cryptic-sos-mesh.saytyarnornglorei.workers.dev/v1/mesh/auth/verify-portal");
+    assert.equal(calls[0].body.portal_id_token, "signed-access-assertion");
+    assert.equal(calls[1].url, "https://cryptic-sos-mesh.saytyarnornglorei.workers.dev/health");
   } finally {
     globalThis.fetch = originalFetch;
   }
