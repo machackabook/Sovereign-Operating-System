@@ -394,26 +394,26 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
     {
       id: 'voice-natch',
       category: 'VOICE',
-      title: 'Voice Profile: Natch (Natural Human 432Hz)',
-      description: 'Grounded conversational tone configured for system inspection and telemetry',
+      title: 'Voice Profile: Natch Device TTS Preset',
+      description: 'Device speech preset; uses the installed browser voice and saved pitch/rate preferences. No carrier is generated.',
       icon: <Radio className="w-4 h-4 text-amber-400" />,
       action: () => {
         audioVoiceService.setVoiceProfile('natch');
         setEnvState(p => ({ ...p, voiceProfile: 'natch' }));
-        audioVoiceService.speak('Voice profile Natch confirmed. Operating on 432Hz harmonic carrier.', { profile: 'natch' });
+        audioVoiceService.speak('Natch device speech preset selected. Using the installed system voice.', { profile: 'natch' });
         onClose();
       },
     },
     {
       id: 'voice-female',
       category: 'VOICE',
-      title: 'Voice Profile: Gemini Neural Female (528Hz)',
-      description: 'Balanced neural female persona with 528Hz Solfeggio miracle resonance carrier',
+      title: 'Voice Profile: Gemini Device Voice Preset',
+      description: 'Uses the installed system voice selected in Voice Profile settings; no custom neural voice or speech carrier is generated.',
       icon: <Radio className="w-4 h-4 text-fuchsia-400" />,
       action: () => {
         audioVoiceService.setVoiceProfile('gemini_female');
         setEnvState(p => ({ ...p, voiceProfile: 'gemini_female' }));
-        audioVoiceService.speak('Gemini neural voice active. Solfeggio carrier calibrated to 528 Hertz.', { profile: 'gemini_female' });
+        audioVoiceService.speak('Gemini device voice preset selected. Using the installed system voice.', { profile: 'gemini_female' });
         onClose();
       },
     },
@@ -580,8 +580,8 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
     {
       id: 'sec-auth',
       category: 'SECURITY',
-      title: 'Voice Match Authentication Gate',
-      description: 'Authenticate session with verbal passphrase ("open sovereign matrix") to unlock protected docs',
+      title: 'Google + Cloudflare Identity Gate',
+      description: 'Verify the existing Firebase Google sign-in and Cloudflare Access assertion through Cryptic. The spoken phrase only opens this panel.',
       icon: <Lock className="w-4 h-4 text-amber-400" />,
       action: () => {
         if (onExecuteTerminalCommand) {
