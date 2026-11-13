@@ -124,3 +124,38 @@ const configuredMeshUrl =
 export const crypticMeshService = createCrypticMeshService({
   baseUrl: configuredMeshUrl,
 });
+
+declare global {
+  interface Window {
+    CrypticMesh?: {
+      dispatchFrame: (frame: Record<string, unknown>) => Promise<unknown>;
+    };
+  }
+}
+
+/**
+ * Adapter for CrypticBus. It accepts only the worker's explicit action allowlist;
+ * arbitrary terminal commands and shell-like payloads are rejected at this boundary.
+ */
+export function installCrypticMeshBusAdapter(): void {
+  if (typeof window === "undefined") return;
+  if (window.CrypticMesh && typeof window.CrypticMesh.dispatchFrame === "function") return;
+
+  const allowedActions = new Set(["nexus.health", "nexus.echo", "sos.mesh.status"]);
+  window.CrypticMesh = {
+    dispatchFrame: async (frame: Record<string, unknown>) => {
+      const action = typeof frame.action === "string"
+        ? frame.action
+        : typeof frame.kind === "string"
+          ? frame.kind
+          : "";
+      if (!allowedActions.has(action)) {
+        throw new Error("mesh_action_not_allowlisted");
+      }
+      const args = (frame.arguments ?? frame.payload ?? {}) as Record<string, unknown>;
+      return crypticMeshService.dispatch(action, args);
+    },
+  };
+}
+
+if (typeof window !== "undefined") installCrypticMeshBusAdapter();
