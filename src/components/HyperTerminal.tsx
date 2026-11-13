@@ -534,7 +534,7 @@ Type 'help' to inspect commands. Voice and text share the same response pipeline
 
   // Sync speech-to-command microphone transcripts with lightweight wake-word gating
   useEffect(() => {
-    const unsub = audioVoiceService.onTranscript((transcript, isFinal) => {
+    const unsub = audioVoiceService.onTranscript(async (transcript, isFinal) => {
       if (!transcript) return;
 
       const wakeEnabled = audioVoiceService.isWakeWordEnabled();
@@ -576,18 +576,25 @@ Type 'help' to inspect commands. Voice and text share the same response pipeline
 
         if (isFinal && cleanTranscript.trim()) {
           const lower = cleanTranscript.trim().toLowerCase();
-          if (lower.includes('open sovereign matrix') || lower === 'authenticate' || lower === 'login') {
-            const authRes = voiceAuthGateService.verifyVoice(cleanTranscript.trim());
-            if (authRes.verified) {
-              appendLine(`[Voice Auth]: ${authRes.message} (Confidence: ${Math.round(authRes.score * 100)}%)`, 'success', '🛡️');
-              if (pendingDocPath) {
-                try {
-                  const content = vfs.readFile(activeInstance.cwd, pendingDocPath);
-                  appendLine(`[Protected Document: ${pendingDocPath}]\n${content}`, 'output');
-                } catch (e: any) {
-                  appendLine(`Error reading ${pendingDocPath}: ${e.message}`, 'error');
+          if (lower.includes('open sovereign matrix')) {
+            const phraseResult = voiceAuthGateService.verifyVoice(cleanTranscript.trim());
+            if (phraseResult.verified) {
+              appendLine('[Voice Challenge]: Phrase recognized; verifying the signed-in identity.', 'system', '🛡️');
+              const identityResult = await voiceAuthGateService.verifyIdentity();
+              if (identityResult.verified) {
+                appendLine('[Identity]: ' + identityResult.message, 'success', '🔐');
+                if (pendingDocPath) {
+                  try {
+                    const content = vfs.readFile(activeInstance.cwd, pendingDocPath);
+                    appendLine(`[Protected Document: ${pendingDocPath}]\n${content}`, 'output');
+                  } catch (e: any) {
+                    appendLine(`Error reading ${pendingDocPath}: ${e.message}`, 'error');
+                  }
+                  setPendingDocPath(null);
                 }
-                setPendingDocPath(null);
+              } else {
+                appendLine('[Identity Required]: ' + identityResult.message, 'warning', '🔒');
+                setIsVoiceAuthModalOpen(true);
               }
               return;
             }
