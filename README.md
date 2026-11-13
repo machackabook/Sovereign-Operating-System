@@ -25,6 +25,14 @@ The terminal includes a comprehensive command matrix for interacting with all OS
 
 *(Type `help` within the terminal to access the full, exhaustive command reference).*
 
+## 🎙️ Voice, Speech, and Cryptic Mesh
+
+- Native device speech synthesis and user-initiated speech recognition share one terminal response pipeline.
+- Device voice selection is saved locally; raw voice recordings are not uploaded by the voice preference flow.
+- Spoken phrases are not identity credentials. Protected paths require the verified Firebase Google + Cloudflare Access exchange through Cryptic.
+- The CrypticBus adapter forwards only the server-approved health, echo, and mesh-status actions.
+- See [GAIA VOX integration](docs/GAIA-VOX-VOICE-INTEGRATION.md) and [Cryptic Mesh integration](docs/CRYPTIC-MESH-INTEGRATION.md) for implementation and verification details.
+
 ## 🔒 Security Posture
 
 - **Zero-Trust**: No secrets (API keys) in the version-controlled tree; managed via deployment secrets.
