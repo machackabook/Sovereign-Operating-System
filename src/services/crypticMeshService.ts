@@ -95,6 +95,25 @@ export function createCrypticMeshService(options: CrypticMeshOptions) {
   }
 
   return Object.freeze({
+    health: async () => {
+      const response = await fetcher("/api/cryptic-mesh/health", {
+        method: "GET",
+        credentials: "same-origin",
+        cache: "no-store",
+        redirect: "error",
+        headers: { accept: "application/json" },
+      });
+      if (!response.ok) throw new Error(`Cryptic Access health check failed (HTTP ${response.status})`);
+      const result = await response.json() as {
+        ok?: boolean;
+        access_assertion_verified?: boolean;
+        gateway?: { ok?: boolean };
+      };
+      if (result.access_assertion_verified !== true || result.gateway?.ok !== true) {
+        throw new Error("Cloudflare Access assertion or Cryptic gateway health verification failed.");
+      }
+      return result;
+    },
     connect: async () => {
       await ensureToken();
       return { connected: true, expiresAt };
