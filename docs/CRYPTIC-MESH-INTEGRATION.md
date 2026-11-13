@@ -10,7 +10,7 @@ Set the public gateway URL in the S.O.S runtime configuration (this is an endpoi
 
 The identity adapters must use real OIDC sign-in flows:
 - The existing S.O.S Firebase Auth Google provider returns a Firebase ID token through `auth.currentUser.getIdToken(true)`. The client service reads the current Firebase user, rejects anonymous/non-Google/unverified-email sessions, and passes the Firebase ID token to Cryptic. Cryptic verifies the Firebase project issuer/audience and `firebase.sign_in_provider === google.com`.
-- The existing S.O.S/portal authentication adapter returns a portal OIDC ID token with a verified email claim.
+- The portal adapter supplies the signed Cloudflare Access application JWT from a trusted server-side portal integration. The edge verifies the configured Access issuer, audience, RS256 signature, expiry, subject and signed email claim.
 - Cryptic verifies both signatures, issuer, audience, expiry, and verified email equality.
 
 Do not store either token or the returned Cryptic bridge token in localStorage, sessionStorage, URL parameters, logs, analytics, or model prompts. The bridge token remains in the service closure's memory.
@@ -22,7 +22,6 @@ import { createCrypticMeshService } from "./services/crypticMeshService";
 
 const crypticMesh = createCrypticMeshService({
   baseUrl: import.meta.env.VITE_CRYPTIC_MESH_URL,
-  getGoogleIdToken: () => googleIdentityAdapter.getIdToken(),
   getPortalIdToken: () => portalIdentityAdapter.getIdToken(),
 });
 
@@ -32,7 +31,7 @@ const accepted = await crypticMesh.dispatch("nexus.health", {});
 const jobs = await crypticMesh.jobs();
 ```
 
-The `googleIdentityAdapter` and `portalIdentityAdapter` names above are placeholders for the actual authenticated adapters in this application; they must be implemented from the real providers and must not return mock tokens.
+The Firebase Google identity is wired directly to the existing S.O.S Firebase Auth session. `portalIdentityAdapter` remains the one required portal-side adapter and must obtain the signed Cloudflare Access application JWT from a trusted server-side integration; do not read or trust an arbitrary browser cookie or user-supplied email.
 
 ## Authority and flow
 
