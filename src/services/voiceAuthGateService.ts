@@ -61,7 +61,9 @@ class VoiceAuthGateService {
         !!user.email &&
         user.providerData.some((provider) => provider.providerId === "google.com");
       if (!validGoogleUser || (this.authenticatedUser && user?.email !== this.authenticatedUser)) {
+        const hadBridgeSession = this.identityVerified;
         this.clearIdentityState();
+        if (hadBridgeSession) void crypticMeshService.revoke().catch(() => undefined);
       }
       this.notify();
     });
