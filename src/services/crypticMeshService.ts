@@ -2,7 +2,6 @@ import { auth } from "./firebase";
 
 export interface CrypticMeshOptions {
   baseUrl: string;
-  getFirebaseIdToken: () => Promise<string>;
   getPortalIdToken: () => Promise<string>;
   fetchImpl?: typeof fetch;
 }
@@ -29,7 +28,7 @@ function jwtExpiry(token: string): number {
  * Cryptic remains the identity/policy/edge authority.
  * Bridge credentials stay in closure memory; no browser persistence is used.
  */
-export function createCrypticMeshService(options: Omit<CrypticMeshOptions, "getFirebaseIdToken">) {
+export function createCrypticMeshService(options: CrypticMeshOptions) {
   if (!/^https:\/\//.test(options.baseUrl)) throw new Error("Cryptic Mesh requires an HTTPS base URL");
   const fetcher = options.fetchImpl ?? fetch;
   const getFirebaseIdToken = async (): Promise<string> => {
