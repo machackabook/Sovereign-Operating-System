@@ -380,6 +380,10 @@ export class AudioVoiceService {
   // =========================================================================
 
 
+  public isMicrophoneActive(): boolean {
+    return this.isMicActive;
+  }
+
   public async startMicrophone(): Promise<boolean> {
     const ctx = this.initContext();
 
