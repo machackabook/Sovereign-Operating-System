@@ -106,19 +106,31 @@ async function startServer() {
     const firebase_id_token = req.body?.firebase_id_token;
     const portal_id_token = req.header('cf-access-jwt-assertion');
     const meshBase = (process.env.CRYPTIC_MESH_URL || '').replace(/\/+$/, '');
+    let meshEndpoint: URL | null = null;
+    try {
+      const parsed = new URL(meshBase);
+      if (parsed.protocol === 'https:' &&
+          parsed.hostname === 'cryptic-sos-mesh.saytyarnornglorei.workers.dev' &&
+          !parsed.username && !parsed.password && !parsed.search && !parsed.hash) {
+        meshEndpoint = parsed;
+      }
+    } catch {
+      // Invalid endpoint configuration fails closed below.
+    }
 
-    if (typeof firebase_id_token !== 'string' || !firebase_id_token) {
+    if (typeof firebase_id_token !== 'string' || firebase_id_token.length < 100 || firebase_id_token.length > 10000) {
       return res.status(400).json({ error: 'firebase_identity_token_required' });
     }
-    if (!portal_id_token) {
+    if (typeof portal_id_token !== 'string' || portal_id_token.length > 12000) {
       return res.status(401).json({ error: 'cloudflare_access_identity_required' });
     }
-    if (!meshBase.startsWith('https://')) {
+    if (!meshEndpoint) {
       return res.status(503).json({ error: 'cryptic_mesh_endpoint_not_configured' });
     }
 
+    res.setHeader('Cache-Control', 'no-store');
     try {
-      const upstream = await fetch(meshBase + '/v1/mesh/auth/exchange', {
+      const upstream = await fetch(meshEndpoint.origin + '/v1/mesh/auth/exchange', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ firebase_id_token, portal_id_token }),
