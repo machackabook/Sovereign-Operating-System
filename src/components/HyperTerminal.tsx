@@ -49,6 +49,7 @@ import {
 } from '../types';
 import { vfs } from '../services/vfsService';
 import { audioVoiceService, parseWakeWord, WakeWordState } from '../services/audioVoiceService';
+import { createCrypticMeshService } from '../services/crypticMeshService';
 import { ambientAudioService } from '../services/ambientAudioService';
 import { omniNexusService } from '../services/omniNexusService';
 import { exportQuineFile } from '../services/quineService';
@@ -114,6 +115,10 @@ import { sdrDemodulatorBridge } from '../services/sdrDemodulatorBridge';
 import { wirelessBeaconBridge } from '../services/wirelessBeaconBridge';
 import { bluetoothDeviceManager } from '../services/bluetoothDeviceManager';
 
+const crypticMeshService = createCrypticMeshService({
+  baseUrl: import.meta.env.VITE_CRYPTIC_MESH_URL || 'https://cryptic-sos-mesh.saytyarnornglorei.workers.dev',
+});
+
 interface HyperTerminalProps {
   envState: EnvironmentState;
   setEnvState: React.Dispatch<React.SetStateAction<EnvironmentState>>;
@@ -133,7 +138,7 @@ const BUILTIN_COMMANDS = [
   'sparsebundle', 'sparse', 'prime', 'bun', 'uv', 'pip', 'state', 'dashboard', 'core', 'page', 'pages', 'systems', 'axs', 'mesh', 'scribe', 'memory', 'ghmount',
   'math', 'quadratic', 'bhttp', 'htmx', 'projectx', 'sphynx',
   'polyglot', 'workbench', 'ide', 'alphaqubit', 'harvester', 'quine',
-  'neurality', 'inspect', 'diagnostics', 'auth', 'login', 'logout', 'view', 'redirect',
+  'neurality', 'inspect', 'diagnostics', 'auth', 'login', 'logout', 'view', 'redirect', 'cryptic',
   'diff', 'aistudio', 'merge', 'consolidate', 'selfeval', 'osmosis', 'eval', 'push', 'commit',
   'lineage', 'cosmic', 'mail', 'pay', 'stripe', 'cashapp', 'aws', 'microsoft', 'identity', 'unmask',
   'personality', 'vfs-hotswap', 'sys-verify', 'quine-verify', 'quine-polyglot',
@@ -1189,6 +1194,43 @@ Type 'help' to inspect commands. Voice and text share the same response pipeline
         }
         break;
       }
+      case 'cryptic': {
+        const op = (args[0] || 'status').toLowerCase();
+        try {
+          if (op === 'connect') {
+            const result = await crypticMeshService.connect();
+            appendLine(JSON.stringify({ service: 'Cryptic Mesh', ...result }, null, 2), 'success', '🔐');
+          } else if (op === 'health') {
+            const response = await fetch('/api/cryptic-mesh/health', {
+              method: 'GET', cache: 'no-store', redirect: 'error',
+              headers: { accept: 'application/json' }
+            });
+            if (!response.ok) throw new Error('Portal health returned HTTP ' + response.status);
+            appendLine(JSON.stringify(await response.json(), null, 2), 'output');
+          } else if (op === 'status') {
+            appendLine(JSON.stringify(await crypticMeshService.status(), null, 2), 'output');
+          } else if (op === 'dispatch') {
+            const action = args[1];
+            if (!action) {
+              appendLine('Usage: cryptic dispatch <nexus.health|nexus.echo|sos.mesh.status>', 'system');
+              break;
+            }
+            const result = await crypticMeshService.dispatch(action, {});
+            appendLine(JSON.stringify(result, null, 2), 'success');
+            appendLine('Accepted by Cryptic. Queued does not mean the private NEXUS agent has completed the job.', 'system');
+          } else if (op === 'jobs') {
+            appendLine(JSON.stringify(await crypticMeshService.jobs(), null, 2), 'output');
+          } else if (op === 'revoke') {
+            appendLine(JSON.stringify(await crypticMeshService.revoke(), null, 2), 'system');
+          } else {
+            appendLine('cryptic health | connect | status | dispatch <allowlisted-action> | jobs | revoke', 'system');
+          }
+        } catch (error: any) {
+          appendLine('Cryptic Mesh: ' + String(error?.message || error), 'error', '🔒');
+        }
+        break;
+      }
+
       case 'mesh': {
         const op=(args[0]||'status').toLowerCase();
         if(op==='status'){appendLine(JSON.stringify(quineMeshService.status(),null,2),'output');}
@@ -1291,6 +1333,14 @@ Type 'help' to inspect commands. Voice and text share the same response pipeline
   find <query>           : Search files and directory nodes
   grep <pattern> <file>  : Search text inside file or all VFS
   vfs export | reset     : Export VFS to JSON or reset to defaults
+
+[CRYPTIC IDENTITY-GATED MESH]
+  cryptic health           : Probe same-origin Access-protected portal to the real Cryptic gateway
+  cryptic connect          : Exchange existing Firebase Google + Cloudflare Access identities
+  cryptic status           : Read authenticated gateway status and queue counts
+  cryptic dispatch <action>: Queue one explicitly allowlisted NEXUS action
+  cryptic jobs             : Read this identity's actual job receipts
+  cryptic revoke           : Revoke the in-memory Cryptic bridge token
 
 [QUINE LOCALHOST MESH / PRIVATE SCRIBE]
   mesh connect             : Pair read-only localhost bridge via secure separate prompt
