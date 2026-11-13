@@ -1,24 +1,17 @@
-/**
- * Voice Match & Environmental Sensor Telemetry Authentication Gate
- *
- * Implements:
- * 1. User session state (guest vs authenticated user).
- * 2. Voice-print / passphrase match validation using Web Audio & Speech Recognition.
- * 3. Environmental telemetry integration (acoustic noise floor, device orientation/gyroscope,
- *    and simulated acoustic beacon echolocation).
- * 4. Access control gating for public and sensitive documentation.
- */
-
-import { audioVoiceService } from './audioVoiceService.ts';
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "./firebase";
+import { audioVoiceService } from "./audioVoiceService";
+import { crypticMeshService } from "./crypticMeshService";
 
 export interface EnvironmentalSensorData {
-  noiseFloorDbfs: number;
-  estimatedProximityMeters: number;
+  noiseFloorDbfs: number | null;
+  microphoneLevel: number | null;
+  estimatedProximityMeters: number | null;
   deviceOrientation: { alpha: number | null; beta: number | null; gamma: number | null };
   ambientLightLux: number | null;
-  acousticEchoLatencyMs: number;
-  rfHarmonicIndex: number;
-  motionIntensity: number;
+  acousticEchoLatencyMs: number | null;
+  rfHarmonicIndex: number | null;
+  motionIntensity: number | null;
   timestamp: number;
 }
 
@@ -29,189 +22,219 @@ export interface VoiceAuthStatus {
   allPathsUnlocked: boolean;
   lastVerifiedAt: number | null;
   activeVoiceProfile: string;
-  environmentalMatch: boolean;
+  /** Null means no real environmental-match measurement is available. */
+  environmentalMatch: boolean | null;
+  /** Binary identity-check state, not a biometric confidence score. */
   confidence: number;
+  accessAssertionVerified: boolean;
 }
 
-type AuthGateListener = (status: VoiceAuthStatus) => void;
+type AuthResult = { verified: boolean; message: string };
 
 class VoiceAuthGateService {
-  private authenticatedUser: string | null = 'operator@sovereign';
-  private voiceMatched = true;
-  private allPathsUnlocked = true;
-  private lastVerifiedAt: number | null = Date.now();
-  private requiredPassphrase = 'open sovereign matrix';
-  private listeners: Set<AuthGateListener> = new Set();
-
+  private authenticatedUser: string | null = null;
+  private identityVerified = false;
+  private accessAssertionVerified = false;
+  private voiceMatched = false;
+  private allPathsUnlocked = false;
+  private lastVerifiedAt: number | null = null;
+  private readonly activationPhrase = "open sovereign matrix";
   private sensorData: EnvironmentalSensorData = {
-    noiseFloorDbfs: -45,
-    estimatedProximityMeters: 0.6,
-    deviceOrientation: { alpha: 0, beta: 0, gamma: 0 },
+    noiseFloorDbfs: null,
+    microphoneLevel: null,
+    estimatedProximityMeters: null,
+    deviceOrientation: { alpha: null, beta: null, gamma: null },
     ambientLightLux: null,
-    acousticEchoLatencyMs: 24,
-    rfHarmonicIndex: 0.985,
-    motionIntensity: 0.02,
+    acousticEchoLatencyMs: null,
+    rfHarmonicIndex: null,
+    motionIntensity: null,
     timestamp: Date.now(),
   };
+  private listeners: Array<(status: VoiceAuthStatus) => void> = [];
 
   constructor() {
     this.initSensorListeners();
-  }
-
-  private initSensorListeners() {
-    if (typeof window === 'undefined') return;
-
-    if (window.DeviceOrientationEvent) {
-      window.addEventListener('deviceorientation', (e: DeviceOrientationEvent) => {
-        this.sensorData.deviceOrientation = {
-          alpha: e.alpha ? parseFloat(e.alpha.toFixed(2)) : 0,
-          beta: e.beta ? parseFloat(e.beta.toFixed(2)) : 0,
-          gamma: e.gamma ? parseFloat(e.gamma.toFixed(2)) : 0,
-        };
-      }, { passive: true });
-    }
-
-    if (window.DeviceMotionEvent) {
-      window.addEventListener('devicemotion', (e: DeviceMotionEvent) => {
-        if (e.acceleration) {
-          const x = e.acceleration.x || 0;
-          const y = e.acceleration.y || 0;
-          const z = e.acceleration.z || 0;
-          const total = Math.sqrt(x * x + y * y + z * z);
-          this.sensorData.motionIntensity = Math.min(1.0, total / 9.8);
-        }
-      }, { passive: true });
-    }
-  }
-
-  public subscribe(listener: AuthGateListener): () => void {
-    this.listeners.add(listener);
-    listener(this.getStatus());
-    return () => this.listeners.delete(listener);
-  }
-
-  private notify() {
-    const status = this.getStatus();
-    this.listeners.forEach((fn) => {
-      try {
-        fn(status);
-      } catch (err) {
-        console.error('AuthGate listener error:', err);
+    onAuthStateChanged(auth, (user) => {
+      const validGoogleUser = !!user &&
+        !user.isAnonymous &&
+        user.emailVerified &&
+        !!user.email &&
+        user.providerData.some((provider) => provider.providerId === "google.com");
+      if (!validGoogleUser || (this.authenticatedUser && user?.email !== this.authenticatedUser)) {
+        this.clearIdentityState();
       }
+      this.notify();
     });
   }
 
-  public getStatus(): VoiceAuthStatus {
-    return {
-      isAuthenticated: !!this.authenticatedUser,
-      username: this.authenticatedUser,
-      voiceMatched: this.voiceMatched,
-      allPathsUnlocked: this.allPathsUnlocked,
-      lastVerifiedAt: this.lastVerifiedAt,
-      activeVoiceProfile: audioVoiceService.getCurrentProfile()?.id || 'natch',
-      environmentalMatch: true,
-      confidence: this.voiceMatched ? 0.96 : 0.0,
+  private clearIdentityState(): void {
+    this.authenticatedUser = null;
+    this.identityVerified = false;
+    this.accessAssertionVerified = false;
+    this.allPathsUnlocked = false;
+    this.lastVerifiedAt = null;
+  }
+
+  private notify(): void {
+    const status = this.getStatus();
+    this.listeners.forEach((listener) => listener(status));
+  }
+
+  public subscribe(listener: (status: VoiceAuthStatus) => void): () => void {
+    this.listeners.push(listener);
+    listener(this.getStatus());
+    return () => {
+      this.listeners = this.listeners.filter((entry) => entry !== listener);
     };
   }
 
-  public unlockAllPaths(unlocked: boolean = true) {
-    this.allPathsUnlocked = unlocked;
-    if (unlocked) {
-      this.authenticatedUser = 'operator@sovereign';
-      this.voiceMatched = true;
-      this.lastVerifiedAt = Date.now();
-    }
+  /**
+   * A spoken phrase is only an interaction challenge. It is public in the UI
+   * and is never treated as identity, a biometric, or an authorization factor.
+   */
+  public verifyVoice(transcript: string): { verified: boolean; score: number; message: string } {
+    const normalized = transcript.toLowerCase().replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
+    const recognized = normalized.includes(this.activationPhrase);
+    this.voiceMatched = recognized;
     this.notify();
-  }
-
-  public isAllPathsUnlocked(): boolean {
-    return this.allPathsUnlocked;
-  }
-
-  public getSensorTelemetry(): EnvironmentalSensorData {
-    // Poll real-time audio volume if mic is on
-    const micData = audioVoiceService.getMicrophoneAudioData();
-    if (micData) {
-      const vol = micData.volume;
-      this.sensorData.noiseFloorDbfs = parseFloat((-60 + vol * 45).toFixed(1));
-      // Estimate proximity via inverse acoustic law approximation
-      this.sensorData.estimatedProximityMeters = parseFloat(Math.max(0.1, (1.0 - vol * 0.75)).toFixed(2));
-    }
-    this.sensorData.timestamp = Date.now();
-    return { ...this.sensorData };
+    return {
+      verified: recognized,
+      score: recognized ? 1 : 0,
+      message: recognized
+        ? "Activation phrase recognized. Google and Cloudflare Access identity verification is still required."
+        : "Activation phrase not recognized. No access has been granted.",
+    };
   }
 
   /**
-   * Verify verbal passphrase or direct command authentication
+   * Cryptic is the authority for the combined Firebase Google + Cloudflare
+   * Access exchange. A browser passphrase can never substitute for this call.
    */
-  public verifyVoice(spokenPhrase: string): { verified: boolean; message: string; score: number } {
-    const cleanSpoken = spokenPhrase.toLowerCase().trim().replace(/[^a-z0-9 ]/g, '');
-    const cleanTarget = this.requiredPassphrase.toLowerCase().trim();
+  public async verifyIdentity(): Promise<AuthResult> {
+    const user = auth.currentUser;
+    const validGoogleUser = !!user &&
+      !user.isAnonymous &&
+      user.emailVerified &&
+      !!user.email &&
+      user.providerData.some((provider) => provider.providerId === "google.com");
 
-    const isMatch = cleanSpoken.includes(cleanTarget) ||
-      cleanSpoken.includes('authenticate') ||
-      cleanSpoken.includes('login') ||
-      cleanSpoken.includes('unlock') ||
-      cleanSpoken.includes('unlock documents') ||
-      cleanSpoken.includes('unlock all paths');
+    if (!validGoogleUser || !user) {
+      this.clearIdentityState();
+      this.notify();
+      return {
+        verified: false,
+        message: "Sign in with the verified Google account before accessing protected content.",
+      };
+    }
 
-    if (isMatch) {
-      this.authenticatedUser = 'operator@sovereign';
-      this.voiceMatched = true;
+    try {
+      const result = await crypticMeshService.connect();
+      if (!result.connected) throw new Error("Cryptic identity exchange did not complete.");
+      this.authenticatedUser = user.email;
+      this.identityVerified = true;
+      this.accessAssertionVerified = true;
       this.allPathsUnlocked = true;
       this.lastVerifiedAt = Date.now();
       this.notify();
-      audioVoiceService.playTone(880, 'sine', 100);
       return {
         verified: true,
-        message: 'Voice biometric signature & acoustic environment verified. All paths unlocked.',
-        score: 0.98,
+        message: "Verified Google identity and Cloudflare Access assertion through Cryptic.",
       };
-    } else {
+    } catch (error: any) {
+      this.clearIdentityState();
+      this.notify();
       return {
         verified: false,
-        message: `Voice phrase not recognized. Expected passphrase or authorization keyword.`,
-        score: 0.32,
+        message: error?.message || "Identity verification failed. Check Google sign-in and the Cloudflare Access session.",
       };
     }
   }
 
-  public loginUser(username: string = 'operator@sovereign') {
-    this.authenticatedUser = username;
-    this.voiceMatched = true;
+  /** Compatibility alias: this now performs real identity verification. */
+  public loginUser(): Promise<AuthResult> {
+    return this.verifyIdentity();
+  }
+
+  public logoutUser(): void {
+    this.clearIdentityState();
+    void crypticMeshService.revoke().catch(() => undefined);
+    this.notify();
+  }
+
+  public unlockAllPaths(unlocked = true): boolean {
+    if (!unlocked) {
+      this.logoutUser();
+      return true;
+    }
+    if (!this.identityVerified || !this.accessAssertionVerified) {
+      this.allPathsUnlocked = false;
+      this.notify();
+      return false;
+    }
     this.allPathsUnlocked = true;
-    this.lastVerifiedAt = Date.now();
     this.notify();
-  }
-
-  public logoutUser() {
-    this.authenticatedUser = null;
-    this.voiceMatched = false;
-    this.allPathsUnlocked = false;
-    this.lastVerifiedAt = null;
-    this.notify();
-  }
-
-  /**
-   * Checks if a path is considered protected documentation requiring voice match.
-   * If allPathsUnlocked is active, all paths are accessible with zero restrictions.
-   */
-  public isProtectedDocument(path: string): boolean {
-    if (this.allPathsUnlocked) return false;
-    const normalized = path.toLowerCase();
-    return (
-      normalized.includes('/docs/') ||
-      normalized.startsWith('docs/') ||
-      normalized.includes('architecture') ||
-      normalized.includes('soul.md') ||
-      normalized.includes('provenance_audit') ||
-      normalized.includes('adam_gates')
-    );
+    return true;
   }
 
   public isAuthorized(): boolean {
-    if (this.allPathsUnlocked) return true;
-    return Boolean(this.authenticatedUser && this.voiceMatched);
+    return this.identityVerified && this.accessAssertionVerified && this.allPathsUnlocked;
+  }
+
+  public isProtectedDocument(path: string): boolean {
+    const protectedPatterns = [
+      /\/docs\/(private|sovereign|classified)/i,
+      /\.secret$/i,
+      /\/vault\//i,
+    ];
+    return protectedPatterns.some((pattern) => pattern.test(path)) && !this.isAuthorized();
+  }
+
+  public getStatus(): VoiceAuthStatus {
+    const authorized = this.isAuthorized();
+    return {
+      isAuthenticated: authorized,
+      username: authorized ? this.authenticatedUser : null,
+      voiceMatched: this.voiceMatched,
+      allPathsUnlocked: authorized,
+      lastVerifiedAt: authorized ? this.lastVerifiedAt : null,
+      activeVoiceProfile: audioVoiceService.getCurrentProfile().name,
+      environmentalMatch: null,
+      confidence: authorized ? 1 : 0,
+      accessAssertionVerified: authorized && this.accessAssertionVerified,
+    };
+  }
+
+  /** Return only sensor values actually observed on this device. */
+  public getSensorTelemetry(): EnvironmentalSensorData {
+    const micData = audioVoiceService.getMicrophoneAudioData();
+    this.sensorData.microphoneLevel = micData ? micData.volume : null;
+    this.sensorData.timestamp = Date.now();
+    return { ...this.sensorData, deviceOrientation: { ...this.sensorData.deviceOrientation } };
+  }
+
+  private initSensorListeners(): void {
+    if (typeof window === "undefined") return;
+
+    window.addEventListener("deviceorientation", (event) => {
+      const orientation = event as DeviceOrientationEvent;
+      this.sensorData.deviceOrientation = {
+        alpha: Number.isFinite(orientation.alpha) ? orientation.alpha : null,
+        beta: Number.isFinite(orientation.beta) ? orientation.beta : null,
+        gamma: Number.isFinite(orientation.gamma) ? orientation.gamma : null,
+      };
+      this.sensorData.timestamp = Date.now();
+    });
+
+    window.addEventListener("devicemotion", (event) => {
+      const motion = event as DeviceMotionEvent;
+      const acceleration = motion.acceleration;
+      if (acceleration && acceleration.x !== null && acceleration.y !== null && acceleration.z !== null) {
+        this.sensorData.motionIntensity = Math.sqrt(
+          acceleration.x ** 2 + acceleration.y ** 2 + acceleration.z ** 2
+        );
+        this.sensorData.timestamp = Date.now();
+      }
+    });
   }
 }
 
