@@ -901,11 +901,13 @@ export class BrowserControlService {
       },
       {
         category: 'SOVEREIGN GATEWAY',
-        title: 'Sovereign Matrix Operator Tier (Root VFS)',
-        status: 'optimal',
-        description: 'All 9 kernel editions, sensitive documentation paths (/docs/protected, /root/secret), and hot-swap sectors are fully unlocked for operator@sovereign.',
+        title: 'Cryptic Identity Gate (Protected VFS)',
+        status: voiceAuthGateService.isAuthorized() ? 'optimal' : 'recommended',
+        description: voiceAuthGateService.isAuthorized()
+          ? 'Verified Firebase Google identity and Cloudflare Access bridge session are active.'
+          : 'Protected documents remain locked until the existing Firebase Google identity and Cloudflare Access assertion are verified by Cryptic.',
         command: 'auth',
-        actionLabel: 'Inspect Auth',
+        actionLabel: 'Verify Identity',
       },
     ];
   }
