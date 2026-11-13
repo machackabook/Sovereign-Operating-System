@@ -185,7 +185,8 @@ class VoiceAuthGateService {
 
   public isProtectedDocument(path: string): boolean {
     const protectedPatterns = [
-      /\/docs\/(private|sovereign|classified)/i,
+      /\/docs\//i,
+      /(^|\/)(architecture|soul)\.md$/i,
       /\.secret$/i,
       /\/vault\//i,
     ];
