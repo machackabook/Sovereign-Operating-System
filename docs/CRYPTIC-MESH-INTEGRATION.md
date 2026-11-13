@@ -24,6 +24,8 @@ The portal Worker uses:
 
 `CRYPTIC_MESH_URL=https://cryptic-sos-mesh.saytyarnornglorei.workers.dev`
 
+The dedicated portal Wrangler config is pinned to the Cloudflare account that owns `crypticnews.org`; it does not alter the public S.O.S Worker configuration.
+
 No bridge signing secret is placed in the S.O.S application, browser, or public Worker.
 
 ## Use
@@ -43,17 +45,21 @@ cryptic revoke
 
 ## Verification
 
-Run the real checks from the repository root:
+Run the checks from the repository root:
 
 ```bash
 npm install --no-audit --no-fund
+npm run check:html
 npm run test:mesh
 npm run test:audio
+npm run test:security
 npm run lint
 npm run build
 ```
 
-The portal Worker tests verify missing-assertion rejection, same-origin enforcement, forwarding of both signed tokens, and upstream health proxying. They do not substitute for a live Access-authenticated browser exchange. That final test must use a real signed-in session and a real Firebase Google ID token.
+The portal Worker tests verify missing-assertion rejection, same-origin enforcement, forwarding of both signed tokens, and upstream health proxying. They do not substitute for a live Access-authenticated browser exchange.
+
+For the live Cloudflare Access assertion probe, open `https://crypticnews.org/api/cryptic-mesh/health` in a browser already signed in through the configured Access application. A successful response must include `access_assertion_verified: true` and `gateway.ok: true`. An unauthenticated request should be challenged by Access. Do not copy or extract the Access cookie or JWT.
 
 Do not store either identity token or the returned Cryptic bridge token in localStorage, sessionStorage, URL parameters, logs, analytics, or model prompts.
 
