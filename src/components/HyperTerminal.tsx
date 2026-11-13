@@ -2060,7 +2060,7 @@ Duration: ${res.durationMs}ms | Cycles: ${res.cyclesCompleted}`, 'success', '✨
                 voicePitch: p.pitch,
                 voiceRate: p.rate,
               }));
-              appendLine(`Voice Profile switched to [${p.name.toUpperCase()}] (${p.carrierFreq} Hz): ${p.description}`, 'success', '🎙️');
+              appendLine(`Voice Profile switched to [${p.name.toUpperCase()}] (pitch ${p.pitch.toFixed(2)} · rate ${p.rate.toFixed(2)}): ${p.description}`, 'success', '🎙️');
             } else {
               const available = audioVoiceService.getVoiceProfiles().map((vp) => vp.id).join(', ');
               appendLine(`Unknown profile '${args[1]}'. Available: ${available}`, 'error');
