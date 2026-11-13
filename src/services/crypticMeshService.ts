@@ -2,7 +2,6 @@ import { auth } from "./firebase";
 
 export interface CrypticMeshOptions {
   baseUrl: string;
-  getPortalIdToken: () => Promise<string>;
   fetchImpl?: typeof fetch;
 }
 export interface CrypticMeshReceipt {
@@ -43,14 +42,11 @@ export function createCrypticMeshService(options: CrypticMeshOptions) {
   let expiresAt = 0;
 
   async function exchange(): Promise<void> {
-    const [firebase_id_token, portal_id_token] = await Promise.all([
-      getFirebaseIdToken(),
-      options.getPortalIdToken(),
-    ]);
-    const response = await fetcher(base + "/v1/mesh/auth/exchange", {
+    const firebase_id_token = await getFirebaseIdToken();
+    const response = await fetcher("/api/cryptic-mesh/exchange", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ firebase_id_token, portal_id_token }),
+      body: JSON.stringify({ firebase_id_token }),
       cache: "no-store",
       redirect: "error",
     });
