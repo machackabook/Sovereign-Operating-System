@@ -1,0 +1,17 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "cryptic-sos-portal",
+  "main": "src/cloudflare-mesh-portal-worker.mjs",
+  "compatibility_date": "2026-11-13",
+  "workers_dev": false,
+  "routes": [
+    {
+      "pattern": "crypticnews.org/api/cryptic-mesh/*",
+      "zone_name": "crypticnews.org"
+    }
+  ],
+  "vars": {
+    "CRYPTIC_MESH_URL": "https://cryptic-sos-mesh.saytyarnornglorei.workers.dev"
+  },
+  "observability": { "enabled": true }
+}
