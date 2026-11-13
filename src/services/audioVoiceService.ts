@@ -21,7 +21,9 @@ export interface VoiceAudioData {
   wordIndex: number;
   totalWords: number;
   profile: string;
-  carrierFreq: number;
+  carrierFreq: number | null;
+  /** False means the browser TTS engine exposes speech state but not raw output samples. */
+  samplesAvailable: boolean;
   sentiment?: string;
   tone?: string;
 }
@@ -139,6 +141,8 @@ export class AudioVoiceService {
   private recognition: any = null;
   private isRecognizing = false;
   private isSpeechOutputActive = false;
+  private speechGeneration = 0;
+  private activeSpeechCancel: (() => void) | null = null;
   private recognitionRestartTimer: ReturnType<typeof setTimeout> | null = null;
   private transcriptListeners: ((transcript: string, isFinal: boolean) => void)[] = [];
 
@@ -334,7 +338,8 @@ export class AudioVoiceService {
       wordIndex: this.currentWordIndex,
       totalWords: this.currentTotalWords,
       profile: profile.name,
-      carrierFreq: profile.carrierFreq,
+      carrierFreq: null,
+      samplesAvailable: false,
       sentiment: this.currentSentiment,
       tone: this.currentTone,
     };
@@ -380,14 +385,9 @@ export class AudioVoiceService {
   // =========================================================================
 
 
-  public isMicrophoneActive(): boolean {
-    return this.isMicActive;
-  }
-
   public async startMicrophone(): Promise<boolean> {
-    const ctx = this.initContext();
-
     try {
+      const ctx = this.initContext();
       if (typeof navigator !== 'undefined' && navigator.mediaDevices?.getUserMedia) {
         const stream = await navigator.mediaDevices.getUserMedia({
           audio: {
@@ -894,18 +894,20 @@ export class AudioVoiceService {
     }
   ): Promise<void> {
     return new Promise((resolve) => {
-      // If profile is passed, set it
-      if (options?.profile) {
-        this.setVoiceProfile(options.profile);
-      }
+      const previousCancel = this.activeSpeechCancel;
+      this.activeSpeechCancel = null;
+      if (previousCancel) previousCancel();
+      const generation = ++this.speechGeneration;
 
+      if (options?.profile) this.setVoiceProfile(options.profile);
       const activePitch = options?.pitch ?? this.pitch;
       const activeRate = options?.rate ?? this.rate;
       const activeTone = options?.tone || this.currentTone || 'Neutral';
       const activeSentiment = options?.sentiment || this.currentSentiment || 'analytical';
 
       if (!this.isVoiceEnabled || typeof window === 'undefined' || !('speechSynthesis' in window) || typeof SpeechSynthesisUtterance === 'undefined') {
-        // Never report a synthetic oscillator/timer as spoken language.
+        this.isSpeechOutputActive = false;
+        this.stopVoiceAudioStream();
         this.notifySpeech(false, '');
         options?.onEnd?.();
         resolve();
@@ -913,10 +915,8 @@ export class AudioVoiceService {
       }
 
       window.speechSynthesis.cancel();
-
-      // Clean markdown tags or code blocks for speech
       const cleanText = text
-        .replace(/```[\s\S]*?```/g, 'Code block omitted.')
+        .replace(/```[\\s\\S]*?```/g, 'Code block omitted.')
         .replace(/`([^`]+)`/g, '$1')
         .replace(/[*_#~]/g, '')
         .trim();
@@ -924,10 +924,11 @@ export class AudioVoiceService {
       if (!cleanText) {
         this.notifySpeech(false, '');
         options?.onEnd?.();
-        return resolve();
+        resolve();
+        return;
       }
 
-      const words = cleanText.split(/\s+/).filter(Boolean);
+      const words = cleanText.split(/\\s+/).filter(Boolean);
       const utterance = new SpeechSynthesisUtterance(cleanText);
       if (this.selectedVoice) {
         utterance.voice = this.selectedVoice;
@@ -937,30 +938,41 @@ export class AudioVoiceService {
       utterance.rate = activeRate;
       utterance.volume = 1;
 
-      let boundaryFired = false;
-      utterance.onboundary = (e: any) => {
-        if (e.name === 'word') {
-          boundaryFired = true;
-          if (this.wordPacerTimer) {
-            clearInterval(this.wordPacerTimer);
-            this.wordPacerTimer = null;
-          }
-          const charIndex = e.charIndex;
-          const remaining = cleanText.substring(charIndex);
-          const match = remaining.match(/^(\S+)/);
-          const currentWord = match ? match[1].replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, '') : '';
-          const wordsBefore = cleanText.substring(0, charIndex).trim().split(/\s+/).filter(Boolean);
-          const wordIdx = wordsBefore.length;
-          this.currentActiveWord = currentWord;
-          this.currentWordIndex = wordIdx;
-          this.notifyWord(currentWord, wordIdx, words.length);
-          if (options?.onWord) {
-            options.onWord(currentWord, wordIdx, words.length);
-          }
+      let settled = false;
+      const finishSpeech = () => {
+        if (settled) return;
+        settled = true;
+        if (this.activeSpeechCancel === cancelSpeech) this.activeSpeechCancel = null;
+        if (generation === this.speechGeneration) {
+          this.isSpeechOutputActive = false;
+          this.stopVoiceAudioStream();
+          this.notifySpeech(false, '');
+          this.touchWakeActivity();
+          if (this.isMicActive && this.recognition) this.scheduleRecognitionRestart();
+          options?.onEnd?.();
         }
+        resolve();
+      };
+      const cancelSpeech = () => finishSpeech();
+      this.activeSpeechCancel = cancelSpeech;
+
+      utterance.onboundary = (event: any) => {
+        if (generation !== this.speechGeneration || settled) return;
+        if (event.name !== 'word' && !Number.isFinite(event.charIndex)) return;
+        const charIndex = Math.max(0, Number(event.charIndex) || 0);
+        const remaining = cleanText.substring(charIndex);
+        const match = remaining.match(/^(\\S+)/);
+        const currentWord = match ? match[1].replace(/[.,\\/#!$%\\^&\\*;:{}=\\-_\`~()]/g, '') : '';
+        const wordsBefore = cleanText.substring(0, charIndex).trim().split(/\\s+/).filter(Boolean);
+        const wordIndex = Math.min(words.length - 1, wordsBefore.length);
+        this.currentActiveWord = currentWord;
+        this.currentWordIndex = wordIndex;
+        this.notifyWord(currentWord, wordIndex, words.length);
+        options?.onWord?.(currentWord, wordIndex, words.length);
       };
 
       utterance.onstart = () => {
+        if (generation !== this.speechGeneration || settled) return;
         this.isSpeechOutputActive = true;
         if (this.recognition && this.isRecognizing) {
           try { this.recognition.stop(); } catch {}
@@ -968,47 +980,30 @@ export class AudioVoiceService {
         this.startVoiceAudioStream(cleanText, activeTone, activeSentiment);
         this.notifySpeech(true, cleanText);
         this.notifySpeechLog(cleanText);
-
-        // Fallback word pacer timer if onboundary is not supported by the synthesis engine
-        let stepIdx = 0;
-        const intervalMs = Math.max(120, Math.floor(360 / (activeRate || 1.0)));
-        this.wordPacerTimer = setInterval(() => {
-          if (!boundaryFired && this.isVoiceSpeaking && stepIdx < words.length) {
-            this.currentActiveWord = words[stepIdx] || '';
-            this.currentWordIndex = stepIdx;
-            this.notifyWord(this.currentActiveWord, stepIdx, words.length);
-            if (options?.onWord) {
-              options.onWord(this.currentActiveWord, stepIdx, words.length);
-            }
-            stepIdx++;
-          }
-        }, intervalMs);
+        if (words.length) {
+          this.currentActiveWord = words[0];
+          this.currentWordIndex = 0;
+          this.notifyWord(words[0], 0, words.length);
+          options?.onWord?.(words[0], 0, words.length);
+        }
       };
 
-      const finishSpeech = () => {
-        this.isSpeechOutputActive = false;
-        this.stopVoiceAudioStream();
-        this.notifySpeech(false, '');
-        this.touchWakeActivity();
-        if (this.isMicActive && this.recognition) this.scheduleRecognitionRestart();
-        options?.onEnd?.();
-        resolve();
-      };
       utterance.onend = finishSpeech;
       utterance.onerror = finishSpeech;
 
       try {
         window.speechSynthesis.speak(utterance);
       } catch {
-        this.stopVoiceAudioStream();
-        this.notifySpeech(false, '');
-        options?.onEnd?.();
-        resolve();
+        finishSpeech();
       }
     });
   }
 
   public stopSpeaking(): void {
+    const cancel = this.activeSpeechCancel;
+    this.activeSpeechCancel = null;
+    if (cancel) cancel();
+    this.speechGeneration += 1;
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       window.speechSynthesis.cancel();
     }
