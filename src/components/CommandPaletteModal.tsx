@@ -552,7 +552,13 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
       description: 'Require the existing Google identity and a valid Cloudflare Access assertion',
       icon: <Unlock className="w-4 h-4 text-emerald-400" />,
       action: () => {
-        window.dispatchEvent(new CustomEvent('gaia:open-voice-auth'));
+        void voiceAuthGateService.verifyIdentity().then((result) => {
+          if (result.verified) {
+            audioVoiceService.speak('Identity verified. Protected paths are available.');
+          } else {
+            window.dispatchEvent(new CustomEvent('gaia:open-voice-auth'));
+          }
+        });
         onClose();
       },
     },
