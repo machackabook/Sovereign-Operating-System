@@ -49,6 +49,7 @@ import {
 } from '../types';
 import { vfs } from '../services/vfsService';
 import { audioVoiceService, parseWakeWord, WakeWordState } from '../services/audioVoiceService';
+import { mapSpeechToEvent } from '../services/speechCommandMapper';
 import { crypticMeshService } from '../services/crypticMeshService';
 import { ambientAudioService } from '../services/ambientAudioService';
 import { omniNexusService } from '../services/omniNexusService';
@@ -534,69 +535,74 @@ Type 'help' to inspect commands. Voice and text share the same response pipeline
 
   // Sync speech-to-command microphone transcripts with lightweight wake-word gating
   useEffect(() => {
+    const processVoiceDirective = async (directive: string) => {
+      const clean = directive.trim();
+      if (!clean) return;
+      const lower = clean.toLowerCase();
+
+      if (lower.includes('open sovereign matrix')) {
+        const phraseResult = voiceAuthGateService.verifyVoice(clean);
+        if (phraseResult.verified) {
+          appendLine('[Voice Challenge]: Phrase recognized. Confirm your Google + Cloudflare Access identity in the verification panel.', 'system', '🛡️');
+          setIsVoiceAuthModalOpen(true);
+          return;
+        }
+      }
+
+      if (lower.includes('inspect') || lower.includes('diagnostics') || lower === 'open inspect') {
+        audioVoiceService.setVoiceProfile('natch');
+        setEnvState((prev) => ({ ...prev, voiceProfile: 'natch', currentSentiment: 'inspection' }));
+        neuralityEngine.setDomain('inspection');
+        setIsInspectModalOpen(true);
+        appendLine('[Voice Command]: Activating System Inspection with the selected device voice...', 'system', '🔍');
+        await audioVoiceService.speak('Opening system inspection. Available sensor readings will be reported without estimates.');
+        return;
+      }
+
+      const mappedEvent = mapSpeechToEvent(clean);
+      if (mappedEvent) {
+        appendLine('[Voice Command]: ' + clean, 'system', '🎙️');
+        window.dispatchEvent(new CustomEvent(mappedEvent));
+        return;
+      }
+
+      appendLine(`[Active Voice Directive]: "${clean}"`, 'speech', '🎙️');
+      await handleCommandSubmit(undefined, clean);
+    };
+
     const unsub = audioVoiceService.onTranscript(async (transcript, isFinal) => {
       if (!transcript) return;
-
       const wakeEnabled = audioVoiceService.isWakeWordEnabled();
       const currentWakeState = audioVoiceService.getWakeWordState();
       const parsed = parseWakeWord(transcript);
 
       if (wakeEnabled && currentWakeState === 'passive') {
-        // PASSIVE LISTENING: remains quiet until addressed by wake word ('Gemini' or 'Terminal')
-        if (parsed.hasWakeWord) {
-          const wakeWordName = (parsed.wakeWord || 'Gemini').toUpperCase();
-          audioVoiceService.activateWakeState(parsed.wakeWord);
-          audioVoiceService.playTone(1056, 'sine', 100);
+        if (!parsed.hasWakeWord) return;
+        const wakeWordName = (parsed.wakeWord || 'Nexus').toUpperCase();
+        audioVoiceService.activateWakeState(parsed.wakeWord);
+        audioVoiceService.playTone(1056, 'sine', 100);
 
-          if (parsed.isStandaloneWake) {
-            // User addressed the AI with standalone wake word: "Gemini" / "Terminal"
-            appendLine(`[⚡ Wake Word Triggered: ${wakeWordName}]: Active speech state engaged. Listening...`, 'speech', '⚡');
-            audioVoiceService.speak('Yes? I am listening.');
-            setInputVal('');
-          } else if (isFinal) {
-            // User addressed with full directive: "Gemini, <directive>"
-            appendLine(`[⚡ Wake Word Triggered: ${wakeWordName}]: "${parsed.remainder}"`, 'speech', '⚡');
-            setInputVal(parsed.remainder);
-            handleCommandSubmit(undefined, parsed.remainder);
-          } else {
-            // Interim speech while addressing
-            setInputVal(parsed.remainder);
-          }
+        if (parsed.isStandaloneWake) {
+          appendLine(`[⚡ Wake Word Triggered: ${wakeWordName}]: Active speech state engaged. Listening...`, 'speech', '⚡');
+          await audioVoiceService.speak('Yes? I am listening.');
+          setInputVal('');
+        } else if (isFinal) {
+          appendLine(`[⚡ Wake Word Triggered: ${wakeWordName}]: "${parsed.remainder}"`, 'speech', '⚡');
+          setInputVal(parsed.remainder);
+          await processVoiceDirective(parsed.remainder);
         } else {
-          // Passive state: silently ignore ambient background chatter without executing
+          setInputVal(parsed.remainder);
         }
-      } else {
-        // ACTIVE SPEECH STATE (or wake-word gating disabled)
-        if (wakeEnabled) {
-          audioVoiceService.touchWakeActivity();
-        }
+        return;
+      }
 
-        const cleanTranscript = parsed.hasWakeWord ? (parsed.remainder || parsed.wakeWord || transcript) : transcript;
-        setInputVal(cleanTranscript);
-
-        if (isFinal && cleanTranscript.trim()) {
-          const lower = cleanTranscript.trim().toLowerCase();
-          if (lower.includes('open sovereign matrix')) {
-            const phraseResult = voiceAuthGateService.verifyVoice(cleanTranscript.trim());
-            if (phraseResult.verified) {
-              appendLine('[Voice Challenge]: Phrase recognized. Confirm your Google + Cloudflare Access identity in the verification panel.', 'system', '🛡️');
-              setIsVoiceAuthModalOpen(true);
-              return;
-            }
-          }
-          if (lower.includes('inspect') || lower.includes('diagnostics') || lower === 'open inspect') {
-            audioVoiceService.setVoiceProfile('natch');
-            setEnvState((prev) => ({ ...prev, voiceProfile: 'natch', currentSentiment: 'inspection' }));
-            neuralityEngine.setDomain('inspection');
-            setIsInspectModalOpen(true);
-            appendLine('[Voice Command]: Activating System Inspection with Natch voice profile...', 'system', '🔍');
-            audioVoiceService.speak('Voice profile Natch confirmed. Opening system diagnostic telemetry.');
-            return;
-          }
-
-          appendLine(`[Active Voice Directive]: "${cleanTranscript.trim()}"`, 'speech', '🎙️');
-          handleCommandSubmit(undefined, cleanTranscript.trim());
-        }
+      if (wakeEnabled) audioVoiceService.touchWakeActivity();
+      const cleanTranscript = parsed.hasWakeWord
+        ? (parsed.remainder || parsed.wakeWord || transcript)
+        : transcript;
+      setInputVal(cleanTranscript);
+      if (isFinal && cleanTranscript.trim()) {
+        await processVoiceDirective(cleanTranscript);
       }
     });
     return unsub;
