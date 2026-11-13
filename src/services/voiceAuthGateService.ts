@@ -38,6 +38,7 @@ class VoiceAuthGateService {
   private voiceMatched = false;
   private allPathsUnlocked = false;
   private lastVerifiedAt: number | null = null;
+  private bridgeExpiresAt: number | null = null;
   private readonly activationPhrase = "open sovereign matrix";
   private sensorData: EnvironmentalSensorData = {
     noiseFloorDbfs: null,
@@ -76,6 +77,7 @@ class VoiceAuthGateService {
     this.voiceMatched = false;
     this.allPathsUnlocked = false;
     this.lastVerifiedAt = null;
+    this.bridgeExpiresAt = null;
   }
 
   private notify(): void {
@@ -132,7 +134,10 @@ class VoiceAuthGateService {
 
     try {
       const result = await crypticMeshService.connect();
-      if (!result.connected) throw new Error("Cryptic identity exchange did not complete.");
+      if (!result.connected || !Number.isFinite(result.expiresAt) || result.expiresAt <= Date.now()) {
+        throw new Error("Cryptic identity exchange did not return a valid short-lived bridge session.");
+      }
+      this.bridgeExpiresAt = result.expiresAt;
       this.authenticatedUser = user.email;
       this.identityVerified = true;
       this.accessAssertionVerified = true;
@@ -180,7 +185,20 @@ class VoiceAuthGateService {
   }
 
   public isAuthorized(): boolean {
-    return this.identityVerified && this.accessAssertionVerified && this.allPathsUnlocked;
+    if (
+      this.identityVerified &&
+      this.bridgeExpiresAt !== null &&
+      Date.now() >= this.bridgeExpiresAt
+    ) {
+      this.clearIdentityState();
+      void crypticMeshService.revoke().catch(() => undefined);
+      return false;
+    }
+    return this.identityVerified &&
+      this.accessAssertionVerified &&
+      this.allPathsUnlocked &&
+      this.bridgeExpiresAt !== null &&
+      Date.now() < this.bridgeExpiresAt;
   }
 
   public isProtectedDocument(path: string): boolean {
