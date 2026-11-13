@@ -92,7 +92,6 @@ export function parseWakeWord(text: string): WakeWordParseResult {
   };
 }
 
-import { mapSpeechToEvent } from './speechCommandMapper';
 
 export class AudioVoiceService {
   private audioCtx: AudioContext | null = null;
@@ -138,6 +137,8 @@ export class AudioVoiceService {
   private micListeners: ((active: boolean, level: number) => void)[] = [];
   private recognition: any = null;
   private isRecognizing = false;
+  private isSpeechOutputActive = false;
+  private recognitionRestartTimer: ReturnType<typeof setTimeout> | null = null;
   private transcriptListeners: ((transcript: string, isFinal: boolean) => void)[] = [];
 
   constructor() {
@@ -265,104 +266,22 @@ export class AudioVoiceService {
     return this.voiceAnalyser;
   }
 
+  /**
+   * Track the browser's real SpeechSynthesis events for captions and word focus.
+   * SpeechSynthesis output cannot be routed back into Web Audio on all browsers,
+   * so this method deliberately does not synthesize a second audible oscillator.
+   */
   public startVoiceAudioStream(text: string, tone = 'Neutral', sentiment = 'analytical'): void {
-    const ctx = this.initContext();
-    const analyser = this.initVoiceAnalyser();
+    this.stopVoiceAudioStream();
     this.isVoiceSpeaking = true;
     this.currentSpokenText = text;
     this.currentTone = tone;
     this.currentSentiment = sentiment;
     this.voiceSynthTime = 0;
-
     const words = text.split(/\s+/).filter(Boolean);
     this.currentTotalWords = words.length;
     this.currentWordIndex = 0;
     this.currentActiveWord = words[0] || '';
-
-    const profile = this.getCurrentProfile();
-    const carrier = profile?.carrierFreq || 432;
-
-    try {
-      this.stopVoiceAudioStream();
-
-      // Create carrier oscillator and dual resonant formant filters
-      const osc = ctx.createOscillator();
-      const formant1 = ctx.createBiquadFilter();
-      const formant2 = ctx.createBiquadFilter();
-      const gain = ctx.createGain();
-
-      osc.type = profile?.oscillatorType || 'sawtooth';
-      osc.frequency.setValueAtTime(carrier * (this.pitch || 1.0), ctx.currentTime);
-
-      formant1.type = 'bandpass';
-      formant1.frequency.setValueAtTime(800, ctx.currentTime);
-      formant1.Q.setValueAtTime(3.0, ctx.currentTime);
-
-      formant2.type = 'bandpass';
-      formant2.frequency.setValueAtTime(2200, ctx.currentTime);
-      formant2.Q.setValueAtTime(4.0, ctx.currentTime);
-
-      // Subtle vocal presence gain
-      gain.gain.setValueAtTime(0.0001, ctx.currentTime);
-      gain.gain.linearRampToValueAtTime(0.02, ctx.currentTime + 0.08);
-
-      osc.connect(formant1);
-      formant1.connect(formant2);
-      formant2.connect(gain);
-
-      // Connect to voice analyser & master analyser
-      gain.connect(analyser);
-      if (this.analyser) {
-        gain.connect(this.analyser);
-      }
-      // Connect to audio destination at subtle level
-      gain.connect(ctx.destination);
-
-      osc.start();
-
-      this.voiceCarrierOsc = osc;
-      this.voiceFormantFilter = formant1;
-      this.voiceCarrierGain = gain;
-
-      // Modulation loop to simulate human formant movement across phonemes
-      let step = 0;
-      const totalWords = Math.max(1, words.length);
-
-      if (this.voiceAnimTimer) clearInterval(this.voiceAnimTimer);
-      this.voiceAnimTimer = setInterval(() => {
-        if (!this.isVoiceSpeaking || !this.voiceCarrierOsc || !this.voiceCarrierGain || !this.voiceFormantFilter) {
-          if (this.voiceAnimTimer) clearInterval(this.voiceAnimTimer);
-          return;
-        }
-
-        step++;
-        this.voiceSynthTime += 0.05;
-        const now = ctx.currentTime;
-        const wIndex = Math.min(Math.floor(step / 5), totalWords - 1);
-        const currentWord = words[wIndex] || 'voice';
-
-        if (wIndex !== this.currentWordIndex) {
-          this.currentWordIndex = wIndex;
-          this.currentActiveWord = currentWord;
-          this.notifyWord(currentWord, wIndex, totalWords);
-        }
-
-        // Modulate formant filter based on vowel sounds in active word
-        const vowels = (currentWord.match(/[aeiou]/gi) || []).length;
-        const baseF1 = 450 + (vowels % 4) * 280 + Math.sin(step * 0.4) * 120;
-        const targetPitch = carrier * (this.pitch || 1.0) * (1 + Math.sin(step * 0.25) * 0.08);
-
-        this.voiceCarrierOsc.frequency.setTargetAtTime(targetPitch, now, 0.04);
-        this.voiceFormantFilter.frequency.setTargetAtTime(baseF1, now, 0.05);
-
-        // Syllable volume envelope dip and rise
-        const syllableVol = 0.012 + Math.abs(Math.sin(step * 0.6)) * 0.016;
-        this.voiceCarrierGain.gain.setTargetAtTime(syllableVol, now, 0.03);
-      }, 50);
-
-    } catch (e) {
-      console.warn('Voice Web Audio stream initialization note:', e);
-    }
   }
 
   public stopVoiceAudioStream(): void {
@@ -370,97 +289,40 @@ export class AudioVoiceService {
       clearInterval(this.voiceAnimTimer);
       this.voiceAnimTimer = null;
     }
-
-    if (this.voiceCarrierGain && this.audioCtx) {
-      try {
-        this.voiceCarrierGain.gain.setTargetAtTime(0.0001, this.audioCtx.currentTime, 0.05);
-      } catch {}
+    if (this.wordPacerTimer) {
+      clearInterval(this.wordPacerTimer);
+      this.wordPacerTimer = null;
     }
-
-    if (this.voiceCarrierOsc) {
-      try {
-        this.voiceCarrierOsc.stop(this.audioCtx ? this.audioCtx.currentTime + 0.08 : 0);
-        this.voiceCarrierOsc.disconnect();
-      } catch {}
-      this.voiceCarrierOsc = null;
-    }
-
-    this.voiceFormantFilter = null;
-    this.voiceCarrierGain = null;
     this.isVoiceSpeaking = false;
     this.currentSpokenText = '';
     this.currentActiveWord = '';
     this.currentWordIndex = 0;
+    this.currentTotalWords = 0;
   }
 
   public getVoiceAudioData(): VoiceAudioData | null {
-    if (!this.isVoiceSpeaking && !this.isMicActive) {
-      return null;
-    }
-
+    if (!this.isVoiceSpeaking && !this.isMicActive) return null;
+    // Browser TTS owns the actual output. Expose real speech/word state without
+    // inventing a second oscillator waveform that does not match the spoken audio.
+    if (!this.voiceFrequencyData) this.voiceFrequencyData = new Uint8Array(128);
+    if (!this.voiceWaveformData) this.voiceWaveformData = new Uint8Array(256);
+    this.voiceFrequencyData.fill(0);
+    this.voiceWaveformData.fill(128);
     const profile = this.getCurrentProfile();
-    const carrierFreq = profile?.carrierFreq || 432;
-
-    if (this.voiceAnalyser && this.voiceFrequencyData && this.voiceWaveformData) {
-      (this.voiceAnalyser as any).getByteFrequencyData(this.voiceFrequencyData);
-      (this.voiceAnalyser as any).getByteTimeDomainData(this.voiceWaveformData);
-
-      // Compute RMS volume
-      let sum = 0;
-      for (let i = 0; i < this.voiceWaveformData.length; i++) {
-        const norm = (this.voiceWaveformData[i] - 128) / 128;
-        sum += norm * norm;
-      }
-      const rms = Math.sqrt(sum / this.voiceWaveformData.length);
-      const volume = Math.min(1.0, rms * 5.2);
-
-      return {
-        volume,
-        frequencyData: this.voiceFrequencyData,
-        waveformData: this.voiceWaveformData,
-        isSpeaking: this.isVoiceSpeaking,
-        activeText: this.currentSpokenText,
-        activeWord: this.currentActiveWord,
-        wordIndex: this.currentWordIndex,
-        totalWords: this.currentTotalWords,
-        profile: profile.name,
-        carrierFreq,
-        sentiment: this.currentSentiment,
-        tone: this.currentTone,
-      };
-    } else {
-      // Synthetic acoustic fallback for headless / server / isolated canvas
-      if (!this.voiceFrequencyData) this.voiceFrequencyData = new Uint8Array(128);
-      if (!this.voiceWaveformData) this.voiceWaveformData = new Uint8Array(256);
-
-      this.voiceSynthTime += 0.06;
-      const t = this.voiceSynthTime;
-      const voiceVol = this.isVoiceSpeaking ? (0.35 + Math.sin(t * 4.2) * 0.25) : 0;
-
-      for (let i = 0; i < this.voiceWaveformData.length; i++) {
-        const wave = Math.sin(t * 12 + i * 0.14) * 55 * voiceVol + Math.cos(t * 5 + i * 0.28) * 30 * voiceVol;
-        this.voiceWaveformData[i] = Math.max(0, Math.min(255, Math.floor(128 + wave)));
-      }
-      for (let i = 0; i < this.voiceFrequencyData.length; i++) {
-        const freqVal = (Math.sin(t * 3.5 + i * 0.18) * 0.5 + 0.5) * 210 * voiceVol;
-        this.voiceFrequencyData[i] = Math.floor(freqVal);
-      }
-
-      return {
-        volume: voiceVol,
-        frequencyData: this.voiceFrequencyData,
-        waveformData: this.voiceWaveformData,
-        isSpeaking: this.isVoiceSpeaking,
-        activeText: this.currentSpokenText,
-        activeWord: this.currentActiveWord,
-        wordIndex: this.currentWordIndex,
-        totalWords: this.currentTotalWords,
-        profile: profile.name,
-        carrierFreq,
-        sentiment: this.currentSentiment,
-        tone: this.currentTone,
-      };
-    }
+    return {
+      volume: 0,
+      frequencyData: this.voiceFrequencyData,
+      waveformData: this.voiceWaveformData,
+      isSpeaking: this.isVoiceSpeaking,
+      activeText: this.currentSpokenText,
+      activeWord: this.currentActiveWord,
+      wordIndex: this.currentWordIndex,
+      totalWords: this.currentTotalWords,
+      profile: profile.name,
+      carrierFreq: profile.carrierFreq,
+      sentiment: this.currentSentiment,
+      tone: this.currentTone,
+    };
   }
 
   public isAiSpeaking(): boolean {
@@ -552,10 +414,13 @@ export class AudioVoiceService {
       this.micSourceNode = null;
     }
     if (this.recognition) {
-      try {
-        this.recognition.abort();
-      } catch {}
+      try { this.recognition.abort(); } catch {}
       this.isRecognizing = false;
+      this.recognition = null;
+    }
+    if (this.recognitionRestartTimer) {
+      clearTimeout(this.recognitionRestartTimer);
+      this.recognitionRestartTimer = null;
     }
     this.isMicActive = false;
     this.notifyMicChange(false, 0);
@@ -633,10 +498,7 @@ export class AudioVoiceService {
           }
         }
         if (final) {
-          const eventName = mapSpeechToEvent(final);
-          if (eventName) {
-            window.dispatchEvent(new CustomEvent(eventName));
-          }
+          // Command dispatch is centralized in HyperTerminal after wake-word and policy checks.
           this.notifyTranscript(final.trim(), true);
         } else if (interim) {
           this.notifyTranscript(interim.trim(), false);
@@ -650,19 +512,10 @@ export class AudioVoiceService {
       };
 
       this.recognition.onend = () => {
-        // Automatically restart speech recognition while mic is active
-        if (this.isMicActive && this.recognition) {
-          try {
-            setTimeout(() => {
-              if (this.isMicActive && this.recognition) {
-                try {
-                  this.recognition.start();
-                } catch {}
-              }
-            }, 100);
-          } catch {}
-        } else {
-          this.isRecognizing = false;
+        this.isRecognizing = false;
+        // Half-duplex by design: do not let TTS feed back into its own recognizer.
+        if (this.isMicActive && this.recognition && !this.isSpeechOutputActive) {
+          this.scheduleRecognitionRestart();
         }
       };
 
@@ -671,6 +524,20 @@ export class AudioVoiceService {
     } catch (e) {
       console.warn('Failed to start SpeechRecognition:', e);
     }
+  }
+
+  private scheduleRecognitionRestart(): void {
+    if (this.recognitionRestartTimer) clearTimeout(this.recognitionRestartTimer);
+    this.recognitionRestartTimer = setTimeout(() => {
+      this.recognitionRestartTimer = null;
+      if (!this.isMicActive || this.isSpeechOutputActive || !this.recognition || this.isRecognizing) return;
+      try {
+        this.recognition.start();
+        this.isRecognizing = true;
+      } catch {
+        // The browser may still be completing the previous recognition session.
+      }
+    }, 180);
   }
 
   public onTranscript(cb: (transcript: string, isFinal: boolean) => void): () => void {
@@ -1017,17 +884,11 @@ export class AudioVoiceService {
       const activeTone = options?.tone || this.currentTone || 'Neutral';
       const activeSentiment = options?.sentiment || this.currentSentiment || 'analytical';
 
-      if (!this.isVoiceEnabled || typeof window === 'undefined' || !('speechSynthesis' in window)) {
-        // Fallback: Still trigger voice audio stream & speech notification for visualizer
-        this.startVoiceAudioStream(text, activeTone, activeSentiment);
-        this.notifySpeech(true, text);
-        this.notifySpeechLog(text);
-        setTimeout(() => {
-          this.stopVoiceAudioStream();
-          this.notifySpeech(false, '');
-          options?.onEnd?.();
-          resolve();
-        }, Math.min(6000, Math.max(1500, text.split(/\s+/).length * 350)));
+      if (!this.isVoiceEnabled || typeof window === 'undefined' || !('speechSynthesis' in window) || typeof SpeechSynthesisUtterance === 'undefined') {
+        // Never report a synthetic oscillator/timer as spoken language.
+        this.notifySpeech(false, '');
+        options?.onEnd?.();
+        resolve();
         return;
       }
 
@@ -1076,10 +937,13 @@ export class AudioVoiceService {
       };
 
       utterance.onstart = () => {
+        this.isSpeechOutputActive = true;
+        if (this.recognition && this.isRecognizing) {
+          try { this.recognition.stop(); } catch {}
+        }
         this.startVoiceAudioStream(cleanText, activeTone, activeSentiment);
         this.notifySpeech(true, cleanText);
         this.notifySpeechLog(cleanText);
-        this.playTone(this.getCurrentProfile().carrierFreq || 528, 'sine', 150, 0.015);
 
         // Fallback word pacer timer if onboundary is not supported by the synthesis engine
         let stepIdx = 0;
@@ -1097,20 +961,17 @@ export class AudioVoiceService {
         }, intervalMs);
       };
 
-      utterance.onend = () => {
+      const finishSpeech = () => {
+        this.isSpeechOutputActive = false;
         this.stopVoiceAudioStream();
         this.notifySpeech(false, '');
         this.touchWakeActivity();
+        if (this.isMicActive && this.recognition) this.scheduleRecognitionRestart();
         options?.onEnd?.();
         resolve();
       };
-
-      utterance.onerror = () => {
-        this.stopVoiceAudioStream();
-        this.notifySpeech(false, '');
-        options?.onEnd?.();
-        resolve();
-      };
+      utterance.onend = finishSpeech;
+      utterance.onerror = finishSpeech;
 
       try {
         window.speechSynthesis.speak(utterance);
@@ -1127,8 +988,10 @@ export class AudioVoiceService {
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       window.speechSynthesis.cancel();
     }
+    this.isSpeechOutputActive = false;
     this.stopVoiceAudioStream();
     this.notifySpeech(false, '');
+    if (this.isMicActive && this.recognition) this.scheduleRecognitionRestart();
   }
 
   public setVoiceEnabled(enabled: boolean): void {
