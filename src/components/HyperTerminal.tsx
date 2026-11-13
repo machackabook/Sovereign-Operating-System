@@ -49,7 +49,7 @@ import {
 } from '../types';
 import { vfs } from '../services/vfsService';
 import { audioVoiceService, parseWakeWord, WakeWordState } from '../services/audioVoiceService';
-import { createCrypticMeshService } from '../services/crypticMeshService';
+import { crypticMeshService } from '../services/crypticMeshService';
 import { ambientAudioService } from '../services/ambientAudioService';
 import { omniNexusService } from '../services/omniNexusService';
 import { exportQuineFile } from '../services/quineService';
@@ -114,10 +114,6 @@ import { sovereignMerkleZkService } from '../services/sovereignMerkleZkService';
 import { sdrDemodulatorBridge } from '../services/sdrDemodulatorBridge';
 import { wirelessBeaconBridge } from '../services/wirelessBeaconBridge';
 import { bluetoothDeviceManager } from '../services/bluetoothDeviceManager';
-
-const crypticMeshService = createCrypticMeshService({
-  baseUrl: import.meta.env.VITE_CRYPTIC_MESH_URL || 'https://cryptic-sos-mesh.saytyarnornglorei.workers.dev',
-});
 
 interface HyperTerminalProps {
   envState: EnvironmentState;
