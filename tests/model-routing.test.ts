@@ -176,3 +176,8 @@ test("holds when remote processing is disabled even for public data", () => {
   });
   assert.equal(result.status, "hold");
 });
+test("holds malformed endpoint telemetry instead of throwing", () => {
+  const malformed = { ...endpoint(), metric: undefined } as unknown as ModelEndpointObservation;
+  const result = selectModelEndpoint([malformed], request);
+  assert.equal(result.status, "hold");
+});
