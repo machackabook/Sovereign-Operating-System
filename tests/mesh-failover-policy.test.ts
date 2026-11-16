@@ -36,6 +36,7 @@ const request: MeshWorkloadRequest = {
   idempotencyKey: "idem-001",
   capability: "hash.compute",
   algorithmId: "sha256",
+  requiredApiVersion: "1",
   requiredConcurrency: 1,
   requiredMemoryBytes: 1000,
   preferredLaneId: "lane-q1-01",
@@ -53,8 +54,9 @@ test("keeps the preferred lane when every admission gate passes", () => {
   }
 });
 
-test("fails over to a verified peer when the preferred lane is unavailable", () => {
+test("fails over to a verified peer in a different failure domain", () => {
   const failed = lane({ laneId: "lane-q1-01", health: "unavailable" });
+  const sameHost = lane({ laneId: "lane-q1-02", health: "healthy" });
   const peer = lane({
     laneId: "lane-q2-04",
     deviceId: "device-b",
@@ -67,11 +69,12 @@ test("fails over to a verified peer when the preferred lane is unavailable", () 
       observedAtMonotonicMs: now - 80,
     }],
   });
-  const result = selectExecutionLane([failed, peer], request);
+  const result = selectExecutionLane([failed, sameHost, peer], request);
   assert.equal(result.status, "selected");
   if (result.status === "selected") {
     assert.equal(result.route, "failover");
     assert.equal(result.lane.laneId, "lane-q2-04");
+    assert.notEqual(result.lane.failureDomain, failed.failureDomain);
   }
 });
 
@@ -100,7 +103,6 @@ test("holds when integrity or receipt-chain verification is unknown", () => {
 test("does not fail over into an excluded failure domain", () => {
   const peer = lane({
     laneId: "lane-q2-04",
-    health: "healthy",
     failureDomain: "host-b",
   });
   const result = selectExecutionLane([peer], {
@@ -108,6 +110,12 @@ test("does not fail over into an excluded failure domain", () => {
     preferredLaneId: "missing-primary",
     excludedFailureDomains: ["host-b"],
   });
+  assert.equal(result.status, "hold");
+});
+
+test("rejects incompatible manifest API versions", () => {
+  const incompatible = lane({ manifestApiVersion: "2" });
+  const result = selectExecutionLane([incompatible], request);
   assert.equal(result.status, "hold");
 });
 
