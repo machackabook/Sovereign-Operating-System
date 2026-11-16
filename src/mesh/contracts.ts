@@ -13,6 +13,7 @@ export interface MeasuredAlgorithmMetric {
   algorithmId: string;
   operationsPerSecond: number;
   latencyMs: number;
+  /** Timestamp from the coordinator's monotonic clock, not a remote wall clock. */
   observedAtMonotonicMs: number;
 }
 
@@ -40,6 +41,7 @@ export interface MeshWorkloadRequest {
   idempotencyKey: string;
   capability: string;
   algorithmId: string;
+  requiredApiVersion: string;
   requiredConcurrency: number;
   requiredMemoryBytes: number;
   preferredLaneId?: string;
