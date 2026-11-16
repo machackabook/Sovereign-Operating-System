@@ -30,6 +30,8 @@ jobs:
         run: npm run check:html
       - name: Test Access assertion forwarding
         run: npm run test:mesh
+      - name: Test mesh lane admission and node update policy
+        run: npm run test:mesh-policy
       - name: Test speech recognition helpers
         run: npm run test:audio
       - name: Test protected-path identity gate

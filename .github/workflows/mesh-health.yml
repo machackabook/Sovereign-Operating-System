@@ -1,0 +1,56 @@
+name: GAIA Mesh Health
+on:
+  push:
+    branches:
+      - "**"
+    paths:
+      - "src/mesh/**"
+      - "src/ai/**"
+      - "tests/**"
+      - "docs/AI-STUDIO-MODEL-ARTIFACT-AND-SCALING.md"
+      - "package.json"
+      - "bun.lock"
+      - ".github/workflows/mesh-health.yml"
+  pull_request:
+    paths:
+      - "src/mesh/**"
+      - "src/ai/**"
+      - "tests/**"
+      - "package.json"
+      - "bun.lock"
+      - ".github/workflows/mesh-health.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: gaia-mesh-health-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+      - name: Install locked dependencies
+        run: bun install --frozen-lockfile
+      - name: TypeScript validation
+        run: bun run lint
+      - name: Mesh and staged-update policy tests
+        run: bun run test:mesh-policy
+      - name: Model routing policy tests
+        run: bun run test:model-routing
+      - name: Cryptic portal contract tests
+        run: bun run test:mesh
+      - name: Security regression tests
+        run: bun run test:security
+      - name: Audio and command mapping tests
+        run: bun run test:audio
+      - name: Inline HTML validation
+        run: bun run check:html
+      - name: ABDA pipeline checks
+        run: bun run abda:check
+      - name: Production build
+        run: bun run build
