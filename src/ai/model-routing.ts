@@ -79,8 +79,10 @@ function finiteNonNegative(value: number): boolean {
 }
 
 function validLocalArtifact(artifact: ModelArtifactManifest | undefined): boolean {
+  const formats: readonly string[] = ["gguf", "safetensors", "litert", "tflite", "onnx"];
   return !!artifact &&
     /^[a-f0-9]{64}$/i.test(artifact.sha256) &&
+    formats.includes(artifact.format) &&
     typeof artifact.licenseId === "string" &&
     artifact.licenseId.trim().length > 0 &&
     typeof artifact.quantization === "string" &&
@@ -91,24 +93,37 @@ function validLocalArtifact(artifact: ModelArtifactManifest | undefined): boolea
 }
 
 function validEndpointEnvelope(endpoint: ModelEndpointObservation): boolean {
+  if (!endpoint || typeof endpoint !== "object" ||
+      !endpoint.metric || typeof endpoint.metric !== "object") return false;
+
+  const metric = endpoint.metric;
   return typeof endpoint.endpointId === "string" && endpoint.endpointId.trim().length > 0 &&
+    (endpoint.provider === "gemini-api" || endpoint.provider === "local-open-weight") &&
     typeof endpoint.modelId === "string" && endpoint.modelId.trim().length > 0 &&
     typeof endpoint.modelRevision === "string" && endpoint.modelRevision.trim().length > 0 &&
     typeof endpoint.failureDomain === "string" && endpoint.failureDomain.trim().length > 0 &&
+    (endpoint.health === "healthy" || endpoint.health === "degraded" ||
+      endpoint.health === "unavailable" || endpoint.health === "unknown") &&
+    typeof endpoint.warm === "boolean" &&
     Number.isInteger(endpoint.maxContextTokens) && endpoint.maxContextTokens > 0 &&
     Number.isInteger(endpoint.maxConcurrency) && endpoint.maxConcurrency > 0 &&
     Number.isInteger(endpoint.availableConcurrency) && endpoint.availableConcurrency >= 0 &&
     finiteNonNegative(endpoint.availableMemoryBytes) &&
-    Array.isArray(endpoint.capabilities);
+    Array.isArray(endpoint.capabilities) &&
+    endpoint.capabilities.every((capability) => typeof capability === "string") &&
+    finiteNonNegative(metric.tokensPerSecond) &&
+    finiteNonNegative(metric.timeToFirstTokenMs) &&
+    Number.isInteger(metric.queueDepth) && metric.queueDepth >= 0 &&
+    Number.isFinite(metric.observedAtMonotonicMs);
 }
 
 function eligible(
   endpoint: ModelEndpointObservation,
   request: ModelRoutingRequest,
 ): boolean {
+  if (!validEndpointEnvelope(endpoint)) return false;
   const metric = endpoint.metric;
   const metricFresh =
-    Number.isFinite(metric.observedAtMonotonicMs) &&
     metric.observedAtMonotonicMs <= request.nowMonotonicMs &&
     request.nowMonotonicMs - metric.observedAtMonotonicMs <= request.maxMetricAgeMs;
 
@@ -120,8 +135,7 @@ function eligible(
   const artifactAllowed =
     endpoint.provider !== "local-open-weight" || validLocalArtifact(endpoint.artifact);
 
-  return validEndpointEnvelope(endpoint) &&
-    endpoint.health === "healthy" &&
+  return endpoint.health === "healthy" &&
     endpoint.manifestVerified === true &&
     privacyAllowed &&
     artifactAllowed &&
@@ -169,7 +183,7 @@ export function selectModelEndpoint(
 
   for (const endpoint of endpoints) {
     if (eligible(endpoint, request)) candidates.push(endpoint);
-    else rejected.push(endpoint.endpointId || "<invalid-endpoint>");
+    else rejected.push(endpoint?.endpointId || "<invalid-endpoint>");
   }
 
   const preferred = request.preferredEndpointId
