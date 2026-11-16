@@ -1,6 +1,7 @@
 /**
- * AudioVoiceService - Real-time Web Audio, 963Hz Oscillator, Audio Analyser,
- * Microphone Stream Input & Speech Recognition for Voice Commands
+ * AudioVoiceService - Device-native speech synthesis and recognition, microphone
+ * input, accessible earcons, and optional ambient audio. TTS audio is never
+ * duplicated by a synthetic carrier oscillator.
  */
 
 export interface MicrophoneAudioData {
@@ -20,7 +21,9 @@ export interface VoiceAudioData {
   wordIndex: number;
   totalWords: number;
   profile: string;
-  carrierFreq: number;
+  carrierFreq: number | null;
+  /** False means the browser TTS engine exposes speech state but not raw output samples. */
+  samplesAvailable: boolean;
   sentiment?: string;
   tone?: string;
 }
@@ -92,7 +95,6 @@ export function parseWakeWord(text: string): WakeWordParseResult {
   };
 }
 
-import { mapSpeechToEvent } from './speechCommandMapper';
 
 export class AudioVoiceService {
   private audioCtx: AudioContext | null = null;
@@ -102,8 +104,8 @@ export class AudioVoiceService {
   private frequencyData: Uint8Array | null = null;
   private is963Active = false;
   private isVoiceEnabled = true;
-  private pitch = 1.15;
-  private rate = 1.02;
+  private pitch = 1.0;
+  private rate = 1.0;
   private selectedVoice: SpeechSynthesisVoice | null = null;
   private speechListeners: ((speaking: boolean, text: string) => void)[] = [];
   private speechLogListeners: ((text: string) => void)[] = [];
@@ -138,13 +140,36 @@ export class AudioVoiceService {
   private micListeners: ((active: boolean, level: number) => void)[] = [];
   private recognition: any = null;
   private isRecognizing = false;
+  private isSpeechOutputActive = false;
+  private speechGeneration = 0;
+  private activeSpeechCancel: (() => void) | null = null;
+  private recognitionRestartTimer: ReturnType<typeof setTimeout> | null = null;
   private transcriptListeners: ((transcript: string, isFinal: boolean) => void)[] = [];
+
+  private static readonly PROFILE_STORAGE_KEY = 'gaia_voice_profile_v1';
+  private static readonly VOICE_STORAGE_KEY = 'gaia_system_voice_uri_v1';
+  private static readonly TUNING_STORAGE_KEY = 'gaia_voice_tuning_v1';
 
   constructor() {
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      window.speechSynthesis.onvoiceschanged = () => {
-        this.loadVoice();
-      };
+      window.speechSynthesis.addEventListener('voiceschanged', () => this.loadVoice());
+      try {
+        const savedProfile = window.localStorage.getItem(AudioVoiceService.PROFILE_STORAGE_KEY);
+        const profile = savedProfile ? AudioVoiceService.PROFILES[savedProfile] : null;
+        if (profile) {
+          this.currentProfileId = profile.id;
+          this.pitch = profile.pitch;
+          this.rate = profile.rate;
+        }
+        const tuning = window.localStorage.getItem(AudioVoiceService.TUNING_STORAGE_KEY);
+        if (tuning) {
+          const parsed = JSON.parse(tuning);
+          if (Number.isFinite(parsed.pitch)) this.pitch = Math.max(0.5, Math.min(2, parsed.pitch));
+          if (Number.isFinite(parsed.rate)) this.rate = Math.max(0.5, Math.min(2, parsed.rate));
+        }
+      } catch {
+        // Preferences are device-local and optional; defaults remain usable.
+      }
       this.loadVoice();
     }
   }
@@ -152,36 +177,31 @@ export class AudioVoiceService {
   private loadVoice(): void {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
     const voices = window.speechSynthesis.getVoices();
-    // Prioritize high-quality English female natural voices
-    const femaleVoice = voices.find(
-      (v) =>
-        v.lang.startsWith('en') &&
-        (v.name.toLowerCase().includes('female') ||
-          v.name.toLowerCase().includes('zira') ||
-          v.name.toLowerCase().includes('samantha') ||
-          v.name.toLowerCase().includes('victoria') ||
-          v.name.toLowerCase().includes('karen') ||
-          v.name.toLowerCase().includes('ava') ||
-          v.name.toLowerCase().includes('jenny') ||
-          v.name.toLowerCase().includes('sonia') ||
-          v.name.toLowerCase().includes('allison') ||
-          v.name.toLowerCase().includes('susan') ||
-          v.name.toLowerCase().includes('fiona'))
-    );
+    if (!voices.length) return;
+    let savedVoiceURI = '';
+    try { savedVoiceURI = window.localStorage.getItem(AudioVoiceService.VOICE_STORAGE_KEY) || ''; } catch {}
+    const saved = savedVoiceURI ? voices.find(v => v.voiceURI === savedVoiceURI) : undefined;
+    const locale = typeof navigator !== 'undefined' ? navigator.language.toLowerCase() : '';
+    const localeVoice = voices.find(v => v.lang.toLowerCase() === locale);
+    const languageVoice = voices.find(v => locale && v.lang.toLowerCase().startsWith(locale.split('-')[0]));
+    this.selectedVoice = saved || localeVoice || languageVoice || voices.find(v => v.default) || voices[0];
+  }
 
-    const preferred =
-      femaleVoice ||
-      voices.find(
-        (v) =>
-          v.lang.startsWith('en') &&
-          (v.name.includes('Google') || v.name.includes('Natural') || v.name.includes('Neural'))
-      ) ||
-      voices.find((v) => v.lang.startsWith('en')) ||
-      voices[0];
+  public getAvailableVoices(): SpeechSynthesisVoice[] {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return [];
+    return window.speechSynthesis.getVoices();
+  }
 
-    if (preferred) {
-      this.selectedVoice = preferred;
-    }
+  public getSelectedVoiceURI(): string {
+    return this.selectedVoice?.voiceURI || '';
+  }
+
+  public setSystemVoice(voiceURI: string): boolean {
+    const voice = this.getAvailableVoices().find(v => v.voiceURI === voiceURI);
+    if (!voice) return false;
+    this.selectedVoice = voice;
+    try { window.localStorage.setItem(AudioVoiceService.VOICE_STORAGE_KEY, voice.voiceURI); } catch {}
+    return true;
   }
 
   public initContext(): AudioContext {
@@ -265,104 +285,22 @@ export class AudioVoiceService {
     return this.voiceAnalyser;
   }
 
+  /**
+   * Track the browser's real SpeechSynthesis events for captions and word focus.
+   * SpeechSynthesis output cannot be routed back into Web Audio on all browsers,
+   * so this method deliberately does not synthesize a second audible oscillator.
+   */
   public startVoiceAudioStream(text: string, tone = 'Neutral', sentiment = 'analytical'): void {
-    const ctx = this.initContext();
-    const analyser = this.initVoiceAnalyser();
+    this.stopVoiceAudioStream();
     this.isVoiceSpeaking = true;
     this.currentSpokenText = text;
     this.currentTone = tone;
     this.currentSentiment = sentiment;
     this.voiceSynthTime = 0;
-
     const words = text.split(/\s+/).filter(Boolean);
     this.currentTotalWords = words.length;
     this.currentWordIndex = 0;
     this.currentActiveWord = words[0] || '';
-
-    const profile = this.getCurrentProfile();
-    const carrier = profile?.carrierFreq || 432;
-
-    try {
-      this.stopVoiceAudioStream();
-
-      // Create carrier oscillator and dual resonant formant filters
-      const osc = ctx.createOscillator();
-      const formant1 = ctx.createBiquadFilter();
-      const formant2 = ctx.createBiquadFilter();
-      const gain = ctx.createGain();
-
-      osc.type = profile?.oscillatorType || 'sawtooth';
-      osc.frequency.setValueAtTime(carrier * (this.pitch || 1.0), ctx.currentTime);
-
-      formant1.type = 'bandpass';
-      formant1.frequency.setValueAtTime(800, ctx.currentTime);
-      formant1.Q.setValueAtTime(3.0, ctx.currentTime);
-
-      formant2.type = 'bandpass';
-      formant2.frequency.setValueAtTime(2200, ctx.currentTime);
-      formant2.Q.setValueAtTime(4.0, ctx.currentTime);
-
-      // Subtle vocal presence gain
-      gain.gain.setValueAtTime(0.0001, ctx.currentTime);
-      gain.gain.linearRampToValueAtTime(0.02, ctx.currentTime + 0.08);
-
-      osc.connect(formant1);
-      formant1.connect(formant2);
-      formant2.connect(gain);
-
-      // Connect to voice analyser & master analyser
-      gain.connect(analyser);
-      if (this.analyser) {
-        gain.connect(this.analyser);
-      }
-      // Connect to audio destination at subtle level
-      gain.connect(ctx.destination);
-
-      osc.start();
-
-      this.voiceCarrierOsc = osc;
-      this.voiceFormantFilter = formant1;
-      this.voiceCarrierGain = gain;
-
-      // Modulation loop to simulate human formant movement across phonemes
-      let step = 0;
-      const totalWords = Math.max(1, words.length);
-
-      if (this.voiceAnimTimer) clearInterval(this.voiceAnimTimer);
-      this.voiceAnimTimer = setInterval(() => {
-        if (!this.isVoiceSpeaking || !this.voiceCarrierOsc || !this.voiceCarrierGain || !this.voiceFormantFilter) {
-          if (this.voiceAnimTimer) clearInterval(this.voiceAnimTimer);
-          return;
-        }
-
-        step++;
-        this.voiceSynthTime += 0.05;
-        const now = ctx.currentTime;
-        const wIndex = Math.min(Math.floor(step / 5), totalWords - 1);
-        const currentWord = words[wIndex] || 'voice';
-
-        if (wIndex !== this.currentWordIndex) {
-          this.currentWordIndex = wIndex;
-          this.currentActiveWord = currentWord;
-          this.notifyWord(currentWord, wIndex, totalWords);
-        }
-
-        // Modulate formant filter based on vowel sounds in active word
-        const vowels = (currentWord.match(/[aeiou]/gi) || []).length;
-        const baseF1 = 450 + (vowels % 4) * 280 + Math.sin(step * 0.4) * 120;
-        const targetPitch = carrier * (this.pitch || 1.0) * (1 + Math.sin(step * 0.25) * 0.08);
-
-        this.voiceCarrierOsc.frequency.setTargetAtTime(targetPitch, now, 0.04);
-        this.voiceFormantFilter.frequency.setTargetAtTime(baseF1, now, 0.05);
-
-        // Syllable volume envelope dip and rise
-        const syllableVol = 0.012 + Math.abs(Math.sin(step * 0.6)) * 0.016;
-        this.voiceCarrierGain.gain.setTargetAtTime(syllableVol, now, 0.03);
-      }, 50);
-
-    } catch (e) {
-      console.warn('Voice Web Audio stream initialization note:', e);
-    }
   }
 
   public stopVoiceAudioStream(): void {
@@ -370,97 +308,41 @@ export class AudioVoiceService {
       clearInterval(this.voiceAnimTimer);
       this.voiceAnimTimer = null;
     }
-
-    if (this.voiceCarrierGain && this.audioCtx) {
-      try {
-        this.voiceCarrierGain.gain.setTargetAtTime(0.0001, this.audioCtx.currentTime, 0.05);
-      } catch {}
+    if (this.wordPacerTimer) {
+      clearInterval(this.wordPacerTimer);
+      this.wordPacerTimer = null;
     }
-
-    if (this.voiceCarrierOsc) {
-      try {
-        this.voiceCarrierOsc.stop(this.audioCtx ? this.audioCtx.currentTime + 0.08 : 0);
-        this.voiceCarrierOsc.disconnect();
-      } catch {}
-      this.voiceCarrierOsc = null;
-    }
-
-    this.voiceFormantFilter = null;
-    this.voiceCarrierGain = null;
     this.isVoiceSpeaking = false;
     this.currentSpokenText = '';
     this.currentActiveWord = '';
     this.currentWordIndex = 0;
+    this.currentTotalWords = 0;
   }
 
   public getVoiceAudioData(): VoiceAudioData | null {
-    if (!this.isVoiceSpeaking && !this.isMicActive) {
-      return null;
-    }
-
+    if (!this.isVoiceSpeaking && !this.isMicActive) return null;
+    // Browser TTS owns the actual output. Expose real speech/word state without
+    // inventing a second oscillator waveform that does not match the spoken audio.
+    if (!this.voiceFrequencyData) this.voiceFrequencyData = new Uint8Array(128);
+    if (!this.voiceWaveformData) this.voiceWaveformData = new Uint8Array(256);
+    this.voiceFrequencyData.fill(0);
+    this.voiceWaveformData.fill(128);
     const profile = this.getCurrentProfile();
-    const carrierFreq = profile?.carrierFreq || 432;
-
-    if (this.voiceAnalyser && this.voiceFrequencyData && this.voiceWaveformData) {
-      (this.voiceAnalyser as any).getByteFrequencyData(this.voiceFrequencyData);
-      (this.voiceAnalyser as any).getByteTimeDomainData(this.voiceWaveformData);
-
-      // Compute RMS volume
-      let sum = 0;
-      for (let i = 0; i < this.voiceWaveformData.length; i++) {
-        const norm = (this.voiceWaveformData[i] - 128) / 128;
-        sum += norm * norm;
-      }
-      const rms = Math.sqrt(sum / this.voiceWaveformData.length);
-      const volume = Math.min(1.0, rms * 5.2);
-
-      return {
-        volume,
-        frequencyData: this.voiceFrequencyData,
-        waveformData: this.voiceWaveformData,
-        isSpeaking: this.isVoiceSpeaking,
-        activeText: this.currentSpokenText,
-        activeWord: this.currentActiveWord,
-        wordIndex: this.currentWordIndex,
-        totalWords: this.currentTotalWords,
-        profile: profile.name,
-        carrierFreq,
-        sentiment: this.currentSentiment,
-        tone: this.currentTone,
-      };
-    } else {
-      // Synthetic acoustic fallback for headless / server / isolated canvas
-      if (!this.voiceFrequencyData) this.voiceFrequencyData = new Uint8Array(128);
-      if (!this.voiceWaveformData) this.voiceWaveformData = new Uint8Array(256);
-
-      this.voiceSynthTime += 0.06;
-      const t = this.voiceSynthTime;
-      const voiceVol = this.isVoiceSpeaking ? (0.35 + Math.sin(t * 4.2) * 0.25) : 0;
-
-      for (let i = 0; i < this.voiceWaveformData.length; i++) {
-        const wave = Math.sin(t * 12 + i * 0.14) * 55 * voiceVol + Math.cos(t * 5 + i * 0.28) * 30 * voiceVol;
-        this.voiceWaveformData[i] = Math.max(0, Math.min(255, Math.floor(128 + wave)));
-      }
-      for (let i = 0; i < this.voiceFrequencyData.length; i++) {
-        const freqVal = (Math.sin(t * 3.5 + i * 0.18) * 0.5 + 0.5) * 210 * voiceVol;
-        this.voiceFrequencyData[i] = Math.floor(freqVal);
-      }
-
-      return {
-        volume: voiceVol,
-        frequencyData: this.voiceFrequencyData,
-        waveformData: this.voiceWaveformData,
-        isSpeaking: this.isVoiceSpeaking,
-        activeText: this.currentSpokenText,
-        activeWord: this.currentActiveWord,
-        wordIndex: this.currentWordIndex,
-        totalWords: this.currentTotalWords,
-        profile: profile.name,
-        carrierFreq,
-        sentiment: this.currentSentiment,
-        tone: this.currentTone,
-      };
-    }
+    return {
+      volume: 0,
+      frequencyData: this.voiceFrequencyData,
+      waveformData: this.voiceWaveformData,
+      isSpeaking: this.isVoiceSpeaking,
+      activeText: this.currentSpokenText,
+      activeWord: this.currentActiveWord,
+      wordIndex: this.currentWordIndex,
+      totalWords: this.currentTotalWords,
+      profile: profile.name,
+      carrierFreq: null,
+      samplesAvailable: false,
+      sentiment: this.currentSentiment,
+      tone: this.currentTone,
+    };
   }
 
   public isAiSpeaking(): boolean {
@@ -504,9 +386,8 @@ export class AudioVoiceService {
 
 
   public async startMicrophone(): Promise<boolean> {
-    const ctx = this.initContext();
-
     try {
+      const ctx = this.initContext();
       if (typeof navigator !== 'undefined' && navigator.mediaDevices?.getUserMedia) {
         const stream = await navigator.mediaDevices.getUserMedia({
           audio: {
@@ -552,10 +433,13 @@ export class AudioVoiceService {
       this.micSourceNode = null;
     }
     if (this.recognition) {
-      try {
-        this.recognition.abort();
-      } catch {}
+      try { this.recognition.abort(); } catch {}
       this.isRecognizing = false;
+      this.recognition = null;
+    }
+    if (this.recognitionRestartTimer) {
+      clearTimeout(this.recognitionRestartTimer);
+      this.recognitionRestartTimer = null;
     }
     this.isMicActive = false;
     this.notifyMicChange(false, 0);
@@ -633,10 +517,7 @@ export class AudioVoiceService {
           }
         }
         if (final) {
-          const eventName = mapSpeechToEvent(final);
-          if (eventName) {
-            window.dispatchEvent(new CustomEvent(eventName));
-          }
+          // Command dispatch is centralized in HyperTerminal after wake-word and policy checks.
           this.notifyTranscript(final.trim(), true);
         } else if (interim) {
           this.notifyTranscript(interim.trim(), false);
@@ -650,19 +531,10 @@ export class AudioVoiceService {
       };
 
       this.recognition.onend = () => {
-        // Automatically restart speech recognition while mic is active
-        if (this.isMicActive && this.recognition) {
-          try {
-            setTimeout(() => {
-              if (this.isMicActive && this.recognition) {
-                try {
-                  this.recognition.start();
-                } catch {}
-              }
-            }, 100);
-          } catch {}
-        } else {
-          this.isRecognizing = false;
+        this.isRecognizing = false;
+        // Half-duplex by design: do not let TTS feed back into its own recognizer.
+        if (this.isMicActive && this.recognition && !this.isSpeechOutputActive) {
+          this.scheduleRecognitionRestart();
         }
       };
 
@@ -671,6 +543,20 @@ export class AudioVoiceService {
     } catch (e) {
       console.warn('Failed to start SpeechRecognition:', e);
     }
+  }
+
+  private scheduleRecognitionRestart(): void {
+    if (this.recognitionRestartTimer) clearTimeout(this.recognitionRestartTimer);
+    this.recognitionRestartTimer = setTimeout(() => {
+      this.recognitionRestartTimer = null;
+      if (!this.isMicActive || this.isSpeechOutputActive || !this.recognition || this.isRecognizing) return;
+      try {
+        this.recognition.start();
+        this.isRecognizing = true;
+      } catch {
+        // The browser may still be completing the previous recognition session.
+      }
+    }, 180);
   }
 
   public onTranscript(cb: (transcript: string, isFinal: boolean) => void): () => void {
@@ -781,7 +667,7 @@ export class AudioVoiceService {
   // VOICE PROFILES & ACCESSIBILITY SUBSYSTEM
   // =========================================================================
 
-  private currentProfileId = 'gemini_female';
+  private currentProfileId = 'natch';
   private announcerListeners: ((message: string, assertive: boolean) => void)[] = [];
 
   public static readonly PROFILES: Record<string, VoiceProfile> = {
@@ -791,17 +677,17 @@ export class AudioVoiceService {
       pitch: 1.0,
       rate: 1.0,
       carrierFreq: 432,
-      description: 'Organic, grounded human conversational tone with natural acoustic cadence for system inspection',
+      description: 'Natural conversational cadence with balanced pitch and rate for system inspection',
       style: 'from-amber-400 to-emerald-400',
       oscillatorType: 'sine',
     },
     gemini_female: {
       id: 'gemini_female',
-      name: 'Gemini Neural (Female)',
+      name: 'Gemini Neural',
       pitch: 1.15,
       rate: 1.02,
       carrierFreq: 528,
-      description: 'Natural interactive female neural voice with 528Hz Solfeggio carrier, tuned for conversational flow',
+      description: 'Default conversational pitch and rate preset; the selected device voice provides the actual sound',
       style: 'from-fuchsia-400 to-cyan-400',
       oscillatorType: 'sine',
     },
@@ -811,7 +697,7 @@ export class AudioVoiceService {
       pitch: 1.02,
       rate: 0.92,
       carrierFreq: 432,
-      description: 'Organic, soothing Earth harmonic resonance tuned to 432Hz verdant frequency',
+      description: 'Slower, measured cadence preset for calm explanations',
       style: 'from-emerald-400 to-amber-300',
       oscillatorType: 'sine',
     },
@@ -821,7 +707,7 @@ export class AudioVoiceService {
       pitch: 0.82,
       rate: 1.25,
       carrierFreq: 963,
-      description: 'Accelerated high-tech vocoder cadence tuned for computational & cyberpunk analysis',
+      description: 'Faster cadence preset for concise technical status and diagnostics',
       style: 'from-cyan-400 to-fuchsia-500',
       oscillatorType: 'sawtooth',
     },
@@ -831,7 +717,7 @@ export class AudioVoiceService {
       pitch: 0.95,
       rate: 1.05,
       carrierFreq: 432,
-      description: 'Balanced, authoritative neural voice with subtle harmonic undertones',
+      description: 'Balanced pitch and cadence preset for general terminal responses',
       style: 'from-cyan-400 to-blue-500',
       oscillatorType: 'triangle',
     },
@@ -841,7 +727,7 @@ export class AudioVoiceService {
       pitch: 1.3,
       rate: 0.95,
       carrierFreq: 528,
-      description: 'Ethereal, high-frequency resonance with shimmering spatial reflections',
+      description: 'Slightly higher-pitch preset with measured pacing for exploratory explanations',
       style: 'from-purple-400 to-pink-500',
       oscillatorType: 'sine',
     },
@@ -851,7 +737,7 @@ export class AudioVoiceService {
       pitch: 0.75,
       rate: 1.25,
       carrierFreq: 963,
-      description: 'Accelerated robotic vocoder cadence engineered for high-throughput syntax',
+      description: 'Lower-pitch, faster cadence preset for dense technical output',
       style: 'from-emerald-400 to-cyan-400',
       oscillatorType: 'sawtooth',
     },
@@ -861,7 +747,7 @@ export class AudioVoiceService {
       pitch: 1.0,
       rate: 0.82,
       carrierFreq: 639,
-      description: 'Warm, meditative stasis cadence calibrated to Solfeggio heart resonance',
+      description: 'Warm, slower cadence preset for longer explanations',
       style: 'from-amber-400 to-rose-400',
       oscillatorType: 'sine',
     },
@@ -871,7 +757,7 @@ export class AudioVoiceService {
       pitch: 1.45,
       rate: 1.3,
       carrierFreq: 852,
-      description: 'Staccato, urgent alert cadence for anomalies and critical alarms',
+      description: 'Short, clear alert cadence preset for important status messages',
       style: 'from-red-500 to-amber-500',
       oscillatorType: 'square',
     },
@@ -899,7 +785,8 @@ export class AudioVoiceService {
       this.currentProfileId = profile.id;
       this.pitch = profile.pitch;
       this.rate = profile.rate;
-      this.playTone(profile.carrierFreq, 'sine', 150, 0.03);
+      try { window.localStorage.setItem(AudioVoiceService.PROFILE_STORAGE_KEY, profile.id); } catch {}
+      try { window.localStorage.setItem(AudioVoiceService.TUNING_STORAGE_KEY, JSON.stringify({ pitch: this.pitch, rate: this.rate })); } catch {}
       return profile;
     }
     return null;
@@ -1007,33 +894,27 @@ export class AudioVoiceService {
     }
   ): Promise<void> {
     return new Promise((resolve) => {
-      // If profile is passed, set it
-      if (options?.profile) {
-        this.setVoiceProfile(options.profile);
-      }
+      const previousCancel = this.activeSpeechCancel;
+      this.activeSpeechCancel = null;
+      if (previousCancel) previousCancel();
+      const generation = ++this.speechGeneration;
 
+      if (options?.profile) this.setVoiceProfile(options.profile);
       const activePitch = options?.pitch ?? this.pitch;
       const activeRate = options?.rate ?? this.rate;
       const activeTone = options?.tone || this.currentTone || 'Neutral';
       const activeSentiment = options?.sentiment || this.currentSentiment || 'analytical';
 
-      if (!this.isVoiceEnabled || typeof window === 'undefined' || !('speechSynthesis' in window)) {
-        // Fallback: Still trigger voice audio stream & speech notification for visualizer
-        this.startVoiceAudioStream(text, activeTone, activeSentiment);
-        this.notifySpeech(true, text);
-        this.notifySpeechLog(text);
-        setTimeout(() => {
-          this.stopVoiceAudioStream();
-          this.notifySpeech(false, '');
-          options?.onEnd?.();
-          resolve();
-        }, Math.min(6000, Math.max(1500, text.split(/\s+/).length * 350)));
+      if (!this.isVoiceEnabled || typeof window === 'undefined' || !('speechSynthesis' in window) || typeof SpeechSynthesisUtterance === 'undefined') {
+        this.isSpeechOutputActive = false;
+        this.stopVoiceAudioStream();
+        this.notifySpeech(false, '');
+        options?.onEnd?.();
+        resolve();
         return;
       }
 
       window.speechSynthesis.cancel();
-
-      // Clean markdown tags or code blocks for speech
       const cleanText = text
         .replace(/```[\s\S]*?```/g, 'Code block omitted.')
         .replace(/`([^`]+)`/g, '$1')
@@ -1043,92 +924,93 @@ export class AudioVoiceService {
       if (!cleanText) {
         this.notifySpeech(false, '');
         options?.onEnd?.();
-        return resolve();
+        resolve();
+        return;
       }
 
       const words = cleanText.split(/\s+/).filter(Boolean);
       const utterance = new SpeechSynthesisUtterance(cleanText);
-      if (this.selectedVoice) utterance.voice = this.selectedVoice;
+      if (this.selectedVoice) {
+        utterance.voice = this.selectedVoice;
+        utterance.lang = this.selectedVoice.lang;
+      }
       utterance.pitch = activePitch;
       utterance.rate = activeRate;
+      utterance.volume = 1;
 
-      let boundaryFired = false;
-      utterance.onboundary = (e: any) => {
-        if (e.name === 'word') {
-          boundaryFired = true;
-          if (this.wordPacerTimer) {
-            clearInterval(this.wordPacerTimer);
-            this.wordPacerTimer = null;
-          }
-          const charIndex = e.charIndex;
-          const remaining = cleanText.substring(charIndex);
-          const match = remaining.match(/^(\S+)/);
-          const currentWord = match ? match[1].replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, '') : '';
-          const wordsBefore = cleanText.substring(0, charIndex).trim().split(/\s+/).filter(Boolean);
-          const wordIdx = wordsBefore.length;
-          this.currentActiveWord = currentWord;
-          this.currentWordIndex = wordIdx;
-          this.notifyWord(currentWord, wordIdx, words.length);
-          if (options?.onWord) {
-            options.onWord(currentWord, wordIdx, words.length);
-          }
+      let settled = false;
+      const finishSpeech = () => {
+        if (settled) return;
+        settled = true;
+        if (this.activeSpeechCancel === cancelSpeech) this.activeSpeechCancel = null;
+        if (generation === this.speechGeneration) {
+          this.isSpeechOutputActive = false;
+          this.stopVoiceAudioStream();
+          this.notifySpeech(false, '');
+          this.touchWakeActivity();
+          if (this.isMicActive && this.recognition) this.scheduleRecognitionRestart();
+          options?.onEnd?.();
         }
+        resolve();
+      };
+      const cancelSpeech = () => finishSpeech();
+      this.activeSpeechCancel = cancelSpeech;
+
+      utterance.onboundary = (event: any) => {
+        if (generation !== this.speechGeneration || settled) return;
+        if (event.name !== 'word' && !Number.isFinite(event.charIndex)) return;
+        const charIndex = Math.max(0, Number(event.charIndex) || 0);
+        const remaining = cleanText.substring(charIndex);
+        const match = remaining.match(/^(\S+)/);
+        const currentWord = match ? match[1].replace(/[.,\\/#!$%\\^&\\*;:{}=\\-_\`~()]/g, '') : '';
+        const wordsBefore = cleanText.substring(0, charIndex).trim().split(/\s+/).filter(Boolean);
+        const wordIndex = Math.min(words.length - 1, wordsBefore.length);
+        this.currentActiveWord = currentWord;
+        this.currentWordIndex = wordIndex;
+        this.notifyWord(currentWord, wordIndex, words.length);
+        options?.onWord?.(currentWord, wordIndex, words.length);
       };
 
       utterance.onstart = () => {
+        if (generation !== this.speechGeneration || settled) return;
+        this.isSpeechOutputActive = true;
+        if (this.recognition && this.isRecognizing) {
+          try { this.recognition.stop(); } catch {}
+        }
         this.startVoiceAudioStream(cleanText, activeTone, activeSentiment);
         this.notifySpeech(true, cleanText);
         this.notifySpeechLog(cleanText);
-        this.playTone(this.getCurrentProfile().carrierFreq || 528, 'sine', 150, 0.015);
-
-        // Fallback word pacer timer if onboundary is not supported by the synthesis engine
-        let stepIdx = 0;
-        const intervalMs = Math.max(120, Math.floor(360 / (activeRate || 1.0)));
-        this.wordPacerTimer = setInterval(() => {
-          if (!boundaryFired && this.isVoiceSpeaking && stepIdx < words.length) {
-            this.currentActiveWord = words[stepIdx] || '';
-            this.currentWordIndex = stepIdx;
-            this.notifyWord(this.currentActiveWord, stepIdx, words.length);
-            if (options?.onWord) {
-              options.onWord(this.currentActiveWord, stepIdx, words.length);
-            }
-            stepIdx++;
-          }
-        }, intervalMs);
+        if (words.length) {
+          this.currentActiveWord = words[0];
+          this.currentWordIndex = 0;
+          this.notifyWord(words[0], 0, words.length);
+          options?.onWord?.(words[0], 0, words.length);
+        }
       };
 
-      utterance.onend = () => {
-        this.stopVoiceAudioStream();
-        this.notifySpeech(false, '');
-        this.touchWakeActivity();
-        options?.onEnd?.();
-        resolve();
-      };
-
-      utterance.onerror = () => {
-        this.stopVoiceAudioStream();
-        this.notifySpeech(false, '');
-        options?.onEnd?.();
-        resolve();
-      };
+      utterance.onend = finishSpeech;
+      utterance.onerror = finishSpeech;
 
       try {
         window.speechSynthesis.speak(utterance);
       } catch {
-        this.stopVoiceAudioStream();
-        this.notifySpeech(false, '');
-        options?.onEnd?.();
-        resolve();
+        finishSpeech();
       }
     });
   }
 
   public stopSpeaking(): void {
+    const cancel = this.activeSpeechCancel;
+    this.activeSpeechCancel = null;
+    if (cancel) cancel();
+    this.speechGeneration += 1;
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       window.speechSynthesis.cancel();
     }
+    this.isSpeechOutputActive = false;
     this.stopVoiceAudioStream();
     this.notifySpeech(false, '');
+    if (this.isMicActive && this.recognition) this.scheduleRecognitionRestart();
   }
 
   public setVoiceEnabled(enabled: boolean): void {
@@ -1141,9 +1023,12 @@ export class AudioVoiceService {
     this.rate = Math.max(0.5, Math.min(2.0, rate));
     if (voiceName && typeof window !== 'undefined') {
       const voices = window.speechSynthesis.getVoices();
-      const match = voices.find((v) => v.name.toLowerCase().includes(voiceName.toLowerCase()));
-      if (match) this.selectedVoice = match;
+      const match = voices.find((v) => v.name === voiceName || v.voiceURI === voiceName);
+      if (match) this.setSystemVoice(match.voiceURI);
     }
+    try {
+      window.localStorage.setItem(AudioVoiceService.TUNING_STORAGE_KEY, JSON.stringify({ pitch: this.pitch, rate: this.rate }));
+    } catch {}
   }
 
   public onSpeechChange(cb: (speaking: boolean, text: string) => void): () => void {

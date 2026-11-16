@@ -724,13 +724,11 @@ export class BrowserControlService {
       results.midi = 'prompt-or-denied';
     }
 
-    // 6. Sovereign VFS & Root Operator Authorization
-    try {
-      voiceAuthGateService.unlockAllPaths(true);
-      results.sovereignMatrixAuth = 'unlocked:operator@sovereign';
-    } catch {
-      results.sovereignMatrixAuth = 'unlocked';
-    }
+    // 6. Sovereign VFS identity state. Diagnostics must never grant access.
+    const identityState = voiceAuthGateService.getStatus();
+    results.sovereignMatrixAuth = identityState.isAuthenticated
+      ? 'verified:firebase-google+cloudflare-access'
+      : 'locked:verified-google+cloudflare-access-required';
 
     // 7. Clipboard Write
     try {
@@ -903,11 +901,13 @@ export class BrowserControlService {
       },
       {
         category: 'SOVEREIGN GATEWAY',
-        title: 'Sovereign Matrix Operator Tier (Root VFS)',
-        status: 'optimal',
-        description: 'All 9 kernel editions, sensitive documentation paths (/docs/protected, /root/secret), and hot-swap sectors are fully unlocked for operator@sovereign.',
+        title: 'Cryptic Identity Gate (Protected VFS)',
+        status: voiceAuthGateService.isAuthorized() ? 'optimal' : 'recommended',
+        description: voiceAuthGateService.isAuthorized()
+          ? 'Verified Firebase Google identity and Cloudflare Access bridge session are active.'
+          : 'Protected documents remain locked until the existing Firebase Google identity and Cloudflare Access assertion are verified by Cryptic.',
         command: 'auth',
-        actionLabel: 'Inspect Auth',
+        actionLabel: 'Verify Identity',
       },
     ];
   }

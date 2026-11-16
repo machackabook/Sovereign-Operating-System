@@ -312,7 +312,7 @@ export const TerminalBorderWaveform: React.FC<TerminalBorderWaveformProps> = ({
               <span className="font-bold text-white text-[11px] tracking-wide flex items-center gap-1.5">
                 <span>AI VOICE RESPONSE STREAM</span>
                 <span className="px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 text-[9px] uppercase border border-cyan-400/40">
-                  {voiceDataState.profile} // {voiceDataState.carrierFreq}Hz
+                  {voiceDataState.profile} // {voiceDataState.samplesAvailable ? 'LIVE AUDIO' : 'DEVICE TTS STATE'}
                 </span>
               </span>
             </div>

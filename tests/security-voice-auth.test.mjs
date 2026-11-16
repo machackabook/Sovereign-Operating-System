@@ -36,10 +36,13 @@ test('Security Sanitizer: input taint scrubbing', () => {
   assert.equal(escapeHtml('<script>alert("xss")</script>'), '&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;');
 });
 
-test('Voice Auth Gate: voice match verification and document gating', () => {
+test('Voice Auth Gate: phrase challenge never substitutes for signed identity', () => {
   voiceAuthGateService.logoutUser();
   assert.equal(voiceAuthGateService.isAuthorized(), false);
   assert.equal(voiceAuthGateService.isProtectedDocument('/docs/architecture.md'), true);
+  assert.equal(voiceAuthGateService.isProtectedDocument('docs/private-notes.md'), true);
+  assert.equal(voiceAuthGateService.isProtectedDocument('/root/architecture.md'), true);
+  assert.equal(voiceAuthGateService.isProtectedDocument('/root/soul.md'), true);
   assert.equal(voiceAuthGateService.isProtectedDocument('/root/welcome.txt'), false);
 
   const failResult = voiceAuthGateService.verifyVoice('wrong passphrase');
@@ -48,15 +51,20 @@ test('Voice Auth Gate: voice match verification and document gating', () => {
 
   const passResult = voiceAuthGateService.verifyVoice('Please open sovereign matrix now');
   assert.equal(passResult.verified, true);
-  assert.equal(voiceAuthGateService.isAuthorized(), true);
+  assert.equal(voiceAuthGateService.isAuthorized(), false);
+  assert.equal(voiceAuthGateService.unlockAllPaths(true), false);
 
   const status = voiceAuthGateService.getStatus();
-  assert.equal(status.isAuthenticated, true);
+  assert.equal(status.isAuthenticated, false);
+  assert.equal(status.activationPhraseMatched, true);
   assert.equal(status.voiceMatched, true);
-  assert.ok(status.confidence > 0.9);
+  assert.equal(status.accessAssertionVerified, false);
+  assert.equal(status.confidence, null);
+  assert.equal(status.environmentalMatch, null);
 
   voiceAuthGateService.logoutUser();
   assert.equal(voiceAuthGateService.isAuthorized(), false);
+  assert.equal(voiceAuthGateService.getStatus().voiceMatched, false);
 });
 
 test('AudioVoiceService: Natch voice profile configuration', () => {

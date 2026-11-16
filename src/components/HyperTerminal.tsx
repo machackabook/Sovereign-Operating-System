@@ -49,6 +49,8 @@ import {
 } from '../types';
 import { vfs } from '../services/vfsService';
 import { audioVoiceService, parseWakeWord, WakeWordState } from '../services/audioVoiceService';
+import { mapSpeechToEvent } from '../services/speechCommandMapper';
+import { crypticMeshService } from '../services/crypticMeshService';
 import { ambientAudioService } from '../services/ambientAudioService';
 import { omniNexusService } from '../services/omniNexusService';
 import { exportQuineFile } from '../services/quineService';
@@ -133,7 +135,7 @@ const BUILTIN_COMMANDS = [
   'sparsebundle', 'sparse', 'prime', 'bun', 'uv', 'pip', 'state', 'dashboard', 'core', 'page', 'pages', 'systems', 'axs', 'mesh', 'scribe', 'memory', 'ghmount',
   'math', 'quadratic', 'bhttp', 'htmx', 'projectx', 'sphynx',
   'polyglot', 'workbench', 'ide', 'alphaqubit', 'harvester', 'quine',
-  'neurality', 'inspect', 'diagnostics', 'auth', 'login', 'logout', 'view', 'redirect',
+  'neurality', 'inspect', 'diagnostics', 'auth', 'login', 'logout', 'view', 'redirect', 'cryptic',
   'diff', 'aistudio', 'merge', 'consolidate', 'selfeval', 'osmosis', 'eval', 'push', 'commit',
   'lineage', 'cosmic', 'mail', 'pay', 'stripe', 'cashapp', 'aws', 'microsoft', 'identity', 'unmask',
   'personality', 'vfs-hotswap', 'sys-verify', 'quine-verify', 'quine-polyglot',
@@ -331,10 +333,10 @@ export const HyperTerminal: React.FC<HyperTerminalProps> = ({ envState, setEnvSt
           {
             id: 'init-1',
             type: 'system',
-            text: `⚡ GEMINI INTERACTIVE DUPLEX OS // ACTIVE LISTENING ENGAGED
-Female Neural Voice: 528Hz Solfeggio Carrier   Continuous Mic Duplex: ACTIVE
-Direct voice and typing naturally route to Gemini — no "gemini" wake word needed.
-Type 'help' to inspect command matrix, or speak / type naturally to converse.`,
+            text: `⚡ GAIA VOX // READY
+Microphone: OFF until you press the Mic control. Speech recognition requires browser permission.
+Voice output follows the exact terminal response text. Say "Nexus" or "Terminal" after enabling the mic.
+Type 'help' to inspect commands. Voice and text share the same response pipeline.`,
             timestamp: new Date().toLocaleTimeString(),
           },
         ],
@@ -533,77 +535,74 @@ Type 'help' to inspect command matrix, or speak / type naturally to converse.`,
 
   // Sync speech-to-command microphone transcripts with lightweight wake-word gating
   useEffect(() => {
-    const unsub = audioVoiceService.onTranscript((transcript, isFinal) => {
-      if (!transcript) return;
+    const processVoiceDirective = async (directive: string) => {
+      const clean = directive.trim();
+      if (!clean) return;
+      const lower = clean.toLowerCase();
 
+      if (lower.includes('open sovereign matrix')) {
+        const phraseResult = voiceAuthGateService.verifyVoice(clean);
+        if (phraseResult.verified) {
+          appendLine('[Voice Challenge]: Phrase recognized. Confirm your Google + Cloudflare Access identity in the verification panel.', 'system', '🛡️');
+          setIsVoiceAuthModalOpen(true);
+          return;
+        }
+      }
+
+      if (lower.includes('inspect') || lower.includes('diagnostics') || lower === 'open inspect') {
+        audioVoiceService.setVoiceProfile('natch');
+        setEnvState((prev) => ({ ...prev, voiceProfile: 'natch', currentSentiment: 'inspection' }));
+        neuralityEngine.setDomain('inspection');
+        setIsInspectModalOpen(true);
+        appendLine('[Voice Command]: Activating System Inspection with the selected device voice...', 'system', '🔍');
+        await audioVoiceService.speak('Opening system inspection. Available sensor readings will be reported without estimates.');
+        return;
+      }
+
+      const mappedEvent = mapSpeechToEvent(clean);
+      if (mappedEvent) {
+        appendLine('[Voice Command]: ' + clean, 'system', '🎙️');
+        window.dispatchEvent(new CustomEvent(mappedEvent));
+        return;
+      }
+
+      appendLine(`[Active Voice Directive]: "${clean}"`, 'speech', '🎙️');
+      await handleCommandSubmit(undefined, clean);
+    };
+
+    const unsub = audioVoiceService.onTranscript(async (transcript, isFinal) => {
+      if (!transcript) return;
       const wakeEnabled = audioVoiceService.isWakeWordEnabled();
       const currentWakeState = audioVoiceService.getWakeWordState();
       const parsed = parseWakeWord(transcript);
 
       if (wakeEnabled && currentWakeState === 'passive') {
-        // PASSIVE LISTENING: remains quiet until addressed by wake word ('Gemini' or 'Terminal')
-        if (parsed.hasWakeWord) {
-          const wakeWordName = (parsed.wakeWord || 'Gemini').toUpperCase();
-          audioVoiceService.activateWakeState(parsed.wakeWord);
-          audioVoiceService.playTone(1056, 'sine', 100);
+        if (!parsed.hasWakeWord) return;
+        const wakeWordName = (parsed.wakeWord || 'Nexus').toUpperCase();
+        audioVoiceService.activateWakeState(parsed.wakeWord);
+        audioVoiceService.playTone(1056, 'sine', 100);
 
-          if (parsed.isStandaloneWake) {
-            // User addressed the AI with standalone wake word: "Gemini" / "Terminal"
-            appendLine(`[⚡ Wake Word Triggered: ${wakeWordName}]: Active speech state engaged. Listening...`, 'speech', '⚡');
-            audioVoiceService.speak('Yes? I am listening.');
-            setInputVal('');
-          } else if (isFinal) {
-            // User addressed with full directive: "Gemini, <directive>"
-            appendLine(`[⚡ Wake Word Triggered: ${wakeWordName}]: "${parsed.remainder}"`, 'speech', '⚡');
-            setInputVal(parsed.remainder);
-            handleCommandSubmit(undefined, parsed.remainder);
-          } else {
-            // Interim speech while addressing
-            setInputVal(parsed.remainder);
-          }
+        if (parsed.isStandaloneWake) {
+          appendLine(`[⚡ Wake Word Triggered: ${wakeWordName}]: Active speech state engaged. Listening...`, 'speech', '⚡');
+          await audioVoiceService.speak('Yes? I am listening.');
+          setInputVal('');
+        } else if (isFinal) {
+          appendLine(`[⚡ Wake Word Triggered: ${wakeWordName}]: "${parsed.remainder}"`, 'speech', '⚡');
+          setInputVal(parsed.remainder);
+          await processVoiceDirective(parsed.remainder);
         } else {
-          // Passive state: silently ignore ambient background chatter without executing
+          setInputVal(parsed.remainder);
         }
-      } else {
-        // ACTIVE SPEECH STATE (or wake-word gating disabled)
-        if (wakeEnabled) {
-          audioVoiceService.touchWakeActivity();
-        }
+        return;
+      }
 
-        const cleanTranscript = parsed.hasWakeWord ? (parsed.remainder || parsed.wakeWord || transcript) : transcript;
-        setInputVal(cleanTranscript);
-
-        if (isFinal && cleanTranscript.trim()) {
-          const lower = cleanTranscript.trim().toLowerCase();
-          if (lower.includes('open sovereign matrix') || lower === 'authenticate' || lower === 'login') {
-            const authRes = voiceAuthGateService.verifyVoice(cleanTranscript.trim());
-            if (authRes.verified) {
-              appendLine(`[Voice Auth]: ${authRes.message} (Confidence: ${Math.round(authRes.score * 100)}%)`, 'success', '🛡️');
-              if (pendingDocPath) {
-                try {
-                  const content = vfs.readFile(activeInstance.cwd, pendingDocPath);
-                  appendLine(`[Protected Document: ${pendingDocPath}]\n${content}`, 'output');
-                } catch (e: any) {
-                  appendLine(`Error reading ${pendingDocPath}: ${e.message}`, 'error');
-                }
-                setPendingDocPath(null);
-              }
-              return;
-            }
-          }
-          if (lower.includes('inspect') || lower.includes('diagnostics') || lower === 'open inspect') {
-            audioVoiceService.setVoiceProfile('natch');
-            setEnvState((prev) => ({ ...prev, voiceProfile: 'natch', currentSentiment: 'inspection' }));
-            neuralityEngine.setDomain('inspection');
-            setIsInspectModalOpen(true);
-            appendLine('[Voice Command]: Activating System Inspection with Natch voice profile...', 'system', '🔍');
-            audioVoiceService.speak('Voice profile Natch confirmed. Opening system diagnostic telemetry.');
-            return;
-          }
-
-          appendLine(`[Active Voice Directive]: "${cleanTranscript.trim()}"`, 'speech', '🎙️');
-          handleCommandSubmit(undefined, cleanTranscript.trim());
-        }
+      if (wakeEnabled) audioVoiceService.touchWakeActivity();
+      const cleanTranscript = parsed.hasWakeWord
+        ? (parsed.remainder || parsed.wakeWord || transcript)
+        : transcript;
+      setInputVal(cleanTranscript);
+      if (isFinal && cleanTranscript.trim()) {
+        await processVoiceDirective(cleanTranscript);
       }
     });
     return unsub;
@@ -658,30 +657,8 @@ Type 'help' to inspect command matrix, or speak / type naturally to converse.`,
     ambientAudioService.updateSentiment(envState.sentiment);
   }, [envState.sentiment]);
 
-  // Auto-start Gemini Interactive listening on session load (always-listening duplex)
-  useEffect(() => {
-    let mounted = true;
-    const startInteractiveListening = async () => {
-      try {
-        const ok = await audioVoiceService.startMicrophone();
-        if (mounted && ok) {
-          setIsMicListening(true);
-          audioVoiceService.playEarcon('stream');
-          setTimeout(() => {
-            if (mounted) {
-              audioVoiceService.speak('Gemini Interactive online. I am listening.');
-            }
-          }, 850);
-        }
-      } catch {
-        // Handled gracefully in audioVoiceService
-      }
-    };
-    startInteractiveListening();
-    return () => {
-      mounted = false;
-    };
-  }, []);
+  // Microphone access is user-initiated only. Browser permission prompts must follow
+  // an explicit Mic control action; mounting the terminal never opens the microphone.
 
   // Toggle microphone input handler
   const handleToggleMic = async () => {
@@ -794,7 +771,7 @@ Type 'help' to inspect command matrix, or speak / type naturally to converse.`,
       const targetPath = firstArgs[0] || '';
       const normPath = vfs.normalizePath(activeInstance.cwd, targetPath);
       if (voiceAuthGateService.isProtectedDocument(normPath) && !voiceAuthGateService.isAuthorized()) {
-        appendLine(`[ACCESS RESTRICTED]: Document "${normPath}" requires voice match authentication. Say "open sovereign matrix" or type 'auth' / 'login'.`, 'error', '🔒');
+        appendLine(`[ACCESS RESTRICTED]: Document "${normPath}" requires verified Google + Cloudflare Access identity. Say "open sovereign matrix" or type 'auth' / 'login'.`, 'error', '🔒');
         setPendingDocPath(normPath);
         setIsVoiceAuthModalOpen(true);
         return;
@@ -983,10 +960,10 @@ Type 'help' to inspect command matrix, or speak / type naturally to converse.`,
             String(r.source_ref).slice(0,180)+'\n'+r.snippet.slice(0,540)).join('\n\n');
       }
       const context=[engramsMarkdown,sourceContext].filter(Boolean).join('\n\n').slice(0,5500);
-      let pending='',received=0;
+      let pending='',completeResponse='',received=0;
       const final=await quineMeshService.localAIStream(trimmed,(event:any)=>{
         if(event.type==='delta'){
-          pending+=event.text;received+=event.text.length;
+          pending+=event.text;completeResponse+=event.text;received+=event.text.length;
           if(pending.length>=140||pending.includes('\n')){
             appendLine(pending,'ai');pending='';
           }
@@ -998,8 +975,8 @@ Type 'help' to inspect command matrix, or speak / type naturally to converse.`,
         ' · tokens evaluated='+String(final?.eval_count??'not reported')+
         ' · cloud API requests: 0', 'system');
       if (envState.voiceActive) {
-        const textToSpeak = final?.response || pending || trimmed;
-        audioVoiceService.speak(textToSpeak, {
+        const textToSpeak = completeResponse.trim();
+        if (textToSpeak) audioVoiceService.speak(textToSpeak, {
           onWord: (word) => setEnvState((prev) => ({ ...prev, activeSpeechWord: word })),
         });
       }
@@ -1111,13 +1088,13 @@ Type 'help' to inspect command matrix, or speak / type naturally to converse.`,
         },
       }));
 
-      // Render formatted response in terminal
-      appendLine(data.reply || 'Response received.', 'ai', data.floatingGlyph || '✨');
+      // One canonical response drives terminal text, captions, and speech.
+      // This prevents data.reply and data.speechText from diverging across channels.
+      const responseText = String(data.reply || data.speechText || 'Response received.').trim();
+      appendLine(responseText, 'ai', data.floatingGlyph || '✨');
 
-      // Trigger AI voice response & project floating speech into 3D visual using synthesized profile
-      if (data.speechText && envState.voiceActive) {
-        appendLine(`[AI Voice Projected into Visual]: "${data.speechText}"`, 'speech');
-        audioVoiceService.speak(data.speechText, {
+      if (envState.voiceActive && responseText) {
+        audioVoiceService.speak(responseText, {
           profile: data.voiceProfile,
           tone: data.speechTone,
           sentiment: data.sentiment,
@@ -1211,6 +1188,39 @@ Type 'help' to inspect command matrix, or speak / type naturally to converse.`,
         }
         break;
       }
+      case 'cryptic': {
+        const op = (args[0] || 'status').toLowerCase();
+        try {
+          if (op === 'connect') {
+            const result = await crypticMeshService.connect();
+            appendLine(JSON.stringify({ service: 'Cryptic Mesh', ...result }, null, 2), 'success', '🔐');
+          } else if (op === 'health') {
+            const result = await crypticMeshService.health();
+            appendLine(JSON.stringify(result, null, 2), 'success', '🛡️');
+          } else if (op === 'status') {
+            appendLine(JSON.stringify(await crypticMeshService.status(), null, 2), 'output');
+          } else if (op === 'dispatch') {
+            const action = args[1];
+            if (!action) {
+              appendLine('Usage: cryptic dispatch <nexus.health|nexus.echo|sos.mesh.status>', 'system');
+              break;
+            }
+            const result = await crypticMeshService.dispatch(action, {});
+            appendLine(JSON.stringify(result, null, 2), 'success');
+            appendLine('Accepted by Cryptic. Queued does not mean the private NEXUS agent has completed the job.', 'system');
+          } else if (op === 'jobs') {
+            appendLine(JSON.stringify(await crypticMeshService.jobs(), null, 2), 'output');
+          } else if (op === 'revoke') {
+            appendLine(JSON.stringify(await crypticMeshService.revoke(), null, 2), 'system');
+          } else {
+            appendLine('cryptic health | connect | status | dispatch <allowlisted-action> | jobs | revoke', 'system');
+          }
+        } catch (error: any) {
+          appendLine('Cryptic Mesh: ' + String(error?.message || error), 'error', '🔒');
+        }
+        break;
+      }
+
       case 'mesh': {
         const op=(args[0]||'status').toLowerCase();
         if(op==='status'){appendLine(JSON.stringify(quineMeshService.status(),null,2),'output');}
@@ -1313,6 +1323,14 @@ Type 'help' to inspect command matrix, or speak / type naturally to converse.`,
   find <query>           : Search files and directory nodes
   grep <pattern> <file>  : Search text inside file or all VFS
   vfs export | reset     : Export VFS to JSON or reset to defaults
+
+[CRYPTIC IDENTITY-GATED MESH]
+  cryptic health           : Probe same-origin Access-protected portal to the real Cryptic gateway
+  cryptic connect          : Exchange existing Firebase Google + Cloudflare Access identities
+  cryptic status           : Read authenticated gateway status and queue counts
+  cryptic dispatch <action>: Queue one explicitly allowlisted NEXUS action
+  cryptic jobs             : Read this identity's actual job receipts
+  cryptic revoke           : Revoke the in-memory Cryptic bridge token
 
 [QUINE LOCALHOST MESH / PRIVATE SCRIBE]
   mesh connect             : Pair read-only localhost bridge via secure separate prompt
@@ -1470,9 +1488,9 @@ Type 'help' to inspect command matrix, or speak / type naturally to converse.`,
       case 'whoami': {
         const auth = voiceAuthGateService.getStatus();
         if (auth.isAuthenticated) {
-          appendLine(`Authenticated User: ${auth.username} (Voice Matched: ${auth.voiceMatched ? 'Verified' : 'Pending'}, Profile: ${auth.activeVoiceProfile}, Confidence: ${Math.round(auth.confidence * 100)}%)`, 'success', '👤');
+          appendLine(`Authenticated User: ${auth.username} (Firebase Google + Cloudflare Access verified; Profile: ${auth.activeVoiceProfile})`, 'success', '👤');
         } else {
-          appendLine('root (Guest / Unauthenticated). Type "auth" or "login" or speak "open sovereign matrix" to authenticate.', 'warn', '👤');
+          appendLine('Guest / Unverified. Protected paths remain locked. Type "auth" to verify the existing Google + Cloudflare Access session.', 'warn', '👤');
         }
         break;
       }
@@ -1499,17 +1517,17 @@ Type 'help' to inspect command matrix, or speak / type naturally to converse.`,
       case 'login': {
         if (voiceAuthGateService.isAuthorized()) {
           const auth = voiceAuthGateService.getStatus();
-          appendLine(`Already authenticated as ${auth.username}. Voice Match Active.`, 'success', '🛡️');
+          appendLine(`Already verified as ${auth.username} through Firebase Google + Cloudflare Access.`, 'success', '🔐');
         } else {
           setIsVoiceAuthModalOpen(true);
-          appendLine('Opening Voice Authentication Gate... Speak "open sovereign matrix" or click bypass.', 'system', '🎙️');
+          appendLine('Opening identity verification. The optional voice phrase is not an authentication factor.', 'system', '🔐');
         }
         break;
       }
 
       case 'logout': {
         voiceAuthGateService.logoutUser();
-        appendLine('Voice session terminated. Logged out to guest mode.', 'system', '🔒');
+        appendLine('Cryptic bridge session revoked. Protected paths are locked.', 'system', '🔒');
         break;
       }
 
@@ -1621,9 +1639,9 @@ Type 'help' to inspect command matrix, or speak / type naturally to converse.`,
         if (voiceAuthGateService.isProtectedDocument(filePath) && !voiceAuthGateService.isAuthorized()) {
           setPendingDocPath(filePath);
           setIsVoiceAuthModalOpen(true);
-          appendLine(`[ACCESS RESTRICTED]: Document "${filePath}" requires voice match authentication.`, 'warn', '🔒');
-          appendLine('Prompt: Say "open sovereign matrix" or click verify in the voice authentication dialog.', 'system');
-          audioVoiceService.speak('Access restricted. Voice authentication required to access sovereign documentation.', { profile: 'natch' });
+          appendLine(`[ACCESS RESTRICTED]: Document "${filePath}" requires verified Firebase Google + Cloudflare Access identity.`, 'warn', '🔒');
+          appendLine('Prompt: Verify the existing Google sign-in and Cloudflare Access session. The spoken phrase only opens this panel.', 'system');
+          audioVoiceService.speak('Access restricted. Verify your Google identity and Cloudflare Access session to access protected documentation.', { profile: 'natch' });
           break;
         }
         try {
@@ -1647,8 +1665,8 @@ Type 'help' to inspect command matrix, or speak / type naturally to converse.`,
         if (voiceAuthGateService.isProtectedDocument(filePath) && !voiceAuthGateService.isAuthorized()) {
           setPendingDocPath(filePath);
           setIsVoiceAuthModalOpen(true);
-          appendLine(`[ACCESS RESTRICTED]: Editing "${filePath}" requires voice match authentication.`, 'warn', '🔒');
-          audioVoiceService.speak('Access restricted. Voice authentication required.', { profile: 'natch' });
+          appendLine(`[ACCESS RESTRICTED]: Editing "${filePath}" requires verified Firebase Google + Cloudflare Access identity.`, 'warn', '🔒');
+          audioVoiceService.speak('Access restricted. Verify your Google identity and Cloudflare Access session.', { profile: 'natch' });
           break;
         }
         let existingContent = '';
@@ -1795,10 +1813,14 @@ Duration: ${res.durationMs}ms | Cycles: ${res.cyclesCompleted}`, 'success', '✨
       }
 
       case 'unlock': {
-        voiceAuthGateService.unlockAllPaths(true);
-        audioVoiceService.playTone(880, 'sine', 150);
-        appendLine('🔓 ALL PATHS UNLOCKED. Gating deactivated across all sovereign documentation & endpoints.', 'success', '🛡️');
-        audioVoiceService.speak('All paths unlocked. Sovereign documentation access unrestricted.');
+        const result = await voiceAuthGateService.verifyIdentity();
+        if (result.verified) {
+          appendLine('[IDENTITY VERIFIED] Protected paths are available for this authenticated session.', 'success', '🔐');
+          audioVoiceService.speak('Identity verified. Protected paths are available.');
+        } else {
+          appendLine('[IDENTITY REQUIRED] ' + result.message, 'warning', '🔒');
+          setIsVoiceAuthModalOpen(true);
+        }
         break;
       }
 
@@ -2034,7 +2056,7 @@ Duration: ${res.durationMs}ms | Cycles: ${res.cyclesCompleted}`, 'success', '✨
                 voicePitch: p.pitch,
                 voiceRate: p.rate,
               }));
-              appendLine(`Voice Profile switched to [${p.name.toUpperCase()}] (${p.carrierFreq} Hz): ${p.description}`, 'success', '🎙️');
+              appendLine(`Voice Profile switched to [${p.name.toUpperCase()}] (pitch ${p.pitch.toFixed(2)} · rate ${p.rate.toFixed(2)}): ${p.description}`, 'success', '🎙️');
             } else {
               const available = audioVoiceService.getVoiceProfiles().map((vp) => vp.id).join(', ');
               appendLine(`Unknown profile '${args[1]}'. Available: ${available}`, 'error');
@@ -2059,11 +2081,11 @@ Duration: ${res.durationMs}ms | Cycles: ${res.cyclesCompleted}`, 'success', '✨
           setEnvState((prev) => ({ ...prev, voicePitch: pitch, voiceRate: rate }));
           appendLine(`Voice tuned: Pitch=${pitch}, Rate=${rate}x`, 'success');
         } else if (sub === 'test') {
-          const testMsg = 'Sovereign Neural Core vocalizing. Real-time audio waveform active across terminal overlay and pulsing into the 3D void horizon.';
-          appendLine(`[AI Voice Waveform Test]: "${testMsg}"`, 'speech', '🎙️');
+          const testMsg = 'Sovereign Neural Core voice test. Device speech output is active; word highlighting follows real browser speech-boundary events when supported.';
+          appendLine(`[AI Voice Test]: "${testMsg}"`, 'speech', '🎙️');
           audioVoiceService.speak(testMsg);
         } else if (sub === 'speak') {
-          const phrase = args.slice(1).join(' ').trim() || 'Neural audio waveform online.';
+          const phrase = args.slice(1).join(' ').trim() || 'Device speech output is ready.';
           appendLine(`[Speaking]: "${phrase}"`, 'speech', '🎙️');
           audioVoiceService.speak(phrase);
         } else if (sub === 'stop' || sub === 'mute') {
@@ -3286,9 +3308,9 @@ WebUSB (ADB)       : ${results.webUsb} (Pair via 'adb devices' or 'perm gui')
 Web Bluetooth      : ${results.webBluetooth} (Scan via 'perm gui')
 Web Serial (SDR)   : ${results.webSerial} (Open via 'perm gui')
 WebHID Controller  : ${results.webHid} (Pair via 'perm gui')
-Sovereign VFS Auth : ${results.sovereignMatrixAuth} [OPERATOR ROOT ACCESS UNRESTRICTED]
+Sovereign VFS Auth : ${voiceAuthGateService.isAuthorized() ? 'VERIFIED' : 'LOCKED'}
 
-All 9 kernel editions and protected paths (/docs/protected, /root/secret) are fully accessible.
+Protected paths remain locked unless the short-lived Firebase Google + Cloudflare Access session is verified.
 Type 'perm recommendations' to view optimal browser flags and PWA standalone configuration.`, 'success', '⚡');
           break;
         }
@@ -3328,7 +3350,7 @@ WebUSB Support     : [${t.permissions.usb.toUpperCase()}]
 Web Bluetooth BLE  : [${t.permissions.bluetooth.toUpperCase()}]
 Web Serial RTL-SDR : [${t.permissions.serial.toUpperCase()}]
 WebHID Peripherals : [${t.permissions.hid.toUpperCase()}]
-Sovereign Auth     : [OPERATOR ROOT: 100% UNLOCKED]
+Sovereign Auth     : [${voiceAuthGateService.isAuthorized() ? 'VERIFIED' : 'LOCKED'}]
 
 Hardware Cores     : ${t.hardware.logicalCores} Logical CPU Threads
 Display Canvas     : ${t.screen.width}x${t.screen.height} (${t.screen.orientation})
@@ -5792,15 +5814,15 @@ Last Compacted    : ${new Date(tel.lastCompactedAt).toLocaleTimeString()}`, 'tab
               {/* Voice Test Waveform Trigger */}
               <button
                 onClick={() => {
-                  const testMsg = 'Sovereign Neural Core online. Real-time audio waveform active across terminal overlay and 3D void horizon.';
-                  appendLine(`[AI Voice Waveform Test]: "${testMsg}"`, 'speech', '🎙️');
+                  const testMsg = 'Sovereign Neural Core voice test. Device speech output is active; raw TTS waveform samples are not exposed by the browser.';
+                  appendLine(`[AI Device Voice Test]: "${testMsg}"`, 'speech', '🎙️');
                   audioVoiceService.speak(testMsg);
                 }}
                 className="px-2 py-0.5 rounded bg-cyan-500/20 hover:bg-cyan-500/35 text-cyan-300 border border-cyan-400/50 text-[10px] font-bold transition cursor-pointer flex items-center gap-1 shadow-[0_0_10px_rgba(0,242,255,0.25)]"
-                title="Test AI Voice Response & Real-Time Waveform Overlay in 3D Void"
+                title="Test native device speech output and speech-state synchronization"
               >
                 <Sparkles className="w-3 h-3 text-cyan-400" />
-                <span>TEST WAVEFORM</span>
+                <span>TEST VOICE</span>
               </button>
 
               {/* Command History */}
@@ -6116,8 +6138,8 @@ Last Compacted    : ${new Date(tel.lastCompactedAt).toLocaleTimeString()}`, 'tab
                 }`}
                 title={
                   voiceAuthStatus.isAuthenticated
-                    ? `Logged in: ${voiceAuthStatus.username} (Voice Matched)`
-                    : 'Unauthenticated. Click or speak "open sovereign matrix" to unlock protected docs.'
+                    ? `Verified: ${voiceAuthStatus.username} (Firebase Google + Cloudflare Access)`
+                    : 'Unverified. Click or speak "open sovereign matrix" to open identity verification; the phrase is not an authentication factor.'
                 }
               >
                 {voiceAuthStatus.isAuthenticated ? (
@@ -6133,11 +6155,11 @@ Last Compacted    : ${new Date(tel.lastCompactedAt).toLocaleTimeString()}`, 'tab
                 type="button"
                 onClick={() => setIsVoiceModalOpen(true)}
                 className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-black/60 border border-purple-500/40 text-[10px] text-purple-300 font-mono hover:border-purple-400 transition cursor-pointer"
-                title="Active Female Neural Voice Profile (528Hz Solfeggio carrier). Click to customize."
+                title="Active device speech voice profile using an installed system voice. Click to customize."
               >
                 <Radio className="w-3 h-3 text-purple-400 animate-pulse" />
                 <span>
-                  VOICE: {envState.voiceProfile === 'gemini_female' ? 'GEMINI ♀ 528Hz' : envState.voiceProfile.toUpperCase()}
+                  VOICE: {envState.voiceProfile === 'gemini_female' ? 'GEMINI DEVICE' : envState.voiceProfile.toUpperCase()}
                 </span>
               </button>
 
@@ -6523,7 +6545,7 @@ Last Compacted    : ${new Date(tel.lastCompactedAt).toLocaleTimeString()}`, 'tab
         onClose={() => setIsVoiceAuthModalOpen(false)}
         onSuccess={() => {
           setIsVoiceAuthModalOpen(false);
-          appendLine('Voice authentication verified. Protected documents unlocked.', 'success', '🛡️');
+          appendLine('Google identity and Cloudflare Access verified. Protected document access granted for this session.', 'success', '🔐');
           if (pendingDocPath) {
             try {
               const content = vfs.readFile(activeInstance.cwd, pendingDocPath);
