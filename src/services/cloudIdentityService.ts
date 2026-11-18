@@ -70,10 +70,12 @@ class CloudIdentityService {
 
   public async getAwsCallerIdentity(): Promise<AwsIdentitySession> {
     try {
-      const res = await fetch('/api/identity/aws/caller-identity');
-      if (res.ok) {
-        const data = await res.json();
-        this.currentAwsSession = { ...this.currentAwsSession, ...data };
+      if (typeof window !== 'undefined') {
+        const res = await fetch('/api/identity/aws/caller-identity');
+        if (res.ok) {
+          const data = await res.json();
+          this.currentAwsSession = { ...this.currentAwsSession, ...data };
+        }
       }
     } catch (err) {
       console.warn('[CloudIdentityService] AWS backend check notice:', err);
@@ -83,10 +85,12 @@ class CloudIdentityService {
 
   public async getMicrosoftProfile(): Promise<MicrosoftGraphProfile> {
     try {
-      const res = await fetch('/api/identity/microsoft/profile');
-      if (res.ok) {
-        const data = await res.json();
-        this.currentMicrosoftProfile = { ...this.currentMicrosoftProfile, ...data };
+      if (typeof window !== 'undefined') {
+        const res = await fetch('/api/identity/microsoft/profile');
+        if (res.ok) {
+          const data = await res.json();
+          this.currentMicrosoftProfile = { ...this.currentMicrosoftProfile, ...data };
+        }
       }
     } catch (err) {
       console.warn('[CloudIdentityService] Microsoft backend check notice:', err);

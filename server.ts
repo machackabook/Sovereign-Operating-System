@@ -8,6 +8,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { WebSocketServer } from 'ws';
+import http from 'http';
 import { Client as SSHClient } from 'ssh2';
 import SMB2 from 'smb2';
 
@@ -1618,12 +1619,19 @@ Provide an authoritative, high-density response synthesizing model weights, medi
     });
   });
 
+  const server = http.createServer(app);
+
   // Serve static assets or mount Vite in development
   if (!isProduction) {
     const vite = await createViteServer({
       server: {
         middlewareMode: true,
         hmr: false,
+        ws: {
+          server,
+          path: '/__vite_hmr',
+        },
+        allowedHosts: true,
       },
       appType: 'spa',
     });
@@ -1650,7 +1658,7 @@ Provide an authoritative, high-density response synthesizing model weights, medi
     });
   });
 
-  const server = app.listen(PORT, '0.0.0.0', () => {
+  server.listen(PORT, '0.0.0.0', () => {
     console.log(`[HyperTerminal Server] running on http://0.0.0.0:${PORT}`);
     console.log('[ABDA Pipeline] Container spin-up validation PASSED 100%. All pre-flight & runtime matrices verified.');
   });
@@ -1659,6 +1667,11 @@ Provide an authoritative, high-density response synthesizing model weights, medi
   const devClientWss = new WebSocketServer({ noServer: true });
   server.on('upgrade', (request, socket, head) => {
     const { pathname } = new URL(request.url || '', `http://${request.headers.host}`);
+    const protocol = request.headers['sec-websocket-protocol'];
+    if (pathname === '/__vite_hmr' || protocol === 'vite-hmr' || protocol === 'vite-ping') {
+      // Handled by Vite's bound WebSocketServer on the shared HTTP server
+      return;
+    }
     if (pathname === '/live') {
       wss.handleUpgrade(request, socket, head, (ws) => {
         wss.emit('connection', ws, request);
@@ -1668,7 +1681,7 @@ Provide an authoritative, high-density response synthesizing model weights, medi
         sshWss.emit('connection', ws, request);
       });
     } else {
-      // Dev proxy, Vite client probe, or external WebSocket checks: accept and manage cleanly
+      // Dev proxy or external WebSocket checks: accept and manage cleanly
       devClientWss.handleUpgrade(request, socket, head, (ws) => {
         ws.on('error', () => {});
       });

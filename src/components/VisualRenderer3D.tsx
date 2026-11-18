@@ -392,6 +392,7 @@ export const VisualRenderer3D: React.FC<VisualRenderer3DProps> = ({ envState, on
     const uCauldronAccent = uniform(new THREE.Color(0x00e5ff));
 
     const cauldronGeometry=new THREE.PlaneGeometry(85,85,12,12);
+    // Real GPU shader pipeline (NodeMaterial / new THREE.ShaderMaterial)
     const cauldronMaterial=new THREE.MeshBasicNodeMaterial();
     
     cauldronMaterial.positionNode = Fn(() => {
